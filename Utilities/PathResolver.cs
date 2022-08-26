@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -150,7 +151,7 @@ public static class PathResolver
     public static string? GetServiceDirectory(string serviceName)
     {
         var unitFile = FindServiceUnitFile(serviceName);
-        return unitFile != null ? Path.GetDirectoryName(unitFile) : null;
+        return unitFile is not null ? Path.GetDirectoryName(unitFile) : null;
     }
 
     /// <summary>
@@ -160,7 +161,7 @@ public static class PathResolver
     {
         var unitFile = FindServiceUnitFile(serviceName);
 
-        if (unitFile == null)
+        if (unitFile is null)
             return ServiceScope.Unknown;
 
         // Check if it's in a user-specific directory
