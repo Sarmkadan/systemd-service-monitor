@@ -62,7 +62,7 @@ public class LogRepository : ILogRepository
         }
     }
 
-    public async Task<IEnumerable<ServiceLog>> GetByLevelAsync(LogLevel level, CancellationToken ct = default)
+    public async Task<IEnumerable<ServiceLog>> GetByLevelAsync(SyslogLevel level, CancellationToken ct = default)
     {
         await _lock.WaitAsync(ct);
         try

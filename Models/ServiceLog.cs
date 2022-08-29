@@ -25,7 +25,7 @@ public class ServiceLog
     /// <summary>
     /// Severity level of the log entry (Debug, Info, Warning, Error, Critical).
     /// </summary>
-    public LogLevel Level { get; set; } = LogLevel.Info;
+    public SyslogLevel Level { get; set; } = SyslogLevel.Info;
 
     /// <summary>
     /// The actual log message content.
@@ -98,7 +98,7 @@ public class ServiceLog
 /// <summary>
 /// Log severity levels following syslog standards.
 /// </summary>
-public enum LogLevel
+public enum SyslogLevel
 {
     Emergency = 0,
     Alert = 1,

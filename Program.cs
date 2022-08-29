@@ -8,7 +8,7 @@ using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Data.Repositories;
 using SystemdServiceMonitor.Services;
 
-var builder = WebApplicationBuilder.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 // Configure logging with Serilog
 Log.Logger = new LoggerConfiguration()

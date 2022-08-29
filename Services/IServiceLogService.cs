@@ -25,7 +25,7 @@ public interface IServiceLogService
     /// <summary>
     /// Retrieves logs by severity level.
     /// </summary>
-    Task<IEnumerable<ServiceLog>> GetLogsByLevelAsync(string unitName, LogLevel level, CancellationToken ct = default);
+    Task<IEnumerable<ServiceLog>> GetLogsByLevelAsync(string unitName, SyslogLevel level, CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves logs matching a search term.

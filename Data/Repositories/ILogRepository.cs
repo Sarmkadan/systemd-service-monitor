@@ -15,7 +15,7 @@ public interface ILogRepository
     Task<ServiceLog?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<IEnumerable<ServiceLog>> GetByUnitNameAsync(string unitName, int limit = 100, CancellationToken ct = default);
     Task<IEnumerable<ServiceLog>> GetByServiceIdAsync(Guid serviceId, int limit = 100, CancellationToken ct = default);
-    Task<IEnumerable<ServiceLog>> GetByLevelAsync(LogLevel level, CancellationToken ct = default);
+    Task<IEnumerable<ServiceLog>> GetByLevelAsync(SyslogLevel level, CancellationToken ct = default);
     Task<IEnumerable<ServiceLog>> GetRecentAsync(TimeSpan timeRange, CancellationToken ct = default);
     Task<IEnumerable<ServiceLog>> GetByProcessIdAsync(int processId, CancellationToken ct = default);
     Task<ServiceLog> CreateAsync(ServiceLog log, CancellationToken ct = default);
