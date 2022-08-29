@@ -6,6 +6,9 @@
 using Serilog;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Data.Repositories;
+using SystemdServiceMonitor.Extensions;
+using SystemdServiceMonitor.Filters;
+using SystemdServiceMonitor.Middleware;
 using SystemdServiceMonitor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +29,7 @@ var dbOptions = builder.Configuration.GetSection("Database").Get<DatabaseOptions
 builder.Services.AddSingleton(systemdOptions);
 builder.Services.AddSingleton(dbOptions);
 
-// Register services
+// Register core services
 builder.Services.AddScoped<ISystemdConnectionService, SystemdConnectionService>();
 builder.Services.AddScoped<IServiceMonitorService, ServiceMonitorService>();
 builder.Services.AddScoped<IServiceLogService, ServiceLogService>();
@@ -38,9 +41,30 @@ builder.Services.AddSingleton<IServiceRepository, ServiceRepository>();
 builder.Services.AddSingleton<ILogRepository, LogRepository>();
 builder.Services.AddSingleton<IMetricRepository, MetricRepository>();
 
-builder.Services.AddControllers();
+// Register application services from extensions
+builder.Services.AddApplicationServices();
+builder.Services.AddEventBus();
+builder.Services.AddBackgroundServices();
+
+// Configure caching
+builder.Services.Configure<SystemdServiceMonitor.Caching.CacheOptions>(options =>
+{
+    options.DefaultTtlSeconds = 300;
+    options.MaxSizeMb = 100;
+});
+
+builder.Services.AddControllers(options =>
+{
+    // Add global filters
+    options.Filters.Add<ApiExceptionFilter>();
+    options.Filters.Add<ValidateModelFilter>();
+})
+.AddJsonOptions();
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddApiDocumentation();
+builder.Services.AddResponseCaching();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -53,15 +77,26 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Use application middleware
+app.UseApplicationMiddleware(app.Environment);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "systemd-service-monitor API v1");
+        c.RoutePrefix = string.Empty;
+    });
 }
 
 app.UseCors("AllowAll");
+app.UseResponseCaching();
 app.UseAuthorization();
 app.MapControllers();
+
+// Map health check endpoint
+app.MapHealthChecks("/health");
 
 try
 {
