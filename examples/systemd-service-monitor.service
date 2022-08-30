@@ -1,0 +1,59 @@
+[Unit]
+Description=systemd Service Monitor - ASP.NET Web Dashboard for systemd Service Management
+Documentation=https://github.com/Sarmkadan/systemd-service-monitor
+After=network.target dbus.service
+Wants=dbus.service
+Requires=dbus.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/systemd-service-monitor
+ExecStart=/opt/systemd-service-monitor/systemd-service-monitor
+
+# Restart behavior - critical service, restart on failure
+Restart=always
+RestartSec=10s
+StartLimitInterval=600s
+StartLimitBurst=3
+
+# Kill behavior
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Logging to systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=systemd-monitor
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+# Allow D-Bus access
+ReadWritePaths=/run/dbus /var/log/journal
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+CPUQuota=80%
+TasksMax=512
+
+# Process monitoring
+StartLimitIntervalSec=60
+
+[Install]
+WantedBy=multi-user.target
