@@ -45,6 +45,7 @@ builder.Services.AddSingleton<IMetricRepository, MetricRepository>();
 builder.Services.AddApplicationServices();
 builder.Services.AddEventBus();
 builder.Services.AddBackgroundServices();
+builder.Services.AddLogStreaming();
 
 // Configure caching
 builder.Services.Configure<SystemdServiceMonitor.Caching.CacheOptions>(options =>
@@ -94,6 +95,7 @@ app.UseCors("AllowAll");
 app.UseResponseCaching();
 app.UseAuthorization();
 app.MapControllers();
+app.MapLogStreamEndpoints();
 
 // Map health check endpoint
 app.MapHealthChecks("/health");
