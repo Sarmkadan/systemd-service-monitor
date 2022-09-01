@@ -7,10 +7,22 @@
     <RootNamespace>SystemdServiceMonitor</RootNamespace>
     <AssemblyName>systemd-service-monitor</AssemblyName>
     <LangVersion>latest</LangVersion>
+    <PackageId>Zaiets.systemd.service.monitor</PackageId>
+    <Version>1.0.0</Version>
     <Authors>Vladyslav Zaiets</Authors>
-    <RepositoryUrl>https://github.com/sarmkadan/systemd-service-monitor</RepositoryUrl>
+    <Description>ASP.NET web dashboard for monitoring systemd services via D-Bus - status, logs, restart, resource graphs</Description>
+    <PackageTags>systemd dbus linux monitoring dashboard dotnet</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/sarmkadan/systemd-service-monitor</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sarmkadan/systemd-service-monitor</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
