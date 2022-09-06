@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -49,7 +50,7 @@ public class ServiceMonitorService : IServiceMonitorService
         try
         {
             var service = await _serviceRepository.GetByUnitNameAsync(unitName, ct);
-            if (service == null)
+            if (service is null)
             {
                 _logger.LogWarning("Service not found: {ServiceName}", unitName);
             }
@@ -121,7 +122,7 @@ public class ServiceMonitorService : IServiceMonitorService
         try
         {
             var service = await _serviceRepository.GetByUnitNameAsync(unitName, ct);
-            if (service == null)
+            if (service is null)
                 return null;
 
             return new ServiceStatus
