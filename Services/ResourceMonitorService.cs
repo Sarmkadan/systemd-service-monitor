@@ -27,6 +27,11 @@ public class ResourceMonitorService : IResourceMonitorService
         _options = options;
     }
 
+    /// <summary>
+    /// Collects current system resource metrics including CPU, memory, and disk usage.
+    /// Reads from /proc/stat and /proc/meminfo on Linux systems.
+    /// </summary>
+    /// <returns>A snapshot of current system resource utilization.</returns>
     public async Task<SystemResource> GetSystemResourcesAsync(CancellationToken ct = default)
     {
         try
@@ -63,6 +68,10 @@ public class ResourceMonitorService : IResourceMonitorService
         }
     }
 
+    /// <summary>
+    /// Returns the current CPU usage percentage for a specific systemd service.
+    /// </summary>
+    /// <param name="unitName">The systemd unit name (e.g., "myapp.service").</param>
     public async Task<decimal> GetServiceCpuUsageAsync(string unitName, CancellationToken ct = default)
     {
         try
@@ -91,6 +100,12 @@ public class ResourceMonitorService : IResourceMonitorService
         }
     }
 
+    /// <summary>
+    /// Collects detailed resource metrics for a specific systemd service via the cgroup interface.
+    /// Includes CPU, memory, thread count, file descriptors, and I/O statistics.
+    /// </summary>
+    /// <param name="unitName">The systemd unit name (e.g., "myapp.service").</param>
+    /// <returns>A snapshot of the service's resource consumption.</returns>
     public async Task<ServiceResourceMetrics> GetServiceResourceMetricsAsync(string unitName, CancellationToken ct = default)
     {
         try
