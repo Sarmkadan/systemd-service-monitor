@@ -4,6 +4,7 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Enums;
@@ -19,20 +20,21 @@ public class ServiceControlService : IServiceControlService
     private readonly ILogger<ServiceControlService> _logger;
     private readonly ISystemdConnectionService _connectionService;
     private readonly SystemdOptions _options;
-    private readonly Dictionary<string, OperationResult> _lastOperations = [];
+    private readonly ConcurrentDictionary<string, OperationResult> _lastOperations = new();
 
     public ServiceControlService(
         ILogger<ServiceControlService> logger,
         ISystemdConnectionService connectionService,
         SystemdOptions options)
     {
-        _logger = logger;
-        _connectionService = connectionService;
-        _options = options;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public async Task<bool> StartServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ValidateUnitName(unitName);
         return await ExecuteOperationAsync(unitName, "Start", async () =>
         {
             _logger.LogInformation("Starting service: {ServiceName}", unitName);
@@ -43,6 +45,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> StopServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ValidateUnitName(unitName);
         return await ExecuteOperationAsync(unitName, "Stop", async () =>
         {
             _logger.LogInformation("Stopping service: {ServiceName}", unitName);
@@ -53,6 +56,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> RestartServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ValidateUnitName(unitName);
         return await ExecuteOperationAsync(unitName, "Restart", async () =>
         {
             _logger.LogInformation("Restarting service: {ServiceName}", unitName);
@@ -188,5 +192,27 @@ public class ServiceControlService : IServiceControlService
         // 3. Restarting dependent services
         await Task.Delay(100, ct);
         return true;
+    }
+
+    /// <summary>
+    /// Validates the unit name to prevent injection attacks and invalid D-Bus calls.
+    /// Systemd unit names must contain only alphanumeric chars, dashes, underscores,
+    /// dots, and the @ symbol (for template instances).
+    /// </summary>
+    private static void ValidateUnitName(string unitName)
+    {
+        if (string.IsNullOrWhiteSpace(unitName))
+            throw new ArgumentException("Unit name cannot be null or empty", nameof(unitName));
+
+        if (unitName.Length > 256)
+            throw new ArgumentException("Unit name exceeds maximum length of 256 characters", nameof(unitName));
+
+        foreach (var c in unitName)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.' && c != '@')
+                throw new ArgumentException(
+                    $"Unit name contains invalid character '{c}'. Only alphanumeric, dash, underscore, dot, and @ are allowed.",
+                    nameof(unitName));
+        }
     }
 }
