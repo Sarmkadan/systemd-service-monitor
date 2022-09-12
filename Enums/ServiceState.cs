@@ -35,6 +35,21 @@ public enum RestartPolicy
 }
 
 /// <summary>
+/// Represents the load state of a systemd service unit.
+/// </summary>
+public enum ServiceLoadState
+{
+    Loaded,
+    Stub,
+    NotFound,
+    BadSetting,
+    Error,
+    Merged,
+    Masked,
+    Unknown
+}
+
+/// <summary>
 /// Represents the sub-state of a systemd service.
 /// </summary>
 public enum ServiceSubState
