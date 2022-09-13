@@ -8,6 +8,10 @@ using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Data.Repositories;
 using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums; // Required for SyslogLevel
+using SystemdServiceMonitor.Exceptions; // Required for ServiceMonitorException
+using SystemdServiceMonitor.Integration; // Required for IJournal
+using Tmds.DBus; // Required for Connection and CreateProxy
 
 namespace SystemdServiceMonitor.Services;
 
@@ -97,31 +101,74 @@ public class ServiceLogService : IServiceLogService
         {
             _logger.LogInformation("Fetching latest logs from journald for service: {ServiceName}", unitName);
 
-            // Placeholder: would fetch from systemd journald via D-Bus in production
-            var logs = new List<ServiceLog>();
-            var now = DateTime.UtcNow;
-
-            for (int i = 0; i < count; i++)
+            if (!_connectionService.IsConnected)
             {
-                logs.Add(new ServiceLog
-                {
-                    Id = Guid.NewGuid(),
-                    UnitName = unitName,
-                    Level = SyslogLevel.Info,
-                    Message = $"Sample log message {i + 1}",
-                    Timestamp = now.AddSeconds(-i),
-                    ProcessId = 1000 + i,
-                    Hostname = "localhost",
-                    Sequence = (ulong)(i + 1)
-                });
+                _logger.LogWarning("D-Bus connection not established, attempting to connect.");
+                await _connectionService.ConnectAsync(ct);
             }
+
+            var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
+            var journal = connection.CreateProxy<IJournal>("org.freedesktop.Journal1", "/org/freedesktop/Journal1");
+
+            var logs = new List<ServiceLog>();
+            
+            // Add match for the specific unit
+            await journal.AddMatchAsync($"_SYSTEMD_UNIT={unitName}");
+            // Seek to the end of the journal
+            await journal.SeekTailAsync();
+
+            ulong entriesCount = 0;
+            while (entriesCount < (ulong)count && await journal.NextAsync() > 0)
+            {
+                var data = await journal.GetDataAsync();
+                
+                ServiceLog log = new()
+                {
+                    Id = Guid.NewGuid(), // Generate a new ID for each fetched log
+                    UnitName = unitName,
+                };
+
+                if (data.TryGetValue("MESSAGE", out string? message))
+                {
+                    log.Message = message;
+                }
+                if (data.TryGetValue("PRIORITY", out string? priorityStr) && int.TryParse(priorityStr, out int priorityInt))
+                {
+                    // Map syslog priority to our SyslogLevel enum
+                    log.Level = (SyslogLevel)priorityInt;
+                }
+                if (data.TryGetValue("_HOSTNAME", out string? hostname))
+                {
+                    log.Hostname = hostname;
+                }
+                if (data.TryGetValue("_PID", out string? pidStr) && int.TryParse(pidStr, out int pidInt))
+                {
+                    log.ProcessId = pidInt;
+                }
+                if (data.TryGetValue("__REALTIME_TIMESTAMP", out string? timestampStr) && ulong.TryParse(timestampStr, out ulong timestampUs))
+                {
+                    // Timestamp from Journald is in microseconds since epoch
+                    var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                    log.Timestamp = epoch.AddTicks((long)timestampUs * 10);
+                }
+                if (data.TryGetValue("__MONOTONIC_TIMESTAMP", out string? monotonicTimestampStr) && ulong.TryParse(monotonicTimestampStr, out ulong monotonicTimestampUs))
+                {
+                    log.Sequence = monotonicTimestampUs; // Using monotonic timestamp as sequence
+                }
+                
+                logs.Add(log);
+                entriesCount++;
+            }
+            
+            // Clear matches to avoid affecting subsequent queries
+            await journal.FlushMatchesAsync();
 
             return logs;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch latest logs from journald");
-            throw;
+            _logger.LogError(ex, "Failed to fetch latest logs from journald for service: {ServiceName}", unitName);
+            throw new ServiceMonitorException($"Failed to fetch logs for service '{unitName}' from journald", ex);
         }
     }
 
