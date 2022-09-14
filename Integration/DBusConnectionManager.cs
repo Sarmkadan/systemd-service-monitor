@@ -16,7 +16,8 @@ namespace SystemdServiceMonitor.Integration;
 public class DBusConnectionManager : IDisposable
 {
     private readonly ILogger<DBusConnectionManager> _logger;
-    private readonly Lazy<Task<Connection>> _connectionFactory;
+    private Task<Connection>? _connectionTask;
+    private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private volatile bool _disposed;
     private int _reconnectAttempts;
     private const int MaxReconnectAttempts = 5;
@@ -25,17 +26,13 @@ public class DBusConnectionManager : IDisposable
     public DBusConnectionManager(ILogger<DBusConnectionManager> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        // Lazy initialize D-Bus connection on first access
-        _connectionFactory = new Lazy<Task<Connection>>(async () =>
-        {
-            _logger.LogInformation("Initializing D-Bus connection to systemd");
-            return await Connection.GetSessionConnectionAsync();
-        });
     }
 
     /// <summary>
     /// Gets the current D-Bus connection, establishing if necessary.
+    /// If the cached connection task has faulted it is discarded so that a
+    /// fresh connection is attempted, preventing leaked failed connection
+    /// objects from exhausting D-Bus resources.
     /// </summary>
     public async Task<Connection> GetConnectionAsync()
     {
@@ -44,19 +41,40 @@ public class DBusConnectionManager : IDisposable
             throw new ObjectDisposedException(nameof(DBusConnectionManager));
         }
 
+        await _connectionLock.WaitAsync();
         try
         {
-            return await _connectionFactory.Value;
+            // Discard a faulted or cancelled task so a new connection is created.
+            if (_connectionTask == null || _connectionTask.IsFaulted || _connectionTask.IsCanceled)
+            {
+                _connectionTask = CreateConnectionAsync();
+            }
+            return await _connectionTask;
         }
         catch (Exception ex)
         {
+            // Ensure the faulted task is cleared so the next caller gets a
+            // fresh attempt rather than the same failed connection object.
+            _connectionTask = null;
             _logger.LogError(ex, "Failed to establish D-Bus connection");
             throw;
         }
+        finally
+        {
+            _connectionLock.Release();
+        }
+    }
+
+    private async Task<Connection> CreateConnectionAsync()
+    {
+        _logger.LogInformation("Initializing D-Bus connection to systemd");
+        return await Connection.GetSessionConnectionAsync();
     }
 
     /// <summary>
     /// Attempts to reconnect to D-Bus with exponential backoff retry logic.
+    /// The existing connection task is discarded before each attempt so that
+    /// failed connection objects are not kept alive.
     /// </summary>
     public async Task<bool> ReconnectAsync()
     {
@@ -71,6 +89,21 @@ public class DBusConnectionManager : IDisposable
             {
                 _logger.LogInformation("Reconnecting to D-Bus (attempt {Attempt}/{MaxAttempts})",
                     attempt + 1, MaxReconnectAttempts);
+
+                // Dispose and clear the old connection before attempting a new one.
+                await _connectionLock.WaitAsync();
+                try
+                {
+                    if (_connectionTask is { IsCompletedSuccessfully: true })
+                    {
+                        try { _connectionTask.Result?.Dispose(); } catch { /* ignore disposal errors */ }
+                    }
+                    _connectionTask = null;
+                }
+                finally
+                {
+                    _connectionLock.Release();
+                }
 
                 var connection = await GetConnectionAsync();
                 _reconnectAttempts = 0;
@@ -151,17 +184,22 @@ public class DBusConnectionManager : IDisposable
 
         _disposed = true;
 
+        _connectionLock.Wait();
         try
         {
-            if (_connectionFactory.IsValueCreated)
+            if (_connectionTask is { IsCompletedSuccessfully: true })
             {
-                var connection = _connectionFactory.Value.Result;
-                connection?.Dispose();
+                try { _connectionTask.Result?.Dispose(); } catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error disposing D-Bus connection");
+                }
             }
+            _connectionTask = null;
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Error disposing D-Bus connection");
+            _connectionLock.Release();
+            _connectionLock.Dispose();
         }
     }
 }
