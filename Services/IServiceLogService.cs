@@ -29,6 +29,11 @@ public interface IServiceLogService
     Task<IEnumerable<ServiceLog>> GetLogsByLevelAsync(string unitName, SyslogLevel level, CancellationToken ct = default);
 
     /// <summary>
+    /// Retrieves the most recent logs across all services.
+    /// </summary>
+    Task<IEnumerable<ServiceLog>> GetRecentLogsAsync(int limit = 100, CancellationToken ct = default);
+
+    /// <summary>
     /// Retrieves logs matching a search term.
     /// </summary>
     Task<IEnumerable<ServiceLog>> SearchLogsAsync(string searchTerm, int limit = 100, CancellationToken ct = default);
@@ -37,6 +42,12 @@ public interface IServiceLogService
     /// Fetches latest logs directly from systemd journald.
     /// </summary>
     Task<IEnumerable<ServiceLog>> FetchLatestFromJournalAsync(string unitName, int count = 50, CancellationToken ct = default);
+
+    /// <summary>
+    /// Fetches latest logs from systemd journald filtered by minimum syslog priority.
+    /// Only entries at <paramref name="minimumPriority"/> or higher severity are returned.
+    /// </summary>
+    Task<IEnumerable<ServiceLog>> FetchFromJournalByPriorityAsync(string unitName, SyslogLevel minimumPriority, int count = 50, CancellationToken ct = default);
 
     /// <summary>
     /// Stores a log entry in the repository.
