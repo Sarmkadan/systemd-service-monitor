@@ -1,0 +1,123 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IServiceMonitorService MonitorService
+
+<PageTitle>systemd Service Monitor</PageTitle>
+
+<div class="dashboard">
+    <header class="dashboard-header">
+        <h1>systemd Service Monitor</h1>
+    </header>
+
+    <div class="filter-bar">
+        <input
+            type="text"
+            class="search-input"
+            placeholder="Search services by name…"
+            value="@searchText"
+            @oninput="OnSearchInput" />
+
+        <div class="status-filters">
+            <button class="@FilterButtonClass(null)" @onclick='() => SetStatusFilter(null)'>All</button>
+            <button class="@FilterButtonClass(ServiceState.Active)" @onclick='() => SetStatusFilter(ServiceState.Active)'>Active</button>
+            <button class="@FilterButtonClass(ServiceState.Failed)" @onclick='() => SetStatusFilter(ServiceState.Failed)'>Failed</button>
+            <button class="@FilterButtonClass(ServiceState.Inactive)" @onclick='() => SetStatusFilter(ServiceState.Inactive)'>Inactive</button>
+        </div>
+    </div>
+
+    @if (loadError is not null)
+    {
+        <div class="error-message">
+            <p>Error loading services: @loadError</p>
+            <button @onclick="LoadServicesAsync">Retry</button>
+        </div>
+    }
+    else if (services is null)
+    {
+        <p class="loading">Loading services…</p>
+    }
+    else
+    {
+        <div class="results-summary">
+            Showing @FilteredServices.Count() of @services.Count services
+        </div>
+
+        <table class="services-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>State</th>
+                    <th>Sub-state</th>
+                    <th>Description</th>
+                    <th>PID</th>
+                    <th>Uptime (s)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var svc in FilteredServices)
+                {
+                    <tr class="row-@svc.State.ToString().ToLowerInvariant()">
+                        <td class="service-name">@svc.UnitName</td>
+                        <td><span class="badge badge-@svc.State.ToString().ToLowerInvariant()">@svc.State</span></td>
+                        <td>@svc.SubState</td>
+                        <td class="service-description">@svc.Description</td>
+                        <td>@(svc.MainProcessId > 0 ? svc.MainProcessId : "-")</td>
+                        <td>@(svc.UptimeSeconds > 0 ? svc.UptimeSeconds : "-")</td>
+                    </tr>
+                }
+                @if (!FilteredServices.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="no-results">No services match the current filter.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<ServiceInfo>? services;
+    private string searchText = string.Empty;
+    private ServiceState? statusFilter;
+    private string? loadError;
+
+    private IEnumerable<ServiceInfo> FilteredServices =>
+        services?
+            .Where(s => string.IsNullOrEmpty(searchText)
+                || s.UnitName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .Where(s => statusFilter is null || s.State == statusFilter)
+        ?? Enumerable.Empty<ServiceInfo>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServicesAsync();
+    }
+
+    private async Task LoadServicesAsync()
+    {
+        loadError = null;
+        try
+        {
+            var result = await MonitorService.GetAllServicesAsync();
+            services = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        searchText = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void SetStatusFilter(ServiceState? state)
+    {
+        statusFilter = state;
+    }
+
+    private string FilterButtonClass(ServiceState? state) =>
+        statusFilter == state ? "filter-btn filter-btn-active" : "filter-btn";
+}
