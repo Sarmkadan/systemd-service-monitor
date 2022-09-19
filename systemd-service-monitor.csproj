@@ -18,7 +18,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);NU1903;NU1603</NoWarn>
+    <NoWarn>$(NoWarn);NU1903;NU1603;CS1591;CS1587</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,8 +26,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+    <Compile Remove="tests/**" />
+    <Content Remove="tests/**" />
+    <EmbeddedResource Remove="tests/**" />
+    <None Remove="tests/**" />
+    <Compile Remove="examples/**" />
+    <Content Remove="examples/**" />
+    <EmbeddedResource Remove="examples/**" />
+    <None Remove="examples/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
     <PackageReference Include="Tmds.DBus" Version="0.14.0" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
