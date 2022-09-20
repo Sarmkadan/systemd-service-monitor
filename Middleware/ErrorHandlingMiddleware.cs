@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using System.Net;
 using System.Text.Json;
@@ -14,13 +10,13 @@ namespace SystemdServiceMonitor.Middleware;
 /// Global error handling middleware that catches unhandled exceptions and returns consistent error responses.
 /// Prevents internal server details from leaking to clients while maintaining detailed logging.
 /// </summary>
-public class ErrorHandlingMiddleware(ILogger<ErrorHandlingMiddleware> logger)
+public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await context.Next();
+            await next(context);
         }
         catch (Exception ex)
         {
