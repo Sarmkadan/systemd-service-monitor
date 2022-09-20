@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
 using SystemdServiceMonitor.Models;
@@ -53,34 +49,34 @@ public class LogsController(
             // Validate line count to prevent excessive data retrieval
             lines = Math.Clamp(lines, 1, 10000);
 
-            var logs = await logService.GetServiceLogsAsync(serviceName, lines);
+            var allLogs = (await logService.GetServiceLogsAsync(serviceName, lines)).ToList();
 
             // Apply filters
             if (!string.IsNullOrEmpty(severity))
             {
-                logs = logs.Where(l => l.Severity.Contains(severity, StringComparison.OrdinalIgnoreCase)).ToList();
+                allLogs = allLogs.Where(l => l.Level.ToString().Contains(severity, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
             if (startDate.HasValue)
             {
-                logs = logs.Where(l => l.Timestamp >= startDate).ToList();
+                allLogs = allLogs.Where(l => l.Timestamp >= startDate).ToList();
             }
 
             if (endDate.HasValue)
             {
-                logs = logs.Where(l => l.Timestamp <= endDate).ToList();
+                allLogs = allLogs.Where(l => l.Timestamp <= endDate).ToList();
             }
 
             if (!string.IsNullOrEmpty(searchText))
             {
-                logs = logs.Where(l =>
+                allLogs = allLogs.Where(l =>
                     l.Message.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                    l.Unit.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                    l.UnitName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
                     .ToList();
             }
 
-            var totalCount = logs.Count;
-            var paginatedLogs = logs
+            var totalCount = allLogs.Count;
+            var paginatedLogs = allLogs
                 .OrderByDescending(l => l.Timestamp)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -183,9 +179,11 @@ public class LogsController(
 
             // Filter for error and warning level logs
             var errorLogs = logs.Where(l =>
-                l.Severity.Contains("ERR", StringComparison.OrdinalIgnoreCase) ||
-                l.Severity.Contains("WARN", StringComparison.OrdinalIgnoreCase) ||
-                l.Severity.Contains("CRIT", StringComparison.OrdinalIgnoreCase))
+                l.Level == SyslogLevel.Error ||
+                l.Level == SyslogLevel.Warning ||
+                l.Level == SyslogLevel.Critical ||
+                l.Level == SyslogLevel.Alert ||
+                l.Level == SyslogLevel.Emergency)
                 .OrderByDescending(l => l.Timestamp)
                 .ToList();
 
@@ -309,18 +307,19 @@ public class LogsController(
 
             var fileName = $"{serviceName}-logs-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
 
+            var logList = logs.ToList();
             return format.ToLower() switch
             {
                 "csv" => File(
-                    GenerateCsv(logs),
+                    GenerateCsv(logList),
                     "text/csv",
                     $"{fileName}.csv"),
                 "xml" => File(
-                    GenerateXml(logs),
+                    GenerateXml(logList),
                     "application/xml",
                     $"{fileName}.xml"),
                 _ => File(
-                    System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(logs, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })),
+                    System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(logList, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })),
                     "application/json",
                     $"{fileName}.json")
             };
@@ -339,11 +338,11 @@ public class LogsController(
 
     private static byte[] GenerateCsv(List<ServiceLog> logs)
     {
-        var csv = "Timestamp,Unit,Severity,Message\n";
+        var csv = "Timestamp,Unit,Level,Message\n";
         foreach (var log in logs)
         {
             var message = log.Message.Replace("\"", "\"\"");
-            csv += $"\"{log.Timestamp:o}\",\"{log.Unit}\",\"{log.Severity}\",\"{message}\"\n";
+            csv += $"\"{log.Timestamp:o}\",\"{log.UnitName}\",\"{log.Level}\",\"{message}\"\n";
         }
         return System.Text.Encoding.UTF8.GetBytes(csv);
     }
@@ -355,8 +354,8 @@ public class LogsController(
         {
             xml += $"  <log>\n";
             xml += $"    <timestamp>{System.Security.SecurityElement.Escape(log.Timestamp.ToString("o"))}</timestamp>\n";
-            xml += $"    <unit>{System.Security.SecurityElement.Escape(log.Unit)}</unit>\n";
-            xml += $"    <severity>{System.Security.SecurityElement.Escape(log.Severity)}</severity>\n";
+            xml += $"    <unit>{System.Security.SecurityElement.Escape(log.UnitName)}</unit>\n";
+            xml += $"    <level>{System.Security.SecurityElement.Escape(log.Level.ToString())}</level>\n";
             xml += $"    <message>{System.Security.SecurityElement.Escape(log.Message)}</message>\n";
             xml += $"  </log>\n";
         }

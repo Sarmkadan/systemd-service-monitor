@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using System.Text;
 using System.Text.Json;
@@ -102,10 +98,10 @@ public static class OutputFormatter
         sb.AppendLine(new string('─', 40));
         sb.AppendLine($"CPU Usage:           {metrics.CpuUsagePercent:F2}%");
         sb.AppendLine($"Memory Usage:        {metrics.MemoryUsagePercent:F2}%");
-        sb.AppendLine($"Memory Available:    {metrics.MemoryAvailableMb} MB");
+        sb.AppendLine($"Memory Available:    {metrics.AvailableMemoryMb} MB");
         sb.AppendLine($"Disk Usage:          {metrics.DiskUsagePercent:F2}%");
-        sb.AppendLine($"Disk Available:      {metrics.DiskAvailableGb:F2} GB");
-        sb.AppendLine($"Last Updated:        {metrics.Timestamp:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"Disk Available:      {metrics.AvailableDiskGb:F2} GB");
+        sb.AppendLine($"Last Updated:        {metrics.RecordedAt:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine(new string('─', 40));
 
         return sb.ToString();

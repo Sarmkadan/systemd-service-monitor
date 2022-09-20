@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc.Filters;
 using SystemdServiceMonitor.Responses;
@@ -13,7 +9,6 @@ namespace SystemdServiceMonitor.Filters;
 /// Global exception filter that catches exceptions thrown by actions and returns consistent error responses.
 /// Provides better error handling than middleware for action-level exceptions.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public class ApiExceptionFilter : IAsyncExceptionFilter
 {
     private readonly ILogger<ApiExceptionFilter> _logger;
