@@ -7,11 +7,11 @@
     <RootNamespace>SystemdServiceMonitor</RootNamespace>
     <AssemblyName>systemd-service-monitor</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <PackageId>Zaiets.systemd.service.monitor</PackageId>
-    <Version>2.0.2</Version>
+    <PackageId>sarmkadan.systemd-service-monitor</PackageId>
+    <Version>1.0.0</Version>
     <Authors>Vladyslav Zaiets</Authors>
-    <Description>ASP.NET web dashboard for monitoring systemd services via D-Bus - status, logs, restart, resource graphs</Description>
-    <PackageTags>systemd dbus linux monitoring dashboard dotnet</PackageTags>
+    <Description>Monitor and manage systemd services via D-Bus with a web dashboard and API</Description>
+    <PackageTags>systemd dbus linux monitoring dotnet dashboard api</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/sarmkadan/systemd-service-monitor</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sarmkadan/systemd-service-monitor</RepositoryUrl>
@@ -37,12 +37,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="7.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
     <PackageReference Include="Tmds.DBus" Version="0.14.0" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
   </ItemGroup>
 
 </Project>
