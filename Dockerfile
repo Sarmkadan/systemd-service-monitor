@@ -44,7 +44,7 @@ EXPOSE 5001
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f -k https://localhost:5001/api/system/health || exit 1
+    CMD curl -f -k https://localhost:5001/health || exit 1
 
 # Set environment variables
 ENV ASPNETCORE_ENVIRONMENT=Production
