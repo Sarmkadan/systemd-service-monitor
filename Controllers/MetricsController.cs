@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -73,7 +74,7 @@ public class MetricsController(
 
             var metrics = await resourceService.GetServiceMetricsAsync(serviceName);
 
-            if (metrics == null)
+            if (metrics is null)
             {
                 return NotFound(new ApiResponse<ServiceMetric>
                 {
@@ -252,7 +253,7 @@ public class MetricsController(
 
             var metrics = await resourceService.GetServiceMetricsAsync(serviceName);
 
-            if (metrics == null)
+            if (metrics is null)
             {
                 return NotFound(new ApiResponse<object>
                 {
@@ -310,7 +311,7 @@ public class MetricsController(
 
             var metrics = await resourceService.GetServiceMetricsAsync(serviceName);
 
-            if (metrics == null)
+            if (metrics is null)
             {
                 return NotFound(new ApiResponse<object>
                 {
