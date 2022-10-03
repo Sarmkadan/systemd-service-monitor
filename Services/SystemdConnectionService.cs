@@ -4,9 +4,11 @@
 // CTO & Software Architect
 // =============================================================================
 
+using Tmds.DBus;
 using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Exceptions;
+using SystemdServiceMonitor.Integration; // Add this for DBusConnectionManager
 
 namespace SystemdServiceMonitor.Services;
 
@@ -17,16 +19,33 @@ public class SystemdConnectionService : ISystemdConnectionService
 {
     private readonly ILogger<SystemdConnectionService> _logger;
     private readonly SystemdOptions _options;
+    private readonly DBusConnectionManager _dbusConnectionManager;
     private bool _isConnected = false;
     private DateTime? _connectedSince;
+
+    // D-Bus constants for systemd Manager
+    private const string SystemdService = "org.freedesktop.systemd1";
+    private const string SystemdPath = "/org/freedesktop/systemd1";
+    private const string SystemdManagerInterface = "org.freedesktop.systemd1.Manager";
+
+    /// <summary>
+    /// Minimal D-Bus interface for fetching systemd Manager properties.
+    /// </summary>
+    [Tmds.DBus.DBusInterface(SystemdManagerInterface)] // Fully qualify DBusInterface
+    public interface ISystemdManagerProperties : Tmds.DBus.IDBusObject // Fully qualify IDBusObject
+    {
+        // D-Bus properties are exposed as Get methods in Tmds.DBus
+        Task<string> GetVersionAsync();
+    }
 
     public bool IsConnected => _isConnected;
     public DateTime? ConnectedSince => _connectedSince;
 
-    public SystemdConnectionService(ILogger<SystemdConnectionService> logger, SystemdOptions options)
+    public SystemdConnectionService(ILogger<SystemdConnectionService> logger, SystemdOptions options, DBusConnectionManager dbusConnectionManager)
     {
         _logger = logger;
         _options = options;
+        _dbusConnectionManager = dbusConnectionManager;
     }
 
     public async Task<bool> ConnectAsync(CancellationToken ct = default)
@@ -34,34 +53,19 @@ public class SystemdConnectionService : ISystemdConnectionService
         if (_isConnected)
             return true;
 
-        int retryCount = 0;
-        while (retryCount < _options.ConnectionRetryCount)
+        try
         {
-            try
-            {
-                _logger.LogInformation("Attempting to connect to systemd D-Bus (attempt {Attempt}/{MaxAttempts})",
-                    retryCount + 1, _options.ConnectionRetryCount);
-
-                // Simulated connection - in production this would initialize Tmds.DBus connection
-                _isConnected = true;
-                _connectedSince = DateTime.UtcNow;
-                _logger.LogInformation("Successfully connected to systemd D-Bus");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                retryCount++;
-                _logger.LogWarning(ex, "D-Bus connection attempt failed");
-
-                if (retryCount < _options.ConnectionRetryCount)
-                {
-                    await Task.Delay(_options.ConnectionRetryDelayMs, ct);
-                }
-            }
+            await _dbusConnectionManager.GetConnectionAsync();
+            _isConnected = true;
+            _connectedSince = DateTime.UtcNow;
+            _logger.LogInformation("Successfully connected to systemd D-Bus via DBusConnectionManager");
+            return true;
         }
-
-        _logger.LogError("Failed to connect to systemd D-Bus after {RetryCount} attempts", _options.ConnectionRetryCount);
-        throw new DBusConnectionException("Failed to establish D-Bus connection to systemd");
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to connect to systemd D-Bus via DBusConnectionManager");
+            throw new DBusConnectionException("Failed to establish D-Bus connection to systemd", ex);
+        }
     }
 
     public async Task<bool> VerifyConnectionAsync(CancellationToken ct = default)
@@ -71,14 +75,24 @@ public class SystemdConnectionService : ISystemdConnectionService
 
         try
         {
-            // Attempt a simple D-Bus call to verify connection is active
+            // Verify connection status with the manager
+            if (!await _dbusConnectionManager.IsConnectedAsync())
+            {
+                _isConnected = false;
+                _connectedSince = null;
+                return false;
+            }
+
+            // Attempt a simple D-Bus call to verify connection is active, e.g., get systemd version
             var version = await GetSystemdVersionAsync(ct);
             return !string.IsNullOrEmpty(version);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "D-Bus connection verification failed");
+            _logger.LogWarning(ex, "D-Bus connection verification failed. Reconnecting...");
             _isConnected = false;
+            _connectedSince = null;
+            await _dbusConnectionManager.ReconnectAsync(); // Attempt reconnection
             return false;
         }
     }
@@ -88,17 +102,10 @@ public class SystemdConnectionService : ISystemdConnectionService
         if (!_isConnected)
             return;
 
-        try
-        {
-            _logger.LogInformation("Disconnecting from systemd D-Bus");
-            _isConnected = false;
-            _connectedSince = null;
-            await Task.CompletedTask; // Placeholder for actual disconnection logic
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during D-Bus disconnection");
-        }
+        _logger.LogInformation("SystemdConnectionService state set to disconnected.");
+        _isConnected = false;
+        _connectedSince = null;
+        await Task.CompletedTask; // The DBusConnectionManager handles actual D-Bus connection disposal.
     }
 
     public async Task<T?> CallMethodAsync<T>(string methodName, params object?[] args)
@@ -106,18 +113,8 @@ public class SystemdConnectionService : ISystemdConnectionService
         if (!_isConnected)
             throw new DBusConnectionException("Not connected to systemd D-Bus");
 
-        try
-        {
-            _logger.LogDebug("Calling D-Bus method: {MethodName}", methodName);
-            // Placeholder for actual D-Bus method invocation via Tmds.DBus
-            await Task.Delay(10);
-            return default;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "D-Bus method call failed: {MethodName}", methodName);
-            throw new ServiceMonitorException($"D-Bus method '{methodName}' call failed", ex);
-        }
+        _logger.LogWarning("CallMethodAsync is a generic placeholder and requires specific D-Bus interface definitions for robust implementation. Method: {MethodName}", methodName);
+        throw new NotImplementedException($"Generic D-Bus method call '{methodName}' is not robustly implemented without specific D-Bus interface definitions. Please consider using a specific D-Bus proxy method.");
     }
 
     public async Task SubscribeToSignalsAsync(string signalName, Action<dynamic> handler, CancellationToken ct = default)
@@ -125,17 +122,8 @@ public class SystemdConnectionService : ISystemdConnectionService
         if (!_isConnected)
             throw new DBusConnectionException("Not connected to systemd D-Bus");
 
-        try
-        {
-            _logger.LogInformation("Subscribing to D-Bus signal: {SignalName}", signalName);
-            // Placeholder for actual signal subscription
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to subscribe to D-Bus signal: {SignalName}", signalName);
-            throw new ServiceMonitorException($"Signal subscription failed: {signalName}", ex);
-        }
+        _logger.LogWarning("SubscribeToSignalsAsync is a generic placeholder and requires specific D-Bus interface definitions for robust implementation. Signal: {SignalName}", signalName);
+        throw new NotImplementedException($"Generic D-Bus signal subscription for '{signalName}' is not robustly implemented without specific D-Bus interface definitions. Please consider using a specific D-Bus proxy event.");
     }
 
     public async Task<string> GetSystemdVersionAsync(CancellationToken ct = default)
@@ -145,13 +133,16 @@ public class SystemdConnectionService : ISystemdConnectionService
 
         try
         {
-            _logger.LogDebug("Fetching systemd version");
-            // Placeholder - would call systemd --version in production
-            return await Task.FromResult("255 (systemd 255 or later)");
+            _logger.LogDebug("Fetching systemd version using D-Bus");
+            var connection = await _dbusConnectionManager.GetConnectionAsync();
+            var managerProxy = connection.CreateProxy<ISystemdManagerProperties>(SystemdService, SystemdPath);
+            string version = await managerProxy.GetVersionAsync();
+            _logger.LogInformation("Systemd version: {Version}", version);
+            return version;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve systemd version");
+            _logger.LogError(ex, "Failed to retrieve systemd version via D-Bus");
             throw new ServiceMonitorException("Failed to retrieve systemd version", ex);
         }
     }
