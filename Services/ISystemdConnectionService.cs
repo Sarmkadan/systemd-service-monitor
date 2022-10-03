@@ -50,4 +50,9 @@ public interface ISystemdConnectionService
     /// Gets systemd version information.
     /// </summary>
     Task<string> GetSystemdVersionAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the underlying DBusConnectionManager.
+    /// </summary>
+    SystemdServiceMonitor.Integration.DBusConnectionManager DBusConnectionManager { get; }
 }

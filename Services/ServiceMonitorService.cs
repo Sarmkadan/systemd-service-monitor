@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Data.Repositories;
 using SystemdServiceMonitor.Enums;
 using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Integration; // Add this
+using Tmds.DBus; // Add this
+using System.Linq; // Add this
 
 namespace SystemdServiceMonitor.Services;
 
@@ -95,20 +98,77 @@ public class ServiceMonitorService : IServiceMonitorService
         {
             _logger.LogInformation("Refreshing service list from systemd");
 
-            if (!await _connectionService.VerifyConnectionAsync(ct))
+            if (!await _connectionService.IsConnected)
             {
-                _logger.LogWarning("D-Bus connection lost, reconnecting");
+                _logger.LogWarning("D-Bus connection not established, attempting to connect.");
                 await _connectionService.ConnectAsync(ct);
             }
 
-            // Placeholder: would fetch actual services from systemd via D-Bus
-            var demoServices = CreateDemoServices();
-            foreach (var service in demoServices)
+            var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync(); // Assuming DBusConnectionManager is accessible
+
+            var manager = connection.CreateProxy<ISystemdManager>("org.freedesktop.systemd1", "/org/freedesktop/systemd1");
+            var properties = connection.CreateProxy<IProperties>("org.freedesktop.DBus.Properties", "/org/freedesktop/DBus"); // Correct service/path for IProperties
+
+            var units = await manager.ListUnitsAsync();
+            var serviceInfos = new List<ServiceInfo>();
+
+            foreach (var unit in units)
+            {
+                if (!unit.Name.EndsWith(".service")) continue; // Only interested in services
+
+                ServiceInfo serviceInfo = new()
+                {
+                    UnitName = unit.Name,
+                    Description = unit.Description,
+                    LoadState = Enum.TryParse<ServiceLoadState>(unit.LoadState, true, out var loadState) ? loadState : ServiceLoadState.Unknown,
+                    State = Enum.TryParse<ServiceState>(unit.ActiveState, true, out var activeState) ? activeState : ServiceState.Unknown,
+                    SubState = Enum.TryParse<ServiceSubState>(unit.SubState, true, out var subState) ? subState : ServiceSubState.Unknown,
+                };
+
+                try
+                {
+                    // Get detailed properties for the unit
+                    var unitProperties = await properties.GetAllAsync("org.freedesktop.systemd1.Unit", unit.Path);
+
+                    if (unitProperties.TryGetValue("MainPID", out object? mainPid) && mainPid is uint pid)
+                    {
+                        serviceInfo.MainProcessId = (int)pid;
+                    }
+                    if (unitProperties.TryGetValue("NRestarts", out object? nRestarts) && nRestarts is uint restarts)
+                    {
+                        serviceInfo.RestartCount = (int)restarts;
+                    }
+                    if (unitProperties.TryGetValue("ActiveEnterTimestamp", out object? activeEnterTimestamp) && activeEnterTimestamp is ulong timestampMicroseconds)
+                    {
+                        // ActiveEnterTimestamp is in microseconds since epoch
+                        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                        var activeEnterDateTime = epoch.AddTicks((long)timestampMicroseconds * 10); // 10 ticks per microsecond
+                        serviceInfo.UptimeSeconds = (long)(DateTime.UtcNow - activeEnterDateTime).TotalSeconds;
+                    }
+                    if (unitProperties.TryGetValue("CPUUsageNsec", out object? cpuUsageNsec) && cpuUsageNsec is ulong cpuNs)
+                    {
+                        // serviceInfo.CpuUsagePercent = (double)cpuNs / (Environment.ProcessorCount * 1_000_000_000); // Need more context for accurate calculation
+                    }
+                    if (unitProperties.TryGetValue("MemoryCurrentBytes", out object? memoryCurrentBytes) && memoryCurrentBytes is ulong memoryBytes)
+                    {
+                        serviceInfo.MemoryUsageMb = (long)(memoryBytes / (1024.0 * 1024.0));
+                    }
+
+                    serviceInfos.Add(serviceInfo);
+                }
+                catch (Exception unitEx)
+                {
+                    _logger.LogWarning(unitEx, "Failed to get properties for unit {UnitName}. Skipping detailed info.", unit.Name);
+                }
+            }
+
+            // Update all services in the repository
+            foreach (var service in serviceInfos)
             {
                 await _serviceRepository.UpdateAsync(service, ct);
             }
 
-            _logger.LogInformation("Service list refresh completed");
+            _logger.LogInformation("Service list refresh completed. Found {ServiceCount} services.", serviceInfos.Count);
         }
         catch (Exception ex)
         {
@@ -131,15 +191,15 @@ public class ServiceMonitorService : IServiceMonitorService
                 UnitName = service.UnitName,
                 State = service.State,
                 SubState = service.SubState,
-                IsEnabled = service.AutoStart,
+                IsEnabled = service.AutoStart, // AutoStart is not fetched from D-Bus directly, assumes it's persisted
                 IsRunning = service.State == ServiceState.Active,
                 ProcessId = service.MainProcessId,
-                CpuUsagePercent = 0,
-                MemoryUsageMb = 0,
+                CpuUsagePercent = service.CpuUsagePercent, // Populated by RefreshServiceListAsync
+                MemoryUsageMb = service.MemoryUsageMb, // Populated by RefreshServiceListAsync
                 HasFailed = service.State == ServiceState.Failed,
-                FailureReason = service.Result,
+                FailureReason = service.Result, // Result is not directly fetched from D-Bus in this method
                 UptimeSeconds = service.UptimeSeconds,
-                HealthStatus = HealthStatus.Healthy
+                HealthStatus = HealthStatus.Healthy // This needs a proper health check
             };
         }
         catch (Exception ex)
@@ -171,6 +231,7 @@ public class ServiceMonitorService : IServiceMonitorService
                 {
                     try
                     {
+                        // Now calls the updated GetServiceStatusAsync
                         await GetServiceStatusAsync(unitName, cts.Token);
                         await Task.Delay(intervalMs, cts.Token);
                     }
@@ -222,6 +283,23 @@ public class ServiceMonitorService : IServiceMonitorService
             var activeServices = await _serviceRepository.GetActiveServicesAsync(ct);
             var failedServices = await _serviceRepository.GetFailedServicesAsync(ct);
 
+            // Calculate average CPU and Memory based on currently available data
+            // This assumes RefreshServiceListAsync has been called recently
+            double totalCpu = 0;
+            long totalMemory = 0;
+            int monitoredCount = 0;
+
+            foreach (var service in allServices)
+            {
+                // Only consider services for which we have recent resource data
+                if (service.CpuUsagePercent > 0 || service.MemoryUsageMb > 0)
+                {
+                    totalCpu += service.CpuUsagePercent;
+                    totalMemory += service.MemoryUsageMb;
+                    monitoredCount++;
+                }
+            }
+
             return new ServiceStatistics
             {
                 TotalServices = allServices.Count(),
@@ -229,8 +307,8 @@ public class ServiceMonitorService : IServiceMonitorService
                 FailedServices = failedServices.Count(),
                 InactiveServices = allServices.Count() - activeServices.Count(),
                 MonitoredServices = _monitoringTokens.Count,
-                AverageCpuUsage = 0,
-                AverageMemoryUsage = 0,
+                AverageCpuUsage = monitoredCount > 0 ? totalCpu / monitoredCount : 0,
+                AverageMemoryUsage = monitoredCount > 0 ? totalMemory / monitoredCount : 0,
                 TotalRestarts = allServices.Sum(s => s.RestartCount),
                 LastRefreshTime = DateTime.UtcNow
             };
@@ -242,32 +320,5 @@ public class ServiceMonitorService : IServiceMonitorService
         }
     }
 
-    private List<ServiceInfo> CreateDemoServices()
-    {
-        return
-        [
-            new ServiceInfo
-            {
-                UnitName = "nginx.service",
-                Description = "A high performance web server and reverse proxy server",
-                State = ServiceState.Active,
-                SubState = ServiceSubState.Running,
-                AutoStart = true,
-                MainProcessId = 1234,
-                UptimeSeconds = 86400,
-                RestartCount = 0
-            },
-            new ServiceInfo
-            {
-                UnitName = "docker.service",
-                Description = "Docker Application Container Engine",
-                State = ServiceState.Active,
-                SubState = ServiceSubState.Running,
-                AutoStart = true,
-                MainProcessId = 5678,
-                UptimeSeconds = 172800,
-                RestartCount = 1
-            }
-        ];
-    }
+    // Removed CreateDemoServices as it's no longer needed
 }
