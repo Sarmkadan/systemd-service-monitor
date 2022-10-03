@@ -113,13 +113,24 @@ public sealed class LogStreamService(
         logger.LogInformation("Log stream closed — service='{Service}'", filter.ServiceName ?? "*");
     }
 
+    /// <summary>
+    /// Applies level and search-term filters to a batch of log entries.
+    /// Level comparison uses numeric ordering where lower values represent
+    /// more severe levels (Emergency = 0, Debug = 7), so entries with a level
+    /// numerically greater than <see cref="LogStreamFilter.MinLevel"/> are excluded.
+    /// </summary>
+    /// <param name="logs">Raw log entries to filter.</param>
+    /// <param name="filter">Filter criteria to apply.</param>
+    /// <returns>Filtered sequence of log entries.</returns>
     private static IEnumerable<ServiceLog> ApplyFilter(IEnumerable<ServiceLog> logs, LogStreamFilter filter)
     {
         if (filter.MinLevel.HasValue)
             logs = logs.Where(l => l.Level <= filter.MinLevel.Value);
 
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
-            logs = logs.Where(l => l.Message.Contains(filter.SearchTerm, StringComparison.OrdinalIgnoreCase));
+            logs = logs.Where(l =>
+                l.Message != null &&
+                l.Message.Contains(filter.SearchTerm, StringComparison.OrdinalIgnoreCase));
 
         return logs;
     }
