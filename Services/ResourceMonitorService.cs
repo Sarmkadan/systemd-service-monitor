@@ -7,6 +7,9 @@
 using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Exceptions; // Add this
+using System.IO; // Add this
+using System.Diagnostics; // Add this for Stopwatch
 
 namespace SystemdServiceMonitor.Services;
 
@@ -17,14 +20,26 @@ public class ResourceMonitorService : IResourceMonitorService
 {
     private readonly ILogger<ResourceMonitorService> _logger;
     private readonly SystemdOptions _options;
+    private readonly ISystemdConnectionService _connectionService;
+    private readonly IServiceMonitorService _serviceMonitorService; // Add this
     private CancellationTokenSource? _monitoringCts;
     private readonly List<ResourceAlert> _alerts = [];
     private readonly SemaphoreSlim _alertLock = new(1, 1);
 
-    public ResourceMonitorService(ILogger<ResourceMonitorService> logger, SystemdOptions options)
+    // For CPU usage calculation (system-wide)
+    private ulong _lastTotalCpuTime;
+    private ulong _lastIdleCpuTime;
+    private DateTime _lastCpuMeasurementTime;
+
+    // Per-service CPU usage calculation
+    private readonly Dictionary<string, (ulong LastCpuTime, DateTime LastMeasurementTime)> _lastServiceCpuStats = new();
+
+    public ResourceMonitorService(ILogger<ResourceMonitorService> logger, SystemdOptions options, ISystemdConnectionService connectionService, IServiceMonitorService serviceMonitorService)
     {
         _logger = logger;
         _options = options;
+        _connectionService = connectionService;
+        _serviceMonitorService = serviceMonitorService;
     }
 
     public async Task<SystemResource> GetSystemResourcesAsync(CancellationToken ct = default)
@@ -33,34 +48,147 @@ public class ResourceMonitorService : IResourceMonitorService
         {
             _logger.LogDebug("Collecting system resource metrics");
 
-            // Placeholder: would fetch from /proc/stat, /proc/meminfo in production
-            return new SystemResource
+            SystemResource resources = new()
             {
-                TotalMemoryMb = 16384,
-                AvailableMemoryMb = 8192,
-                UsedMemoryMb = 8192,
-                CachedMemoryMb = 2048,
-                CpuCoreCount = Environment.ProcessorCount,
-                CpuLoad1Min = 0.5m,
-                CpuLoad5Min = 0.6m,
-                CpuLoad15Min = 0.7m,
-                CpuUsagePercent = 25.5m,
-                TotalDiskGb = 500,
-                UsedDiskGb = 250,
-                AvailableDiskGb = 250,
-                DiskIopsPerSecond = 1500,
-                RunningProcesses = 150,
-                SystemUptimeSeconds = 2592000,
-                MemoryUsagePercent = 50m,
-                DiskUsagePercent = 50m,
-                RecordedAt = DateTime.UtcNow
+                RecordedAt = DateTime.UtcNow,
+                CpuCoreCount = Environment.ProcessorCount
             };
+
+            // Uptime from /proc/uptime
+            if (File.Exists("/proc/uptime"))
+            {
+                var uptimeContent = await File.ReadAllTextAsync("/proc/uptime", ct);
+                var parts = uptimeContent.Split(' ');
+                if (parts.Length > 0 && double.TryParse(parts[0], out double uptimeSeconds))
+                {
+                    resources.SystemUptimeSeconds = (long)uptimeSeconds;
+                }
+            }
+
+            // Load Averages from /proc/loadavg
+            if (File.Exists("/proc/loadavg"))
+            {
+                var loadavgContent = await File.ReadAllTextAsync("/proc/loadavg", ct);
+                var parts = loadavgContent.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 3)
+                {
+                    if (decimal.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var load1)) resources.CpuLoad1Min = load1;
+                    if (decimal.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var load5)) resources.CpuLoad5Min = load5;
+                    if (decimal.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var load15)) resources.CpuLoad15Min = load15;
+                }
+            }
+
+            // Memory from /proc/meminfo
+            if (File.Exists("/proc/meminfo"))
+            {
+                var meminfoContent = await File.ReadAllLinesAsync("/proc/meminfo", ct);
+                long totalMemKb = 0, availableMemKb = 0, cachedMemKb = 0;
+
+                foreach (var line in meminfoContent)
+                {
+                    if (line.StartsWith("MemTotal:"))
+                        totalMemKb = ParseMemInfoLine(line);
+                    else if (line.StartsWith("MemAvailable:"))
+                        availableMemKb = ParseMemInfoLine(line);
+                    else if (line.StartsWith("Cached:"))
+                        cachedMemKb = ParseMemInfoLine(line);
+                }
+
+                resources.TotalMemoryMb = totalMemKb / 1024;
+                resources.AvailableMemoryMb = availableMemKb / 1024;
+                resources.CachedMemoryMb = cachedMemKb / 1024;
+                resources.UsedMemoryMb = resources.TotalMemoryMb - resources.AvailableMemoryMb;
+                if (resources.TotalMemoryMb > 0)
+                {
+                    resources.MemoryUsagePercent = (decimal)resources.UsedMemoryMb / resources.TotalMemoryMb * 100;
+                }
+            }
+
+            // CPU Usage from /proc/stat
+            // This requires two readings for accurate percentage. For a single call,
+            // we'll calculate instantaneous usage if enough time has passed since last measurement.
+            if (File.Exists("/proc/stat"))
+            {
+                var statContent = await File.ReadAllLinesAsync("/proc/stat", ct);
+                var cpuLine = statContent.FirstOrDefault(line => line.StartsWith("cpu "));
+                if (cpuLine != null)
+                {
+                    var parts = cpuLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 8) // user, nice, system, idle, iowait, irq, softirq, steal
+                    {
+                        ulong user = ulong.Parse(parts[1]);
+                        ulong nice = ulong.Parse(parts[2]);
+                        ulong system = ulong.Parse(parts[3]);
+                        ulong idle = ulong.Parse(parts[4]);
+                        ulong iowait = ulong.Parse(parts[5]);
+                        ulong irq = ulong.Parse(parts[6]);
+                        ulong softirq = ulong.Parse(parts[7]);
+
+                        ulong currentTotalCpuTime = user + nice + system + idle + iowait + irq + softirq;
+                        ulong currentIdleCpuTime = idle + iowait; // idle + I/O wait are considered idle
+
+                        if (_lastTotalCpuTime > 0 && currentTotalCpuTime > _lastTotalCpuTime)
+                        {
+                            ulong totalDiff = currentTotalCpuTime - _lastTotalCpuTime;
+                            ulong idleDiff = currentIdleCpuTime - _lastIdleCpuTime;
+
+                            if (totalDiff > 0)
+                            {
+                                resources.CpuUsagePercent = (decimal)(100.0 * (totalDiff - idleDiff) / totalDiff);
+                            }
+                        }
+
+                        _lastTotalCpuTime = currentTotalCpuTime;
+                        _lastIdleCpuTime = currentIdleCpuTime;
+                        _lastCpuMeasurementTime = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            // Running Processes from /proc
+            resources.RunningProcesses = Directory.GetDirectories("/proc/")
+                                            .Count(d => int.TryParse(Path.GetFileName(d), out _));
+
+            // Disk Usage for root filesystem
+            try
+            {
+                var rootDrive = new DriveInfo("/");
+                if (rootDrive.IsReady)
+                {
+                    resources.TotalDiskGb = rootDrive.TotalSize / (1024L * 1024L * 1024L);
+                    resources.AvailableDiskGb = rootDrive.AvailableFreeSpace / (1024L * 1024L * 1024L);
+                    resources.UsedDiskGb = resources.TotalDiskGb - resources.AvailableDiskGb;
+                    if (resources.TotalDiskGb > 0)
+                    {
+                        resources.DiskUsagePercent = (decimal)resources.UsedDiskGb / resources.TotalDiskGb * 100;
+                    }
+                }
+            }
+            catch (Exception diskEx)
+            {
+                _logger.LogWarning(diskEx, "Could not get disk info for root filesystem");
+            }
+            
+            // Disk IOPS is hard to get reliably without specialized tools or parsing complex /proc files
+            resources.DiskIopsPerSecond = 0; // Keeping as placeholder
+
+            return resources;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to collect system resources");
-            throw;
+            throw new ServiceMonitorException("Failed to collect system resources", ex);
         }
+    }
+
+    private long ParseMemInfoLine(string line)
+    {
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2 && long.TryParse(parts[1], out long value))
+        {
+            return value;
+        }
+        return 0;
     }
 
     public async Task<decimal> GetServiceCpuUsageAsync(string unitName, CancellationToken ct = default)
@@ -97,25 +225,136 @@ public class ResourceMonitorService : IResourceMonitorService
         {
             _logger.LogDebug("Collecting resource metrics for service: {ServiceName}", unitName);
 
-            // Placeholder: would fetch from cgroup interface in production
-            return await Task.FromResult(new ServiceResourceMetrics
+            ServiceResourceMetrics metrics = new()
             {
                 UnitName = unitName,
-                CpuUsagePercent = 15.5m,
-                MemoryUsageMb = 256,
-                ThreadCount = 8,
-                FileDescriptorCount = 42,
-                NetworkBytesIn = 1048576,
-                NetworkBytesOut = 524288,
-                DiskBytesRead = 10485760,
-                DiskBytesWritten = 5242880,
                 MeasuredAt = DateTime.UtcNow
-            });
+            };
+
+            var serviceInfo = await _serviceMonitorService.GetServiceByNameAsync(unitName, ct);
+            if (serviceInfo is null)
+            {
+                _logger.LogWarning("Service {ServiceName} not found for resource metrics collection.", unitName);
+                return metrics; // Return empty metrics
+            }
+
+            int mainPid = serviceInfo.MainProcessId;
+            if (mainPid <= 0)
+            {
+                _logger.LogWarning("Main PID for service {ServiceName} not found. Cannot collect detailed resource metrics.", unitName);
+                return metrics;
+            }
+
+            // Cgroup path for systemd services
+            // Example: /sys/fs/cgroup/system.slice/nginx.service/
+            string cgroupPath = $"/sys/fs/cgroup/system.slice/{unitName}/";
+
+            // Memory Usage from cgroup
+            string memoryUsagePath = Path.Combine(cgroupPath, "memory.current"); // For cgroup v2
+            if (!File.Exists(memoryUsagePath))
+            {
+                memoryUsagePath = Path.Combine(cgroupPath, "memory.usage_in_bytes"); // For cgroup v1
+            }
+
+            if (File.Exists(memoryUsagePath))
+            {
+                if (long.TryParse(await File.ReadAllTextAsync(memoryUsagePath, ct), out long memoryBytes))
+                {
+                    metrics.MemoryUsageMb = memoryBytes / (1024L * 1024L);
+                }
+            }
+
+            // CPU Usage from cgroup
+            // For cgroup v2, cpu.stat gives usage_usec and system_usec
+            // For cgroup v1, cpuacct.usage gives total usage in nanoseconds
+            string cpuStatPath = Path.Combine(cgroupPath, "cpu.stat"); // cgroup v2
+            string cpuAcctUsagePath = Path.Combine(cgroupPath, "cpuacct.usage"); // cgroup v1
+
+            ulong currentServiceCpuTime = 0;
+            if (File.Exists(cpuStatPath))
+            {
+                var cpuStatContent = await File.ReadAllLinesAsync(cpuStatPath, ct);
+                var usageUsecLine = cpuStatContent.FirstOrDefault(line => line.StartsWith("usage_usec"));
+                if (usageUsecLine != null && ulong.TryParse(usageUsecLine.Split(' ')[1], out ulong usageUsec))
+                {
+                    currentServiceCpuTime = usageUsec * 1000; // Convert microsec to nanosec for consistency
+                }
+            }
+            else if (File.Exists(cpuAcctUsagePath))
+            {
+                if (ulong.TryParse(await File.ReadAllTextAsync(cpuAcctUsagePath, ct), out ulong cpuNs))
+                {
+                    currentServiceCpuTime = cpuNs;
+                }
+            }
+
+            if (currentServiceCpuTime > 0)
+            {
+                if (_lastServiceCpuStats.TryGetValue(unitName, out var lastStats))
+                {
+                    ulong lastCpuTime = lastStats.LastCpuTime;
+                    DateTime lastMeasurementTime = lastStats.LastMeasurementTime;
+
+                    if (currentServiceCpuTime > lastCpuTime && DateTime.UtcNow > lastMeasurementTime)
+                    {
+                        ulong cpuTimeDifference = currentServiceCpuTime - lastCpuTime;
+                        TimeSpan timeDifference = DateTime.UtcNow - lastMeasurementTime;
+
+                        // CPU usage calculation: (CPU time used by service / total CPU time available in period) * 100
+                        // totalCpuTimeAvailable represents 100% of one CPU core in nanoseconds for the time difference
+                        double totalCpuTimeAvailable = timeDifference.TotalMilliseconds * 1_000_000; // 1ms = 1,000,000ns
+
+                        if (totalCpuTimeAvailable > 0)
+                        {
+                            // Scale by cores to get percentage across all cores, not just one.
+                            // If a service uses 1 core 100%, and system has 4 cores, it's 25% of total system CPU.
+                            // The cgroup cpuacct.usage gives total CPU time consumed, so we divide by total available time across all cores.
+                            metrics.CpuUsagePercent = (decimal)(cpuTimeDifference / (totalCpuTimeAvailable * Environment.ProcessorCount) * 100);
+                            if (metrics.CpuUsagePercent > 100) metrics.CpuUsagePercent = 100; // Cap at 100%
+                        }
+                    }
+                }
+                _lastServiceCpuStats[unitName] = (currentServiceCpuTime, DateTime.UtcNow);
+            }
+
+
+
+            // Thread Count and File Descriptor Count from /proc/<pid>/status
+            string procStatusPath = $"/proc/{mainPid}/status";
+            if (File.Exists(procStatusPath))
+            {
+                var statusContent = await File.ReadAllLinesAsync(procStatusPath, ct);
+                foreach (var line in statusContent)
+                {
+                    if (line.StartsWith("Threads:"))
+                    {
+                        if (int.TryParse(line.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1], out int threads))
+                        {
+                            metrics.ThreadCount = threads;
+                        }
+                    }
+                    else if (line.StartsWith("FDSize:")) // Not always available or precise in /proc/pid/status
+                    {
+                        if (int.TryParse(line.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1], out int fdSize))
+                        {
+                            metrics.FileDescriptorCount = fdSize;
+                        }
+                    }
+                }
+            }
+
+            // Network I/O and Disk I/O are more complex to get per-service and will remain 0 for now.
+            metrics.NetworkBytesIn = 0;
+            metrics.NetworkBytesOut = 0;
+            metrics.DiskBytesRead = 0;
+            metrics.DiskBytesWritten = 0;
+            
+            return metrics;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to collect metrics for service: {ServiceName}", unitName);
-            throw;
+            throw new ServiceMonitorException($"Failed to collect resource metrics for service '{unitName}'", ex);
         }
     }
 
@@ -123,32 +362,21 @@ public class ResourceMonitorService : IResourceMonitorService
     {
         try
         {
-            var metrics = new List<ServiceResourceMetrics>
-            {
-                new()
-                {
-                    UnitName = "nginx.service",
-                    CpuUsagePercent = 10m,
-                    MemoryUsageMb = 128,
-                    ThreadCount = 4,
-                    FileDescriptorCount = 32
-                },
-                new()
-                {
-                    UnitName = "docker.service",
-                    CpuUsagePercent = 20m,
-                    MemoryUsageMb = 512,
-                    ThreadCount = 12,
-                    FileDescriptorCount = 64
-                }
-            };
+            var allServices = await _serviceMonitorService.GetAllServicesAsync(ct);
+            var collectedMetrics = new List<ServiceResourceMetrics>();
 
-            return await Task.FromResult(metrics);
+            foreach (var service in allServices)
+            {
+                var metrics = await GetServiceResourceMetricsAsync(service.UnitName, ct);
+                collectedMetrics.Add(metrics);
+            }
+
+            return collectedMetrics;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to collect metrics for all services");
-            throw;
+            throw new ServiceMonitorException("Failed to collect metrics for all services", ex);
         }
     }
 
