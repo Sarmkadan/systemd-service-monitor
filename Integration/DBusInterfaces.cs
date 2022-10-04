@@ -32,6 +32,20 @@ public interface IProperties : IDBusObject
 }
 
 /// <summary>
+/// D-Bus interface for org.freedesktop.Journal1.Journal.
+/// Used to retrieve log entries from systemd-journald.
+/// </summary>
+[DBusInterface("org.freedesktop.Journal1.Journal")]
+public interface IJournal : IDBusObject
+{
+    Task AddMatchAsync(string match);
+    Task SeekTailAsync();
+    Task<ulong> NextAsync();
+    Task<IDictionary<string, string>> GetDataAsync();
+    Task FlushMatchesAsync();
+}
+
+/// <summary>
 /// D-Bus interface for a systemd Unit (e.g., org.freedesktop.systemd1.Unit).
 /// Note: Specific unit interfaces like org.freedesktop.systemd1.Service
 /// are typically inherited from this or provide more specific properties.
