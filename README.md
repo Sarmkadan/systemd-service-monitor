@@ -14,6 +14,7 @@ A comprehensive ASP.NET web dashboard for monitoring and managing systemd servic
 - [Architecture](#architecture)
 - [System Requirements](#system-requirements)
 - [Installation](#installation)
+- [Running Under a Non-Root Service Account](#5-running-under-a-non-root-service-account)
 - [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Usage Examples](#usage-examples)
@@ -300,6 +301,121 @@ Then:
 systemctl daemon-reload
 systemctl enable systemd-service-monitor
 systemctl start systemd-service-monitor
+```
+
+### 5. Running Under a Non-Root Service Account
+
+Most production deployments require a dedicated low-privilege account rather than running as root.  The steps below create and configure such an account so the monitor can query unit status, read journal logs, and issue restart commands.
+
+#### 5.1 Create the service account
+
+```bash
+useradd --system --no-create-home --shell /usr/sbin/nologin svcmonitor
+```
+
+#### 5.2 Grant journal access
+
+Add the account to the `systemd-journal` group so it can read journal logs:
+
+```bash
+usermod -aG systemd-journal svcmonitor
+```
+
+#### 5.3 D-Bus policy file
+
+Create `/etc/dbus-1/system.d/systemd-service-monitor.conf` to allow the account to call the systemd Manager interface:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE busconfig PUBLIC
+  "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <policy user="svcmonitor">
+    <!-- Allow querying unit properties (read-only monitoring) -->
+    <allow send_destination="org.freedesktop.systemd1"
+           send_interface="org.freedesktop.systemd1.Manager"
+           send_member="ListUnits"/>
+    <allow send_destination="org.freedesktop.systemd1"
+           send_interface="org.freedesktop.systemd1.Manager"
+           send_member="GetUnit"/>
+    <allow send_destination="org.freedesktop.systemd1"
+           send_interface="org.freedesktop.DBus.Properties"
+           send_member="GetAll"/>
+    <!-- Allow service restart (remove if control operations are not needed) -->
+    <allow send_destination="org.freedesktop.systemd1"
+           send_interface="org.freedesktop.systemd1.Manager"
+           send_member="RestartUnit"/>
+    <allow send_destination="org.freedesktop.systemd1"
+           send_interface="org.freedesktop.systemd1.Manager"
+           send_member="StartUnit"/>
+    <allow send_destination="org.freedesktop.systemd1"
+           send_interface="org.freedesktop.systemd1.Manager"
+           send_member="StopUnit"/>
+  </policy>
+</busconfig>
+```
+
+Reload the D-Bus policy:
+```bash
+systemctl reload dbus
+```
+
+#### 5.4 polkit rule (required for service control)
+
+Create `/etc/polkit-1/rules.d/50-systemd-service-monitor.rules`:
+
+```javascript
+polkit.addRule(function(action, subject) {
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        subject.user === "svcmonitor") {
+        return polkit.Result.YES;
+    }
+});
+```
+
+> **Note:** This grants `svcmonitor` the ability to start, stop, and restart any unit.  
+> Restrict the rule further (e.g. by checking `action.lookup("unit")`) if you need to  
+> limit control to specific services only.
+
+#### 5.5 Unit file for the non-root deployment
+
+```ini
+[Unit]
+Description=systemd Service Monitor
+After=network.target dbus.service
+
+[Service]
+Type=simple
+User=svcmonitor
+Group=svcmonitor
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/systemd-service-monitor
+ExecStart=/opt/systemd-service-monitor/systemd-service-monitor
+Restart=always
+RestartSec=10
+# Grant access to the system D-Bus socket
+AmbientCapabilities=
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### 5.6 Verify the setup
+
+```bash
+# Confirm the account is in the journal group
+id svcmonitor
+
+# Test D-Bus access as the service account
+sudo -u svcmonitor dbus-send --system --print-reply \
+  --dest=org.freedesktop.systemd1 \
+  /org/freedesktop/systemd1 \
+  org.freedesktop.systemd1.Manager.ListUnits
+
+# Check journal access
+sudo -u svcmonitor journalctl -u nginx.service -n 5
 ```
 
 ## Configuration
