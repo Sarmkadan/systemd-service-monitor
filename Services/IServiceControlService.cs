@@ -58,6 +58,22 @@ public interface IServiceControlService
     /// Gets the status of a recent operation.
     /// </summary>
     Task<OperationResult?> GetLastOperationStatusAsync(string unitName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Restarts multiple services concurrently and returns per-service results.
+    /// </summary>
+    Task<BulkOperationResult> BulkRestartAsync(IEnumerable<string> unitNames, int maxConcurrency = 3, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Aggregated result of a bulk service operation.
+/// </summary>
+public class BulkOperationResult
+{
+    public IReadOnlyList<OperationResult> Results { get; set; } = [];
+    public int SuccessCount => Results.Count(r => r.Success);
+    public int FailureCount => Results.Count(r => !r.Success);
+    public bool AllSucceeded => FailureCount == 0;
 }
 
 /// <summary>

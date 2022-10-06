@@ -155,6 +155,74 @@ public class ServiceControlService : IServiceControlService
         return _lastOperations.TryGetValue(unitName, out var result) ? result : null;
     }
 
+    public async Task<BulkOperationResult> BulkRestartAsync(
+        IEnumerable<string> unitNames,
+        int maxConcurrency = 3,
+        CancellationToken ct = default)
+    {
+        var units = unitNames?.ToList() ?? [];
+        if (units.Count == 0)
+            return new BulkOperationResult { Results = [] };
+
+        maxConcurrency = Math.Clamp(maxConcurrency, 1, 20);
+
+        _logger.LogInformation(
+            "Bulk restart requested for {Count} services (maxConcurrency: {Concurrency})",
+            units.Count, maxConcurrency);
+
+        var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+        var results = new System.Collections.Concurrent.ConcurrentBag<OperationResult>();
+
+        var tasks = units.Select(async unitName =>
+        {
+            await semaphore.WaitAsync(ct);
+            try
+            {
+                var startTime = DateTime.UtcNow;
+                try
+                {
+                    var success = await RestartServiceAsync(unitName, ct);
+                    results.Add(new OperationResult
+                    {
+                        UnitName = unitName,
+                        Operation = "BulkRestart",
+                        Success = success,
+                        Message = success ? "Restarted successfully" : "Restart failed",
+                        ExitCode = success ? 0 : 1,
+                        OperationTime = startTime,
+                        DurationMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
+                    });
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new OperationResult
+                    {
+                        UnitName = unitName,
+                        Operation = "BulkRestart",
+                        Success = false,
+                        Message = $"Restart failed: {ex.Message}",
+                        ExitCode = 1,
+                        OperationTime = startTime,
+                        DurationMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
+                    });
+                }
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+
+        var sortedResults = results.OrderBy(r => units.IndexOf(r.UnitName)).ToList();
+        _logger.LogInformation(
+            "Bulk restart completed: {Success} succeeded, {Failure} failed",
+            sortedResults.Count(r => r.Success), sortedResults.Count(r => !r.Success));
+
+        return new BulkOperationResult { Results = sortedResults };
+    }
+
     private async Task<bool> ExecuteOperationAsync(
         string unitName,
         string operation,
