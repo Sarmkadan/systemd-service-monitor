@@ -116,6 +116,10 @@ indent_size = 2
 indent_style = space
 indent_size = 2
 
+# Sort using directives with System.* first
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
 # Markdown
 [*.md]
 trim_trailing_whitespace = false
