@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using System.Diagnostics;
 
@@ -12,7 +8,7 @@ namespace SystemdServiceMonitor.Middleware;
 /// Middleware for logging incoming requests and outgoing responses.
 /// Tracks request duration, status codes, and provides detailed request/response logging.
 /// </summary>
-public class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger)
+public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
     private const string RequestIdHeaderName = "X-Request-Id";
     private const string CorrelationIdHeaderName = "X-Correlation-Id";
@@ -45,7 +41,7 @@ public class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger)
             {
                 context.Response.Body = memoryStream;
 
-                await context.Next();
+                await next(context);
 
                 sw.Stop();
 
@@ -76,7 +72,7 @@ public class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger)
         }
 
         var newRequestId = Guid.NewGuid().ToString();
-        context.Response.Headers.Add(RequestIdHeaderName, newRequestId);
+        context.Response.Headers[RequestIdHeaderName] = newRequestId;
         return newRequestId;
     }
 
@@ -88,7 +84,7 @@ public class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger)
         }
 
         var newCorrelationId = Guid.NewGuid().ToString();
-        context.Response.Headers.Add(CorrelationIdHeaderName, newCorrelationId);
+        context.Response.Headers[CorrelationIdHeaderName] = newCorrelationId;
         return newCorrelationId;
     }
 }
