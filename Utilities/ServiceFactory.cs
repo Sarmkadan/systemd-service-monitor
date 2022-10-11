@@ -1,9 +1,6 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
+using SystemdServiceMonitor.Enums;
 using SystemdServiceMonitor.Models;
 
 namespace SystemdServiceMonitor.Utilities;
@@ -27,10 +24,10 @@ public static class ServiceFactory
             Id = Guid.NewGuid(),
             UnitName = unitName,
             Description = description,
-            State = Enum.TryParse<Enums.ServiceState>(state, true, out var parsedState)
+            State = Enum.TryParse<ServiceState>(state, true, out var parsedState)
                 ? parsedState
-                : Enums.ServiceState.Unknown,
-            SubState = Enums.ServiceSubState.Unknown,
+                : ServiceState.Unknown,
+            SubState = ServiceSubState.Unknown,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -39,19 +36,15 @@ public static class ServiceFactory
     /// <summary>
     /// Creates a new ServiceMetric with default values.
     /// </summary>
-    public static ServiceMetric CreateServiceMetric(string serviceName)
+    public static ServiceMetric CreateServiceMetric(string unitName)
     {
         return new ServiceMetric
         {
             Id = Guid.NewGuid(),
-            ServiceName = serviceName,
+            UnitName = unitName,
             Timestamp = DateTime.UtcNow,
-            CpuPercentage = 0,
-            MemoryUsageMb = 0,
-            DiskReadBytesPerSec = 0,
-            DiskWriteBytesPerSec = 0,
-            NetworkBytesIn = 0,
-            NetworkBytesOut = 0
+            MetricType = MetricType.CpuUsage,
+            Value = 0
         };
     }
 
@@ -59,18 +52,24 @@ public static class ServiceFactory
     /// Creates a new ServiceLog entry.
     /// </summary>
     public static ServiceLog CreateServiceLog(
-        string unit,
+        string unitName,
         string message,
         string severity = "INFO")
     {
+        var level = severity?.ToUpperInvariant() switch
+        {
+            "ERROR" or "ERR" => SyslogLevel.Error,
+            "WARN" or "WARNING" => SyslogLevel.Warning,
+            "DEBUG" => SyslogLevel.Debug,
+            _ => SyslogLevel.Info
+        };
         return new ServiceLog
         {
             Id = Guid.NewGuid(),
-            Unit = unit,
+            UnitName = unitName,
             Message = message,
-            Severity = severity,
-            Timestamp = DateTime.UtcNow,
-            Priority = GetPriorityFromSeverity(severity)
+            Level = level,
+            Timestamp = DateTime.UtcNow
         };
     }
 
@@ -82,14 +81,14 @@ public static class ServiceFactory
         return new ServiceStatus
         {
             Id = Guid.NewGuid(),
-            ServiceId = service.Id,
-            ServiceName = service.UnitName,
-            IsActive = service.State.ToString() == "Active",
-            State = service.State.ToString(),
-            SubState = service.SubState.ToString(),
-            MainPid = service.MainProcessId,
-            Uptime = TimeSpan.FromSeconds(service.UptimeSeconds),
-            Timestamp = DateTime.UtcNow
+            ServiceInfoId = service.Id,
+            UnitName = service.UnitName,
+            IsRunning = service.State == ServiceState.Active,
+            State = service.State,
+            SubState = service.SubState,
+            ProcessId = service.MainProcessId,
+            UptimeSeconds = service.UptimeSeconds,
+            RecordedAt = DateTime.UtcNow
         };
     }
 
@@ -101,11 +100,12 @@ public static class ServiceFactory
         int delaySec = 100,
         int maxAttempts = 5)
     {
+        Enum.TryParse<RestartPolicy>(policyName, true, out var policy);
         return new RestartPolicyConfig
         {
-            Policy = policyName,
-            RestartDelaySeconds = delaySec,
-            MaxRestartAttempts = maxAttempts,
+            PolicyType = policy,
+            RestartDelaySec = delaySec,
+            MaxRestarts = maxAttempts,
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -130,26 +130,6 @@ public static class ServiceFactory
             { "runAsGroup", service.RunAsGroup },
             { "createdAt", service.CreatedAt },
             { "updatedAt", service.UpdatedAt }
-        };
-    }
-
-    /// <summary>
-    /// Gets priority value from severity string.
-    /// Used for log filtering and severity-based operations.
-    /// </summary>
-    private static int GetPriorityFromSeverity(string severity)
-    {
-        return severity?.ToUpperInvariant() switch
-        {
-            "EMERG" or "EMERGENCY" => 0,
-            "ALERT" => 1,
-            "CRIT" or "CRITICAL" => 2,
-            "ERR" or "ERROR" => 3,
-            "WARN" or "WARNING" => 4,
-            "NOTICE" => 5,
-            "INFO" => 6,
-            "DEBUG" => 7,
-            _ => 6 // Default to INFO
         };
     }
 

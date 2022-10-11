@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
 using SystemdServiceMonitor.Models;

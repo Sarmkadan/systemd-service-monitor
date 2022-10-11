@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Tmds.DBus;
 using Microsoft.Extensions.Logging;

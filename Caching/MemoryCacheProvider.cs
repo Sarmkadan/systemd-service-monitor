@@ -1,11 +1,8 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace SystemdServiceMonitor.Caching;
 
@@ -22,7 +19,7 @@ public class MemoryCacheProvider : IServiceCache
     private readonly object _lockObject = new();
     private readonly ILogger<MemoryCacheProvider> _logger;
 
-    public MemoryCacheProvider(IMemoryCache cache, IOptions<CacheOptions>? options = null, ILogger<MemoryCacheProvider> logger)
+    public MemoryCacheProvider(IMemoryCache cache, ILogger<MemoryCacheProvider> logger, IOptions<CacheOptions>? options = null)
     {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _options = options?.Value ?? new CacheOptions();
