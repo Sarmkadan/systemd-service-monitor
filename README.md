@@ -1,28 +1,56 @@
-![CI](https://github.com/sarmkadan/systemd-service-monitor/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/github/license/sarmkadan/systemd-service-monitor)
-![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
-
 # systemd Service Monitor
+
+**Real-time web dashboard for monitoring and controlling systemd services on Linux systems**
+
+[![Build](https://github.com/sarmkadan/systemd-service-monitor/actions/workflows/build.yml/badge.svg)](https://github.com/sarmkadan/systemd-service-monitor/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+## Description
+
 
 ASP.NET web dashboard for monitoring and controlling systemd services via D-Bus. Blazor Server UI + REST API.
 
 ## Requirements
 
+
 - Linux with systemd
 - .NET 10 SDK
 - D-Bus access (the process user must be in the `systemd-journal` group or run as root)
 
+## Installation
+
+
+### Option 1: Install as .NET Global Tool
+
+```bash
+dotnet tool install --global SystemdServiceMonitor.Tool
+```
+
+### Option 2: Clone and Build
+
+```bash
+git clone https://github.com/sarmkadan/systemd-service-monitor.git
+cd systemd-service-monitor
+dotnet build --configuration Release
+```
+
+### Option 3: Use Docker
+
+```bash
+docker build -t systemd-service-monitor .
+docker run --privileged --net=host -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket systemd-service-monitor
+```
+
 ## Quick Start
 
 ```bash
-git clone https://github.com/sarmkadan/systemd-service-monitor
-cd systemd-service-monitor
-dotnet run
+dotnet run --configuration Release
 ```
 
-Open `http://localhost:5000`. Swagger UI is available at `http://localhost:5000/swagger` in development.
+Open `http://localhost:5000` in your browser. Swagger UI is available at `http://localhost:5000/swagger` for API documentation.
 
 ## Features
+
 
 - List all systemd services with state, sub-state, PID, uptime
 - Start / stop / restart services via REST API
@@ -33,7 +61,8 @@ Open `http://localhost:5000`. Swagger UI is available at `http://localhost:5000/
 
 ## Configuration
 
-`appsettings.json`:
+
+Configuration is done via `appsettings.json`:
 
 ```json
 {
@@ -44,29 +73,29 @@ Open `http://localhost:5000`. Swagger UI is available at `http://localhost:5000/
     "EnableRemoteOperations": true,
     "OperationTimeoutMs": 30000,
     "ConnectionRetryCount": 3
+  },
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information"
+    },
+    "WriteTo": [
+      {
+        "Name": "Console"
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "Logs/systemd-service-monitor-.log",
+          "rollingInterval": "Day"
+        }
+      }
+    ]
   }
 }
 ```
 
-## Running as a systemd service
+## API Reference
 
-```ini
-[Unit]
-Description=systemd Service Monitor
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/dotnet /opt/systemd-monitor/systemd-service-monitor.dll
-WorkingDirectory=/opt/systemd-monitor
-User=monitor
-SupplementaryGroups=systemd-journal
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## API
 
 Base path: `/api`
 
@@ -77,11 +106,41 @@ Base path: `/api`
 | POST | `/services/{name}/start` | Start a service |
 | POST | `/services/{name}/stop` | Stop a service |
 | POST | `/services/{name}/restart` | Restart a service |
-| GET | `/logs/{name}` | Get service logs |
-| GET | `/metrics/service/{name}` | CPU/memory metrics |
-| GET | `/metrics/system` | System-wide metrics |
+| GET | `/services/{name}/logs` | Get service logs |
+| GET | `/services/{name}/metrics` | CPU/memory metrics |
+| GET | `/services/{name}/dependencies` | Service dependency graph |
+| GET | `/system/metrics` | System-wide metrics |
 | GET | `/health` | Health check |
+
+## Usage Examples
+
+### REST API
+
+#### Start a service
+```bash
+curl -X POST http://localhost:5000/api/services/nginx.service/start \
+  -H "Content-Type: application/json"
+```
+
+#### Get service metrics
+```bash
+curl http://localhost:5000/api/services/nginx.service/metrics
+```
+
+#### Stream service logs
+```bash
+curl http://localhost:5000/api/services/nginx.service/logs?limit=50
+```
+
+### C# Library
+
+Examples on how to use `systemd-service-monitor` as a library:
+
+- [BasicUsage.cs](examples/dotnet-examples/BasicUsage.cs): Basic retrieval of service status.
+- [AdvancedUsage.cs](examples/dotnet-examples/AdvancedUsage.cs): Continuous monitoring and statistics.
+- [IntegrationExample.cs](examples/dotnet-examples/IntegrationExample.cs): Dependency injection configuration.
 
 ## License
 
-MIT
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
