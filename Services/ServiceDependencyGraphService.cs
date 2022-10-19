@@ -8,23 +8,31 @@ namespace SystemdServiceMonitor.Services;
 
 public class ServiceDependencyGraphService(IServiceRepository serviceRepository) : IServiceDependencyGraphService
 {
+    private readonly ILogger<ServiceDependencyGraphService>? _logger = null;
+
     public async Task<ServiceDependencyGraph> BuildGraphAsync(CancellationToken ct = default)
     {
+        _logger?.LogInformation("Building dependency graph for all services");
         var services = await serviceRepository.GetAllAsync(ct);
-        return BuildGraph(services);
+        var graph = BuildGraph(services);
+        _logger?.LogInformation("Dependency graph built successfully: {NodeCount} nodes, {EdgeCount} edges", graph.TotalNodes, graph.TotalEdges);
+        return graph;
     }
 
     public async Task<ServiceDependencyGraph> BuildGraphForServiceAsync(string unitName, int depth = 3, CancellationToken ct = default)
     {
+        _logger?.LogInformation("Building dependency graph for service: {ServiceName} (depth: {Depth})", unitName, depth);
         var graph = BuildGraph(await serviceRepository.GetAllAsync(ct));
         if (string.IsNullOrWhiteSpace(unitName))
         {
+            _logger?.LogWarning("Service name is empty, returning empty graph");
             return CreateEmptyGraph();
         }
 
         var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
         if (!nodeLookup.ContainsKey(unitName))
         {
+            _logger?.LogWarning("Service {ServiceName} not found in graph", unitName);
             return CreateEmptyGraph();
         }
 
@@ -55,13 +63,17 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
             }
         }
 
-        return BuildSubgraph(graph, visited);
+        var subgraph = BuildSubgraph(graph, visited);
+        _logger?.LogInformation("Dependency graph for {ServiceName} built: {NodeCount} nodes, {EdgeCount} edges", unitName, subgraph.TotalNodes, subgraph.TotalEdges);
+        return subgraph;
     }
 
     public async Task<IEnumerable<string>> GetDependencyChainAsync(string fromService, string toService, CancellationToken ct = default)
     {
+        _logger?.LogInformation("Finding dependency chain from {FromService} to {ToService}", fromService, toService);
         if (string.IsNullOrWhiteSpace(fromService) || string.IsNullOrWhiteSpace(toService))
         {
+            _logger?.LogWarning("Invalid service names provided: from='{FromService}', to='{ToService}'", fromService, toService);
             return [];
         }
 
@@ -69,11 +81,13 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
         if (!nodeLookup.ContainsKey(fromService) || !nodeLookup.ContainsKey(toService))
         {
+            _logger?.LogWarning("One or both services not found in graph: from='{FromService}', to='{ToService}'", fromService, toService);
             return [];
         }
 
         if (string.Equals(fromService, toService, StringComparison.OrdinalIgnoreCase))
         {
+            _logger?.LogDebug("Services are the same, returning single service path");
             return [nodeLookup.Keys.First(name => string.Equals(name, fromService, StringComparison.OrdinalIgnoreCase))];
         }
 
@@ -96,6 +110,7 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
                 var nextPath = new List<string>(path) { dependency };
                 if (string.Equals(dependency, toService, StringComparison.OrdinalIgnoreCase))
                 {
+                    _logger?.LogInformation("Dependency chain found: {Chain}", string.Join(" -> ", nextPath));
                     return nextPath;
                 }
 
@@ -104,25 +119,32 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
             }
         }
 
+        _logger?.LogWarning("No dependency chain found from {FromService} to {ToService}", fromService, toService);
         return [];
     }
 
     public async Task<IEnumerable<DependencyNode>> GetRootServicesAsync(CancellationToken ct = default)
     {
+        _logger?.LogDebug("Retrieving root services (services with no dependents)");
         var graph = BuildGraph(await serviceRepository.GetAllAsync(ct));
-        return graph.Nodes
+        var rootServices = graph.Nodes
             .Where(node => node.IsRootNode)
             .OrderBy(node => node.ServiceName)
             .ToList();
+        _logger?.LogInformation("Found {Count} root services", rootServices.Count);
+        return rootServices;
     }
 
     public async Task<IEnumerable<DependencyNode>> GetLeafServicesAsync(CancellationToken ct = default)
     {
+        _logger?.LogDebug("Retrieving leaf services (services with no dependencies)");
         var graph = BuildGraph(await serviceRepository.GetAllAsync(ct));
-        return graph.Nodes
+        var leafServices = graph.Nodes
             .Where(node => node.IsLeafNode)
             .OrderBy(node => node.ServiceName)
             .ToList();
+        _logger?.LogInformation("Found {Count} leaf services", leafServices.Count);
+        return leafServices;
     }
 
     private static ServiceDependencyGraph BuildGraph(IEnumerable<ServiceInfo> services)

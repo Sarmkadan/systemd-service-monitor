@@ -3,6 +3,7 @@
 using System.Runtime.CompilerServices;
 using SystemdServiceMonitor.Dtos;
 using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
 
 namespace SystemdServiceMonitor.Services;
 
@@ -35,6 +36,12 @@ public sealed class LogStreamService(
         LogStreamFilter filter,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
+        logger.LogDebug("Starting log stream with filter: ServiceName={ServiceName}, SearchTerm={SearchTerm}, BufferSize={BufferSize}, PollingIntervalMs={PollingIntervalMs}",
+            filter.ServiceName ?? "*",
+            filter.SearchTerm ?? string.Empty,
+            filter.BufferSize,
+            filter.PollingIntervalMs);
+
         var pollingMs  = Math.Clamp(filter.PollingIntervalMs, MinPollingMs, MaxPollingMs);
         var bufferSize = Math.Clamp(filter.BufferSize, 0, MaxBufferSize);
         var cursor     = DateTime.UtcNow;

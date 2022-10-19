@@ -40,6 +40,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public async Task<SystemResource> GetSystemResourcesAsync(CancellationToken ct = default)
     {
+        var startTime = DateTime.UtcNow;
         try
         {
             _logger.LogDebug("Collecting system resource metrics");
@@ -168,11 +169,13 @@ public class ResourceMonitorService : IResourceMonitorService
             // Disk IOPS is hard to get reliably without specialized tools or parsing complex /proc files
             resources.DiskIopsPerSecond = 0; // Keeping as placeholder
 
+            _logger.LogDebug("System resource collection completed in {Duration}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
             return resources;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to collect system resources");
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "Failed to collect system resources after {Duration}ms", duration.TotalMilliseconds);
             throw new ServiceMonitorException("Failed to collect system resources", ex);
         }
     }

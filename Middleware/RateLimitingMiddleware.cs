@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using SystemdServiceMonitor.Responses;
+using Microsoft.Extensions.Logging;
 
 namespace SystemdServiceMonitor.Middleware;
 
@@ -46,6 +47,9 @@ public class RateLimitingMiddleware(
             await context.Response.WriteAsJsonAsync(response, jsonOptions);
             return;
         }
+
+        logger.LogDebug("Rate limiting token consumed for IP {IpAddress}. Remaining tokens: {Remaining}",
+            ipAddress, bucket.RemainingTokens);
 
         await next(context);
     }
@@ -93,6 +97,9 @@ public class RateLimitingMiddleware(
                 _lastRefillTime = now;
             }
         }
+
+        // Expose remaining tokens for debug logging
+        public int RemainingTokens => _tokens;
     }
 }
 

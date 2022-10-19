@@ -226,6 +226,8 @@ public class ServiceControlService : IServiceControlService
         CancellationToken ct)
     {
         var startTime = DateTime.UtcNow;
+        _logger.LogDebug("Starting operation {Operation} on service {ServiceName}", operation, unitName);
+
         try
         {
             if (!_connectionService.IsConnected)
@@ -248,8 +250,8 @@ public class ServiceControlService : IServiceControlService
                 DurationMs = (long)duration.TotalMilliseconds
             };
 
-            _logger.LogInformation("Operation {Operation} on {ServiceName} completed: {Success}",
-                operation, unitName, result);
+            _logger.LogInformation("Operation {Operation} on {ServiceName} completed: {Success} (duration: {Duration}ms)",
+                operation, unitName, result, duration.TotalMilliseconds);
             return result;
         }
         catch (Exception ex)
@@ -266,8 +268,8 @@ public class ServiceControlService : IServiceControlService
                 DurationMs = (long)duration.TotalMilliseconds
             };
 
-            _logger.LogError(ex, "Operation {Operation} on {ServiceName} failed",
-                operation, unitName);
+            _logger.LogError(ex, "Operation {Operation} on {ServiceName} failed after {Duration}ms",
+                operation, unitName, duration.TotalMilliseconds);
             throw new ServiceOperationException(unitName, operation, ex.Message, ex);
         }
     }

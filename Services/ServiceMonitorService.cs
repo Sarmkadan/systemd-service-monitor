@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Data.Repositories;
 using SystemdServiceMonitor.Enums;
 using SystemdServiceMonitor.Models;
-using SystemdServiceMonitor.Integration; // Add this
-using Tmds.DBus; // Add this
-using System.Linq; // Add this
+using SystemdServiceMonitor.Integration;
+using Tmds.DBus;
+using System.Linq;
 
 namespace SystemdServiceMonitor.Services;
 
@@ -33,25 +33,25 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task<IEnumerable<ServiceInfo>> GetAllServicesAsync(CancellationToken ct = default)
     {
-        try
-        {
-            return await _serviceRepository.GetAllAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to retrieve all services");
-            throw;
-        }
+        _logger.LogDebug("Entering GetAllServicesAsync");
+        var result = await _serviceRepository.GetAllAsync(ct);
+        _logger.LogInformation("Retrieved {Count} services", result.Count());
+        return result;
     }
 
     public async Task<ServiceInfo?> GetServiceByNameAsync(string unitName, CancellationToken ct = default)
     {
+        _logger.LogDebug("Entering GetServiceByNameAsync for {UnitName}", unitName);
         try
         {
             var service = await _serviceRepository.GetByUnitNameAsync(unitName, ct);
             if (service is null)
             {
                 _logger.LogWarning("Service not found: {ServiceName}", unitName);
+            }
+            else
+            {
+                _logger.LogInformation("Service found: {ServiceName}", unitName);
             }
             return service;
         }
@@ -64,147 +64,127 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task<IEnumerable<ServiceInfo>> GetActiveServicesAsync(CancellationToken ct = default)
     {
-        try
-        {
-            return await _serviceRepository.GetActiveServicesAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to retrieve active services");
-            throw;
-        }
+        _logger.LogDebug("Entering GetActiveServicesAsync");
+        var result = await _serviceRepository.GetActiveServicesAsync(ct);
+        _logger.LogInformation("Retrieved {Count} active services", result.Count());
+        return result;
     }
 
     public async Task<IEnumerable<ServiceInfo>> GetFailedServicesAsync(CancellationToken ct = default)
     {
-        try
-        {
-            return await _serviceRepository.GetFailedServicesAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to retrieve failed services");
-            throw;
-        }
+        _logger.LogDebug("Entering GetFailedServicesAsync");
+        var result = await _serviceRepository.GetFailedServicesAsync(ct);
+        _logger.LogInformation("Retrieved {Count} failed services", result.Count());
+        return result;
     }
 
     public async Task RefreshServiceListAsync(CancellationToken ct = default)
     {
-        try
+        _logger.LogInformation("Refreshing service list from systemd");
+
+        if (!_connectionService.IsConnected)
         {
-            _logger.LogInformation("Refreshing service list from systemd");
-
-            if (!_connectionService.IsConnected)
-            {
-                _logger.LogWarning("D-Bus connection not established, attempting to connect.");
-                await _connectionService.ConnectAsync(ct);
-            }
-
-            var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync(); // Assuming DBusConnectionManager is accessible
-
-            var manager = connection.CreateProxy<ISystemdManager>("org.freedesktop.systemd1", "/org/freedesktop/systemd1");
-            var properties = connection.CreateProxy<IProperties>("org.freedesktop.DBus.Properties", "/org/freedesktop/DBus"); // Correct service/path for IProperties
-
-            var units = await manager.ListUnitsAsync();
-            var serviceInfos = new List<ServiceInfo>();
-
-            foreach (var unit in units)
-            {
-                if (!unit.Name.EndsWith(".service")) continue; // Only interested in services
-
-                ServiceInfo serviceInfo = new()
-                {
-                    UnitName = unit.Name,
-                    Description = unit.Description,
-                    LoadState = Enum.TryParse<ServiceLoadState>(unit.LoadState, true, out var loadState) ? loadState : ServiceLoadState.Unknown,
-                    State = Enum.TryParse<ServiceState>(unit.ActiveState, true, out var activeState) ? activeState : ServiceState.Unknown,
-                    SubState = Enum.TryParse<ServiceSubState>(unit.SubState, true, out var subState) ? subState : ServiceSubState.Unknown,
-                };
-
-                try
-                {
-                    // Get detailed properties for the unit
-                    var unitProperties = await properties.GetAllAsync("org.freedesktop.systemd1.Unit");
-
-                    if (unitProperties.TryGetValue("MainPID", out object? mainPidVal))
-                    {
-                        if (mainPidVal is uint pidUint) serviceInfo.MainProcessId = (int)pidUint;
-                    }
-                    if (unitProperties.TryGetValue("NRestarts", out object? nRestartsVal))
-                    {
-                        if (nRestartsVal is uint restartsUint) serviceInfo.RestartCount = (int)restartsUint;
-                    }
-                    if (unitProperties.TryGetValue("ActiveEnterTimestamp", out object? tsVal))
-                    {
-                        if (tsVal is ulong tsMicro)
-                        {
-                            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                            var activeAt = epoch.AddTicks((long)tsMicro * 10);
-                            serviceInfo.UptimeSeconds = (long)(DateTime.UtcNow - activeAt).TotalSeconds;
-                        }
-                    }
-                    if (unitProperties.TryGetValue("MemoryCurrentBytes", out object? memVal))
-                    {
-                        if (memVal is ulong memBytes) serviceInfo.MemoryUsageMb = (long)(memBytes / (1024.0 * 1024.0));
-                    }
-
-                    serviceInfos.Add(serviceInfo);
-                }
-                catch (Exception unitEx)
-                {
-                    _logger.LogWarning(unitEx, "Failed to get properties for unit {UnitName}. Skipping detailed info.", unit.Name);
-                }
-            }
-
-            // Update all services in the repository
-            foreach (var service in serviceInfos)
-            {
-                await _serviceRepository.UpdateAsync(service, ct);
-            }
-
-            _logger.LogInformation("Service list refresh completed. Found {ServiceCount} services.", serviceInfos.Count);
+            _logger.LogWarning("D-Bus connection not established, attempting to connect.");
+            await _connectionService.ConnectAsync(ct);
         }
-        catch (Exception ex)
+
+        _logger.LogDebug("Establishing D-Bus connection for service list refresh");
+
+        var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
+
+        var manager = connection.CreateProxy<ISystemdManager>("org.freedesktop.systemd1", "/org/freedesktop/systemd1");
+        var properties = connection.CreateProxy<IProperties>("org.freedesktop.DBus.Properties", "/org/freedesktop/DBus");
+
+        var units = await manager.ListUnitsAsync();
+        var serviceInfos = new List<ServiceInfo>();
+
+        foreach (var unit in units)
         {
-            _logger.LogError(ex, "Failed to refresh service list");
-            throw;
+            if (!unit.Name.EndsWith(".service")) continue; // Only interested in services
+
+            var serviceInfo = new ServiceInfo
+            {
+                UnitName = unit.Name,
+                Description = unit.Description,
+                LoadState = Enum.TryParse<ServiceLoadState>(unit.LoadState, true, out var loadState) ? loadState : ServiceLoadState.Unknown,
+                State = Enum.TryParse<ServiceState>(unit.ActiveState, true, out var activeState) ? activeState : ServiceState.Unknown,
+                SubState = Enum.TryParse<ServiceSubState>(unit.SubState, true, out var subState) ? subState : ServiceSubState.Unknown,
+            };
+
+            try
+            {
+                var unitProperties = await properties.GetAllAsync("org.freedesktop.systemd1.Unit");
+
+                if (unitProperties.TryGetValue("MainPID", out object? mainPidVal) && mainPidVal is uint pidUint)
+                    serviceInfo.MainProcessId = (int)pidUint;
+
+                if (unitProperties.TryGetValue("NRestarts", out object? nRestartsVal) && nRestartsVal is uint restartsUint)
+                    serviceInfo.RestartCount = (int)restartsUint;
+
+                if (unitProperties.TryGetValue("ActiveEnterTimestamp", out object? tsVal) && tsVal is ulong tsMicro)
+                {
+                    var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                    var activeAt = epoch.AddTicks((long)tsMicro * 10);
+                    serviceInfo.UptimeSeconds = (long)(DateTime.UtcNow - activeAt).TotalSeconds;
+                }
+
+                if (unitProperties.TryGetValue("MemoryCurrentBytes", out object? memVal) && memVal is ulong memBytes)
+                    serviceInfo.MemoryUsageMb = (long)(memBytes / (1024.0 * 1024.0));
+
+                serviceInfos.Add(serviceInfo);
+                _logger.LogDebug("Processed unit {UnitName}", unit.Name);
+            }
+            catch (Exception unitEx)
+            {
+                _logger.LogWarning(unitEx, "Failed to get properties for unit {UnitName}. Skipping detailed info.", unit.Name);
+            }
         }
+
+        foreach (var service in serviceInfos)
+        {
+            await _serviceRepository.UpdateAsync(service, ct);
+        }
+
+        _logger.LogInformation("Service list refresh completed. Found {ServiceCount} services.", serviceInfos.Count);
+        _logger.LogDebug("Updated {ServiceCount} service records in repository", serviceInfos.Count);
     }
 
     public async Task<ServiceStatus?> GetServiceStatusAsync(string unitName, CancellationToken ct = default)
     {
-        try
+        _logger.LogDebug("Entering GetServiceStatusAsync for {UnitName}", unitName);
+        var service = await _serviceRepository.GetByUnitNameAsync(unitName, ct);
+        if (service is null)
         {
-            var service = await _serviceRepository.GetByUnitNameAsync(unitName, ct);
-            if (service is null)
-                return null;
+            _logger.LogWarning("Service not found when retrieving status: {UnitName}", unitName);
+            return null;
+        }
 
-            return new ServiceStatus
-            {
-                ServiceInfoId = service.Id,
-                UnitName = service.UnitName,
-                State = service.State,
-                SubState = service.SubState,
-                IsEnabled = service.AutoStart, // AutoStart is not fetched from D-Bus directly, assumes it's persisted
-                IsRunning = service.State == ServiceState.Active,
-                ProcessId = service.MainProcessId,
-                CpuUsagePercent = (decimal)service.CpuUsagePercent, // Populated by RefreshServiceListAsync
-                MemoryUsageMb = service.MemoryUsageMb, // Populated by RefreshServiceListAsync
-                HasFailed = service.State == ServiceState.Failed,
-                FailureReason = service.Result, // Result is not directly fetched from D-Bus in this method
-                UptimeSeconds = service.UptimeSeconds,
-                HealthStatus = HealthStatus.Healthy // This needs a proper health check
-            };
-        }
-        catch (Exception ex)
+        var status = new ServiceStatus
         {
-            _logger.LogError(ex, "Failed to get status for service: {ServiceName}", unitName);
-            throw;
-        }
+            ServiceInfoId = service.Id,
+            UnitName = service.UnitName,
+            State = service.State,
+            SubState = service.SubState,
+            IsEnabled = service.AutoStart,
+            IsRunning = service.State == ServiceState.Active,
+            ProcessId = service.MainProcessId,
+            CpuUsagePercent = (decimal)service.CpuUsagePercent,
+            MemoryUsageMb = service.MemoryUsageMb,
+            HasFailed = service.State == ServiceState.Failed,
+            FailureReason = service.Result,
+            UptimeSeconds = service.UptimeSeconds,
+            HealthStatus = HealthStatus.Healthy
+        };
+
+        _logger.LogInformation("Retrieved status for service {UnitName}: State={State}, SubState={SubState}",
+            unitName, service.State, service.SubState);
+
+        return status;
     }
 
     public async Task StartMonitoringAsync(string unitName, int intervalMs = 5000, CancellationToken ct = default)
     {
+        _logger.LogDebug("Entering StartMonitoringAsync for {UnitName}", unitName);
         await _monitoringLock.WaitAsync(ct);
         try
         {
@@ -221,16 +201,19 @@ public class ServiceMonitorService : IServiceMonitorService
 
             _ = Task.Run(async () =>
             {
+                var monitoringStartTime = DateTime.UtcNow;
+                _logger.LogDebug("Monitoring task started for {ServiceName} at {StartTime}", unitName, monitoringStartTime);
+
                 while (!cts.Token.IsCancellationRequested)
                 {
                     try
                     {
-                        // Now calls the updated GetServiceStatusAsync
                         await GetServiceStatusAsync(unitName, cts.Token);
                         await Task.Delay(intervalMs, cts.Token);
                     }
                     catch (OperationCanceledException)
                     {
+                        _logger.LogInformation("Monitoring task cancelled for service: {ServiceName}", unitName);
                         break;
                     }
                     catch (Exception ex)
@@ -238,6 +221,9 @@ public class ServiceMonitorService : IServiceMonitorService
                         _logger.LogError(ex, "Error during monitoring of {ServiceName}", unitName);
                     }
                 }
+
+                _logger.LogInformation("Monitoring task completed for service: {ServiceName} (duration: {Duration}ms)",
+                    unitName, (DateTime.UtcNow - monitoringStartTime).TotalMilliseconds);
             }, cts.Token);
         }
         finally
@@ -248,14 +234,24 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task StopMonitoringAsync(string unitName)
     {
+        _logger.LogDebug("Entering StopMonitoringAsync for {UnitName}", unitName);
         await _monitoringLock.WaitAsync();
         try
         {
             if (_monitoringTokens.TryGetValue(unitName, out var cts))
             {
+                var wasMonitoring = _monitoringTokens.ContainsKey(unitName);
                 cts.Cancel();
                 _monitoringTokens.Remove(unitName);
                 _logger.LogInformation("Stopped monitoring service: {ServiceName}", unitName);
+                if (!wasMonitoring)
+                {
+                    _logger.LogWarning("Service {ServiceName} was not being monitored but stop was requested", unitName);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Attempted to stop monitoring for unknown service: {ServiceName}", unitName);
             }
         }
         finally
@@ -266,26 +262,25 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public IEnumerable<string> GetMonitoredServices()
     {
+        _logger.LogDebug("Retrieving list of monitored services");
         return _monitoringTokens.Keys.ToList();
     }
 
     public async Task<ServiceStatistics> GetStatisticsAsync(CancellationToken ct = default)
     {
+        _logger.LogDebug("Entering GetStatisticsAsync");
         try
         {
             var allServices = await _serviceRepository.GetAllAsync(ct);
             var activeServices = await _serviceRepository.GetActiveServicesAsync(ct);
             var failedServices = await _serviceRepository.GetFailedServicesAsync(ct);
 
-            // Calculate average CPU and Memory based on currently available data
-            // This assumes RefreshServiceListAsync has been called recently
             double totalCpu = 0;
             long totalMemory = 0;
             int monitoredCount = 0;
 
             foreach (var service in allServices)
             {
-                // Only consider services for which we have recent resource data
                 if (service.CpuUsagePercent > 0 || service.MemoryUsageMb > 0)
                 {
                     totalCpu += service.CpuUsagePercent;
@@ -294,7 +289,7 @@ public class ServiceMonitorService : IServiceMonitorService
                 }
             }
 
-            return new ServiceStatistics
+            var stats = new ServiceStatistics
             {
                 TotalServices = allServices.Count(),
                 ActiveServices = activeServices.Count(),
@@ -306,6 +301,12 @@ public class ServiceMonitorService : IServiceMonitorService
                 TotalRestarts = allServices.Sum(s => s.RestartCount),
                 LastRefreshTime = DateTime.UtcNow
             };
+
+            _logger.LogInformation("Statistics computed: Total={Total}, Active={Active}, Failed={Failed}, AvgCpu={AvgCpu}, AvgMem={AvgMem}",
+                stats.TotalServices, stats.ActiveServices, stats.FailedServices,
+                stats.AverageCpuUsage, stats.AverageMemoryUsage);
+
+            return stats;
         }
         catch (Exception ex)
         {
@@ -313,6 +314,4 @@ public class ServiceMonitorService : IServiceMonitorService
             throw;
         }
     }
-
-    // Removed CreateDemoServices as it's no longer needed
 }

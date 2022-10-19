@@ -3,6 +3,7 @@
 using System.Net;
 using System.Text.Json;
 using SystemdServiceMonitor.Responses;
+using Microsoft.Extensions.Logging;
 
 namespace SystemdServiceMonitor.Middleware;
 
@@ -14,6 +15,8 @@ public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandling
 {
     public async Task InvokeAsync(HttpContext context)
     {
+        logger.LogDebug("Entering ErrorHandlingMiddleware for request {Path}", context.Request.Path);
+
         try
         {
             await next(context);
@@ -23,6 +26,8 @@ public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandling
             logger.LogError(ex, "Unhandled exception in request pipeline. Path: {Path}", context.Request.Path);
             await HandleExceptionAsync(context, ex);
         }
+
+        logger.LogDebug("Exiting ErrorHandlingMiddleware for request {Path}", context.Request.Path);
     }
 
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)

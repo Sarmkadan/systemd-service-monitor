@@ -8,6 +8,7 @@ using SystemdServiceMonitor.Extensions;
 using SystemdServiceMonitor.Filters;
 using SystemdServiceMonitor.Middleware;
 using SystemdServiceMonitor.Services;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,6 +107,10 @@ app.MapRazorComponents<App>()
 
 // Map health check endpoint
 app.MapHealthChecks("/health");
+
+// Log application start
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Application started and listening on {Urls}", string.Join(", ", app.Urls));
 
 try
 {
