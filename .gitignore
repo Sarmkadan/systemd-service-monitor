@@ -58,3 +58,6 @@ Thumbs.db
 
 # aider internal state - never commit
 .aider*
+bin/
+obj/
+BenchmarkDotNet.Artifacts/
