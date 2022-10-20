@@ -9,8 +9,9 @@ using SystemdServiceMonitor.Models;
 using SystemdServiceMonitor.Services;
 using Xunit;
 
-namespace SystemdServiceMonitor.Tests;
-
+/// <summary>
+/// Tests for the ServiceMonitorService class.
+/// </summary>
 public class ServiceMonitorServiceTests
 {
     private readonly ILogger<ServiceMonitorService> _logger;
@@ -18,6 +19,9 @@ public class ServiceMonitorServiceTests
     private readonly IServiceRepository _repository;
     private readonly ServiceMonitorService _service;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServiceMonitorServiceTests"/> class.
+    /// </summary>
     public ServiceMonitorServiceTests()
     {
         _logger = Substitute.For<ILogger<ServiceMonitorService>>();
@@ -26,6 +30,9 @@ public class ServiceMonitorServiceTests
         _service = new ServiceMonitorService(_logger, _connectionService, _repository);
     }
 
+    /// <summary>
+    /// Verifies that GetAllServicesAsync returns all services.
+    /// </summary>
     [Fact]
     public async Task GetAllServicesAsync_ReturnsAllServices()
     {
@@ -46,6 +53,10 @@ public class ServiceMonitorServiceTests
         result.Should().Contain(s => s.UnitName == "nginx.service");
     }
 
+    /// <summary>
+    /// Verifies that GetAllServicesAsync logs an error and throws when the repository throws.
+    /// </summary>
+    /// <param name="ex">The exception thrown by the repository.</param>
     [Fact]
     public async Task GetAllServicesAsync_WhenRepositoryThrows_LogsErrorAndThrows()
     {
@@ -59,6 +70,10 @@ public class ServiceMonitorServiceTests
             .WithMessage("DB connection failed");
     }
 
+    /// <summary>
+    /// Verifies that GetServiceByNameAsync returns a service with a valid name.
+    /// </summary>
+    /// <param name="unitName">The name of the service to retrieve.</param>
     [Fact]
     public async Task GetServiceByNameAsync_WithValidName_ReturnsService()
     {
@@ -75,6 +90,10 @@ public class ServiceMonitorServiceTests
         result?.UnitName.Should().Be(unitName);
     }
 
+    /// <summary>
+    /// Verifies that GetServiceByNameAsync returns null for a non-existent service.
+    /// </summary>
+    /// <param name="unitName">The name of the service to retrieve.</param>
     [Fact]
     public async Task GetServiceByNameAsync_WithNonExistentName_ReturnsNull()
     {
@@ -89,6 +108,9 @@ public class ServiceMonitorServiceTests
         result.Should().BeNull();
     }
 
+    /// <summary>
+    /// Verifies that GetActiveServicesAsync returns only active services.
+    /// </summary>
     [Fact]
     public async Task GetActiveServicesAsync_ReturnsOnlyActiveServices()
     {
@@ -108,6 +130,11 @@ public class ServiceMonitorServiceTests
         result.Should().AllSatisfy(s => s.State.Should().Be(ServiceState.Active));
     }
 
+    /// <summary>
+    /// Verifies that GetServiceByNameAsync logs an error and throws when the repository throws.
+    /// </summary>
+    /// <param name="unitName">The name of the service to retrieve.</param>
+    /// <param name="ex">The exception thrown by the repository.</param>
     [Fact]
     public async Task GetServiceByNameAsync_WhenRepositoryThrows_LogsErrorAndThrows()
     {
@@ -122,6 +149,9 @@ public class ServiceMonitorServiceTests
             .WithMessage("Network error");
     }
 
+    /// <summary>
+    /// Verifies that GetAllServicesAsync returns an empty enumerable when the repository returns an empty result.
+    /// </summary>
     [Fact]
     public async Task GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable()
     {
