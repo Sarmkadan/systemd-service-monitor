@@ -9,8 +9,14 @@ using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Tests;
 
+/// <summary>
+/// Tests for the ServiceDependencyGraphService class.
+/// </summary>
 public class ServiceDependencyGraphTests
 {
+    /// <summary>
+    /// Tests that the BuildGraphAsync method creates nodes and edges from dependencies.
+    /// </summary>
     [Fact]
     public async Task BuildGraphAsync_CreatesNodesAndEdgesFromDependencies()
     {
@@ -51,6 +57,9 @@ public class ServiceDependencyGraphTests
         graph.Edges.Should().Contain(edge => edge.FromService == "api.service" && edge.ToService == "database.service" && edge.RelationshipType == "DependsOn");
     }
 
+    /// <summary>
+    /// Tests that the GetDependencyChainAsync method returns the shortest path when a chain exists.
+    /// </summary>
     [Fact]
     public async Task GetDependencyChainAsync_WhenChainExists_ReturnsShortestPath()
     {
@@ -80,6 +89,9 @@ public class ServiceDependencyGraphTests
         path.Should().Equal("frontend.service", "api.service", "database.service");
     }
 
+    /// <summary>
+    /// Tests that the BuildGraphForServiceAsync method returns a local subgraph with a depth limit.
+    /// </summary>
     [Fact]
     public async Task BuildGraphForServiceAsync_WithDepthLimit_ReturnsLocalSubgraph()
     {
