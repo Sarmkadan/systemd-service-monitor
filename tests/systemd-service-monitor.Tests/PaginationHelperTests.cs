@@ -4,10 +4,14 @@ using FluentAssertions;
 using SystemdServiceMonitor.Utilities;
 using Xunit;
 
-namespace SystemdServiceMonitor.Tests;
-
+/// <summary>
+/// Tests for the PaginationHelper class.
+/// </summary>
 public class PaginationHelperTests
 {
+    /// <summary>
+    /// Tests that CalculateTotalPages returns 0 when the page size is 0.
+    /// </summary>
     [Fact]
     public void CalculateTotalPages_ZeroPageSize_ReturnsZero()
     {
@@ -18,6 +22,9 @@ public class PaginationHelperTests
         result.Should().Be(0);
     }
 
+    /// <summary>
+    /// Tests that CalculateTotalPages rounds up when the total count is not evenly divisible by the page size.
+    /// </summary>
     [Fact]
     public void CalculateTotalPages_NotEvenlyDivisible_RoundsUp()
     {
@@ -28,6 +35,9 @@ public class PaginationHelperTests
         result.Should().Be(11);
     }
 
+    /// <summary>
+    /// Tests that CalculateSkip returns 0 for the first page.
+    /// </summary>
     [Fact]
     public void CalculateSkip_FirstPage_ReturnsZero()
     {
@@ -38,6 +48,9 @@ public class PaginationHelperTests
         result.Should().Be(0);
     }
 
+    /// <summary>
+    /// Tests that ValidatePaginationParams clamps the page number to 1 when it is negative.
+    /// </summary>
     [Fact]
     public void ValidatePaginationParams_NegativePageNumber_ClampsToOne()
     {
@@ -49,6 +62,9 @@ public class PaginationHelperTests
         pageSize.Should().Be(20);
     }
 
+    /// <summary>
+    /// Tests that GetPageNumbers adjusts the window to fit when the current page is near the end of the total pages.
+    /// </summary>
     [Fact]
     public void GetPageNumbers_NearEndOfTotalPages_AdjustsWindowToFit()
     {
@@ -61,6 +77,9 @@ public class PaginationHelperTests
         result.Should().BeEquivalentTo(new[] { 6, 7, 8, 9, 10 }, opts => opts.WithStrictOrdering());
     }
 
+    /// <summary>
+    /// Tests that GetMetadata reports the correct start and end index for a middle page.
+    /// </summary>
     [Fact]
     public void GetMetadata_MiddlePage_ReportsCorrectStartAndEndIndex()
     {
