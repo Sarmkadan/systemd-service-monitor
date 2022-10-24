@@ -12,11 +12,17 @@ using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Tests;
 
+/// <summary>
+/// Tests for the AlertsController class.
+/// </summary>
 public class AlertsControllerTests
 {
     private readonly IAlertRulesEngine _alertRulesEngine = Substitute.For<IAlertRulesEngine>();
     private readonly ILogger<AlertsController> _logger = Substitute.For<ILogger<AlertsController>>();
 
+    /// <summary>
+    /// Tests that the GetRules method returns an OK response with mapped rules.
+    /// </summary>
     [Fact]
     public async Task GetRules_ReturnsOkResponseWithMappedRules()
     {
@@ -54,6 +60,9 @@ public class AlertsControllerTests
         response.Data[0].Tags.Should().BeEquivalentTo(["cpu", "api"]);
     }
 
+    /// <summary>
+    /// Tests that the CreateRule method returns a Created response with a mapped rule.
+    /// </summary>
     [Fact]
     public async Task CreateRule_ReturnsCreatedResponseWithMappedRule()
     {
@@ -94,6 +103,9 @@ public class AlertsControllerTests
             rule.Tags.SequenceEqual(new[] { "memory" })), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Tests that the AcknowledgeIncident method returns a NotFound response when the incident is missing.
+    /// </summary>
     [Fact]
     public async Task AcknowledgeIncident_WhenIncidentIsMissing_ReturnsNotFound()
     {
