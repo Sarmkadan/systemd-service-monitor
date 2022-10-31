@@ -6,10 +6,18 @@ using SystemdServiceMonitor.Models;
 
 namespace SystemdServiceMonitor.Services;
 
+/// <summary>
+/// Service that builds and analyzes dependency graphs for systemd services.
+/// </summary>
 public class ServiceDependencyGraphService(IServiceRepository serviceRepository) : IServiceDependencyGraphService
 {
     private readonly ILogger<ServiceDependencyGraphService>? _logger = null;
 
+    /// <summary>
+    /// Builds a complete dependency graph for all systemd services.
+    /// </summary>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>ServiceDependencyGraph containing all services and their dependencies.</returns>
     public async Task<ServiceDependencyGraph> BuildGraphAsync(CancellationToken ct = default)
     {
         _logger?.LogInformation("Building dependency graph for all services");
@@ -19,6 +27,13 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         return graph;
     }
 
+    /// <summary>
+    /// Builds a dependency graph for a specific service with configurable depth.
+    /// </summary>
+    /// <param name="unitName">Name of the service to build graph for.</param>
+    /// <param name="depth">Maximum depth of dependencies to include (default: 3).</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>ServiceDependencyGraph containing the service and its dependencies up to specified depth.</returns>
     public async Task<ServiceDependencyGraph> BuildGraphForServiceAsync(string unitName, int depth = 3, CancellationToken ct = default)
     {
         _logger?.LogInformation("Building dependency graph for service: {ServiceName} (depth: {Depth})", unitName, depth);
@@ -68,6 +83,13 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         return subgraph;
     }
 
+    /// <summary>
+    /// Finds a dependency chain between two services using breadth-first search.
+    /// </summary>
+    /// <param name="fromService">Starting service name.</param>
+    /// <param name="toService">Target service name.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Sequence of service names representing the dependency chain, or empty if no path exists.</returns>
     public async Task<IEnumerable<string>> GetDependencyChainAsync(string fromService, string toService, CancellationToken ct = default)
     {
         _logger?.LogInformation("Finding dependency chain from {FromService} to {ToService}", fromService, toService);
@@ -123,6 +145,11 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         return [];
     }
 
+    /// <summary>
+    /// Retrieves all root services (services with no dependents).
+    /// </summary>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Collection of DependencyNode objects representing root services, ordered by service name.</returns>
     public async Task<IEnumerable<DependencyNode>> GetRootServicesAsync(CancellationToken ct = default)
     {
         _logger?.LogDebug("Retrieving root services (services with no dependents)");
@@ -135,6 +162,11 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         return rootServices;
     }
 
+    /// <summary>
+    /// Retrieves all leaf services (services with no dependencies).
+    /// </summary>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Collection of DependencyNode objects representing leaf services, ordered by service name.</returns>
     public async Task<IEnumerable<DependencyNode>> GetLeafServicesAsync(CancellationToken ct = default)
     {
         _logger?.LogDebug("Retrieving leaf services (services with no dependencies)");
@@ -147,6 +179,11 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         return leafServices;
     }
 
+    /// <summary>
+    /// Builds a complete dependency graph from a collection of service information.
+    /// </summary>
+    /// <param name="services">Collection of ServiceInfo objects representing systemd services.</param>
+    /// <returns>ServiceDependencyGraph containing all services, dependencies, and edges.</returns>
     private static ServiceDependencyGraph BuildGraph(IEnumerable<ServiceInfo> services)
     {
         var serviceList = services.ToList();
@@ -206,6 +243,12 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         };
     }
 
+    /// <summary>
+    /// Builds a subgraph containing only the specified services and their dependencies.
+    /// </summary>
+    /// <param name="sourceGraph">The complete source dependency graph.</param>
+    /// <param name="includedServices">Set of service names to include in the subgraph.</param>
+    /// <returns>ServiceDependencyGraph containing only the specified services and their relationships.</returns>
     private static ServiceDependencyGraph BuildSubgraph(ServiceDependencyGraph sourceGraph, HashSet<string> includedServices)
     {
         var nodes = sourceGraph.Nodes
@@ -239,6 +282,10 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         };
     }
 
+    /// <summary>
+    /// Creates an empty dependency graph.
+    /// </summary>
+    /// <returns>ServiceDependencyGraph with zero nodes and edges.</returns>
     private static ServiceDependencyGraph CreateEmptyGraph() => new()
     {
         Nodes = [],
@@ -248,6 +295,12 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         GeneratedAt = DateTime.UtcNow
     };
 
+    /// <summary>
+    /// Gets or creates a NodeBuilder for the specified service name.
+    /// </summary>
+    /// <param name="builders">Dictionary of existing builders.</param>
+    /// <param name="serviceName">Name of the service to get or create a builder for.</param>
+    /// <returns>NodeBuilder instance for the specified service.</returns>
     private static NodeBuilder GetOrAddBuilder(IDictionary<string, NodeBuilder> builders, string serviceName)
     {
         if (!builders.TryGetValue(serviceName, out var builder))
@@ -259,12 +312,30 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
         return builder;
     }
 
+    /// <summary>
+    /// Builder class for creating dependency nodes with their relationships.
+    /// </summary>
     private sealed class NodeBuilder(string serviceName)
     {
+        /// <summary>
+        /// Gets the name of the service.
+        /// </summary>
         public string ServiceName { get; } = serviceName;
+        /// <summary>
+        /// Gets or sets the description of the service.
+        /// </summary>
         public string Description { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets the state of the service.
+        /// </summary>
         public ServiceState State { get; set; } = ServiceState.Unknown;
+        /// <summary>
+        /// Gets the collection of services this service depends on.
+        /// </summary>
         public HashSet<string> Dependencies { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// Gets the collection of services that depend on this service.
+        /// </summary>
         public HashSet<string> Dependents { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
-}
+    }
