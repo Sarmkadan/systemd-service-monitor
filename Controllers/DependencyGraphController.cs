@@ -13,6 +13,8 @@ public class DependencyGraphController(
     IServiceDependencyGraphService dependencyGraphService,
     ILogger<DependencyGraphController> logger) : ControllerBase
 {
+    internal IServiceDependencyGraphService DependencyGraphService => dependencyGraphService;
+
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
