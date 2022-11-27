@@ -7,6 +7,9 @@ using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Controllers;
 
+/// <summary>
+/// Controller for handling dependency graph related operations.
+/// </summary>
 [ApiController]
 [Route("api/dependency-graph")]
 public class DependencyGraphController(
@@ -15,6 +18,11 @@ public class DependencyGraphController(
 {
     internal IServiceDependencyGraphService DependencyGraphService => dependencyGraphService;
 
+    /// <summary>
+    /// Retrieves the entire dependency graph.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Dependency graph.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -37,6 +45,11 @@ public class DependencyGraphController(
         }
     }
 
+    /// <summary>
+    /// Retrieves the root services in the dependency graph.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of root services.</returns>
     [HttpGet("roots")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -59,6 +72,11 @@ public class DependencyGraphController(
         }
     }
 
+    /// <summary>
+    /// Retrieves the leaf services in the dependency graph.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of leaf services.</returns>
     [HttpGet("leaves")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -81,6 +99,13 @@ public class DependencyGraphController(
         }
     }
 
+    /// <summary>
+    /// Retrieves the dependency path between two services.
+    /// </summary>
+    /// <param name="from">Starting service name.</param>
+    /// <param name="to">Ending service name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Dependency path.</returns>
     [HttpGet("path")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -113,6 +138,13 @@ public class DependencyGraphController(
         }
     }
 
+    /// <summary>
+    /// Retrieves the dependency subgraph for a given service.
+    /// </summary>
+    /// <param name="serviceName">Service name.</param>
+    /// <param name="depth">Depth of the subgraph.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Dependency subgraph.</returns>
     [HttpGet("{serviceName}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -145,6 +177,12 @@ public class DependencyGraphController(
         }
     }
 
+    /// <summary>
+    /// Creates an error response.
+    /// </summary>
+    /// <param name="message">Error message.</param>
+    /// <param name="ex">Exception.</param>
+    /// <returns>Error response.</returns>
     private static ApiResponse<T> ErrorResponse<T>(string message, Exception ex) => new()
     {
         Success = false,
