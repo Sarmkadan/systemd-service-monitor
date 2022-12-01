@@ -19,6 +19,17 @@ public class ServicesController(
     ILogger<ServicesController> logger) : ControllerBase
 {
     /// <summary>
+    /// Gets the maximum number of concurrent service operations allowed.
+    /// Defaults to 3 and is clamped between 1 and 20.
+    /// </summary>
+    public int MaxConcurrency { get; set; } = 3;
+
+    /// <summary>
+    /// Gets the collection of service names managed by this controller.
+    /// </summary>
+    public IEnumerable<string> ServiceNames { get; } = [];
+
+    /// <summary>
     /// Retrieves a list of all systemd services with optional filtering.
     /// </summary>
     [HttpGet]
