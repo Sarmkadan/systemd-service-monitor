@@ -25,4 +25,52 @@ catch (ServiceMonitorException ex)
 }
 ```
 
+## ValidationHelperTests
+
+The `ValidationHelperTests` class provides unit tests for the `ValidationHelper` utility class, which centralizes common validation logic used throughout the systemd-service-monitor application. These tests verify validation rules for service names, ports, URLs, time ranges, and input sanitization to ensure data integrity and prevent invalid configurations.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+
+// Validate a service name
+var serviceNameResult = ValidationHelper.ValidateServiceName("nginx.service");
+if (!serviceNameResult.IsValid)
+{
+    Console.WriteLine($"Invalid service name: {serviceNameResult.ErrorMessage}");
+}
+
+// Validate a port number
+var portResult = ValidationHelper.ValidatePort(8080);
+if (!portResult.IsValid)
+{
+    Console.WriteLine($"Invalid port: {portResult.ErrorMessage}");
+}
+
+// Validate a URL
+var urlResult = ValidationHelper.ValidateUrl("https://example.com/api");
+if (!urlResult.IsValid)
+{
+    Console.WriteLine($"Invalid URL: {urlResult.ErrorMessage}");
+}
+
+// Validate a time range
+var timeRangeResult = ValidationHelper.ValidateTimeRange(
+    DateTime.UtcNow.AddDays(-30),
+    DateTime.UtcNow.AddDays(1)
+);
+if (!timeRangeResult.IsValid)
+{
+    Console.WriteLine($"Invalid time range: {timeRangeResult.ErrorMessage}");
+}
+
+// Sanitize user input
+var sanitizedInput = ValidationHelper.SanitizeInput(
+    new string('x', 2000),
+    maxLength: 100
+);
+Console.WriteLine($"Sanitized input length: {sanitizedInput.Length}");
+```
+
 // ... existing content ...
