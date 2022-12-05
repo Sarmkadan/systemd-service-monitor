@@ -21,4 +21,32 @@ var pageNumbers = PaginationHelper.GetPageNumbers(10, 5);
 Console.WriteLine($"Page numbers: [{string.Join(", ", pageNumbers)}]");
 ```
 
+## ServiceHealthCheckerTests
+
+The `ServiceHealthCheckerTests` class verifies the behavior of the `ServiceHealthChecker` utility, ensuring that health status is correctly determined for various service states and that the health summary string is non-empty.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using SystemdServiceMonitor.Models;
+
+// Create a sample ServiceInfo instance
+var service = new ServiceInfo
+{
+    Name = "example.service",
+    State = ServiceState.Active,
+    RestartCount = 0,
+    AutoStart = true
+};
+
+// Determine health status
+var status = ServiceHealthChecker.GetHealthStatus(service);
+Console.WriteLine($"Health status: {status}");
+
+// Get a human‑readable summary
+var summary = ServiceHealthChecker.GetHealthSummary(service);
+Console.WriteLine($"Health summary: {summary}");
+```
+
 // ... existing content ...
