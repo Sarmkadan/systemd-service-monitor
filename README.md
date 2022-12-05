@@ -73,4 +73,15 @@ var sanitizedInput = ValidationHelper.SanitizeInput(
 Console.WriteLine($"Sanitized input length: {sanitizedInput.Length}");
 ```
 
+## ServiceMonitorServiceTests
+The `ServiceMonitorServiceTests` class provides a set of tests for the service monitoring functionality. It includes tests for retrieving all services, getting a service by name, and getting active services. These tests help ensure that the service monitoring functionality works as expected.
+
+### Usage Example
+```csharp
+var serviceMonitorServiceTests = new ServiceMonitorServiceTests();
+await serviceMonitorServiceTests.GetAllServicesAsync_ReturnsAllServices();
+await serviceMonitorServiceTests.GetServiceByNameAsync_WithValidName_ReturnsService();
+await serviceMonitorServiceTests.GetActiveServicesAsync_ReturnsOnlyActiveServices();
+```
+
 // ... existing content ...
