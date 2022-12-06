@@ -1,80 +1,52 @@
 // ... existing content ...
-## PaginationHelperTests
+## StringExtensions
 
-The `PaginationHelperTests` class provides unit tests for the `PaginationHelper` utility class, which centralizes common pagination logic used throughout the systemd-service-monitor application. These tests verify pagination rules for calculating total pages, validating pagination parameters, and retrieving page numbers to ensure data integrity and prevent invalid configurations.
-
-### Usage Example
-
-```csharp
-using SystemdServiceMonitor.Utilities;
-
-// Calculate total pages with zero page size
-var totalPages = PaginationHelper.CalculateTotalPages(10, 0);
-Console.WriteLine($"Total pages: {totalPages}");
-
-// Validate pagination parameters with negative page number
-var paginationMetadata = PaginationHelper.GetMetadata(5, 10);
-Console.WriteLine($"Start index: {paginationMetadata.StartIndex}, End index: {paginationMetadata.EndIndex}");
-
-// Get page numbers near the end of total pages
-var pageNumbers = PaginationHelper.GetPageNumbers(10, 5);
-Console.WriteLine($"Page numbers: [{string.Join(", ", pageNumbers)}]");
-```
-
-## ServiceHealthCheckerTests
-
-The `ServiceHealthCheckerTests` class verifies the behavior of the `ServiceHealthChecker` utility, ensuring that health status is correctly determined for various service states and that the health summary string is non-empty.
+The `StringExtensions` class provides a set of static methods for manipulating and validating strings. These methods can be used to truncate strings, check for whitespace, convert between different casing conventions, and more.
 
 ### Usage Example
 
 ```csharp
-using SystemdServiceMonitor.Utilities;
-using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Extensions;
 
-// Create a sample ServiceInfo instance
-var service = new ServiceInfo
-{
-    Name = "example.service",
-    State = ServiceState.Active,
-    RestartCount = 0,
-    AutoStart = true
-};
+// Truncate a string to 10 characters
+var truncatedString = StringExtensions.Truncate("This is a long string", 10);
+Console.WriteLine($"Truncated string: {truncatedString}");
 
-// Determine health status
-var status = ServiceHealthChecker.GetHealthStatus(service);
-Console.WriteLine($"Health status: {status}");
+// Check if a string is null or whitespace
+var isWhitespace = StringExtensions.IsNullOrWhiteSpaceEx("   ");
+Console.WriteLine($"Is whitespace: {isWhitespace}");
 
-// Get a human‑readable summary
-var summary = ServiceHealthChecker.GetHealthSummary(service);
-Console.WriteLine($"Health summary: {summary}");
-```
+// Convert a string to Pascal case
+var pascalCase = StringExtensions.ToPascalCase("hello world");
+Console.WriteLine($"Pascal case: {pascalCase}");
 
-## DBusConnectionManager
+// Check if a string is a valid service name
+var isValidName = StringExtensions.IsValidServiceName("my-service");
+Console.WriteLine($"Is valid service name: {isValidName}");
 
-The `DBusConnectionManager` class is responsible for managing connections to the DBus system. It provides methods to establish and manage connections, check connection status, and handle reconnections. The class also provides information about the current connection state, such as the last status check time and any error messages.
+// Sanitize a string for logging
+var sanitizedString = StringExtensions.SanitizeForLogging("This is a string with special characters!");
+Console.WriteLine($"Sanitized string: {sanitizedString}");
 
-### Usage Example
+// Split a string into a list of substrings
+var substrings = StringExtensions.ToList("hello,world,foo,bar");
+Console.WriteLine($"Substrings: [{string.Join(", ", substrings)}]");
 
-```csharp
-using SystemdServiceMonitor.Integration;
+// Check if a string contains any of a set of characters
+var containsAny = StringExtensions.ContainsAny("hello", new[] { 'l', 'o' });
+Console.WriteLine($"Contains any: {containsAny}");
 
-// Create a new DBusConnectionManager instance
-var connectionManager = new DBusConnectionManager();
+// Repeat a string a specified number of times
+var repeatedString = StringExtensions.Repeat("hello", 3);
+Console.WriteLine($"Repeated string: {repeatedString}");
 
-// Get the current connection status
-var isConnected = await connectionManager.IsConnectedAsync();
-Console.WriteLine($"Is connected: {isConnected}");
+// Wrap text to a specified width
+var wrappedText = StringExtensions.WrapText("This is a long string of text", 20);
+Console.WriteLine($"Wrapped text: {wrappedText}");
 
-// Get the current connection status info
-var statusInfo = await connectionManager.GetStatusAsync();
-Console.WriteLine($"Connection status: {statusInfo}");
-
-// Reconnect to the DBus system if necessary
-var reconnectResult = await connectionManager.ReconnectAsync();
-Console.WriteLine($"Reconnect result: {reconnectResult}");
-
-// Dispose of the connection manager when finished
-connectionManager.Dispose();
+// Calculate the Levenshtein distance between two strings
+var distance = StringExtensions.LevenshteinDistance("kitten", "sitting");
+Console.WriteLine($"Levenshtein distance: {distance}");
 ```
 
 // ... existing content ...
