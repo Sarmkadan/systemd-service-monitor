@@ -1,61 +1,86 @@
+using System;
 using System.Text.Json;
 
 namespace Extensions
 {
     /// <summary>
-    /// Provides JSON serialization/deserialization helpers for <see cref="StringExtensions"/>.
+    /// Provides JSON serialization and deserialization utilities for common .NET types.
     /// </summary>
     public static class StringExtensionsJsonExtensions
     {
-        // Cached JsonSerializerOptions with camelCase naming policy.
-        private static readonly JsonSerializerOptions _options = new JsonSerializerOptions
+        private static readonly JsonSerializerOptions _options = new(JsonSerializerDefaults.General)
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
+            WriteIndented = false,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        private static readonly JsonSerializerOptions _optionsIndented = new(JsonSerializerDefaults.General)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
         /// <summary>
-        /// Serializes the <paramref name="value"/> to a JSON string.
+        /// Serializes an object to a JSON string with camelCase property naming.
         /// </summary>
-        /// <param name="value">The <see cref="StringExtensions"/> instance to serialize.</param>
-        /// <param name="indented">If true, the output JSON will be indented.</param>
-        /// <returns>A JSON representation of <paramref name="value"/>.</returns>
-        public static string ToJson(this StringExtensions value, bool indented = false)
+        /// <param name="value">The object to serialize.</param>
+        /// <param name="indented">Whether to format the JSON with indentation.</param>
+        /// <returns>A JSON string representation.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+        public static string ToJson(object value, bool indented = false)
         {
-            // Use a copy of the cached options if indentation is requested.
-            var options = indented
-                ? new JsonSerializerOptions(_options) { WriteIndented = true }
-                : _options;
+            ArgumentNullException.ThrowIfNull(value);
 
+            var options = indented ? _optionsIndented : _options;
             return JsonSerializer.Serialize(value, options);
         }
 
         /// <summary>
-        /// Deserializes a JSON string into a <see cref="StringExtensions"/> instance.
+        /// Deserializes a JSON string to a dictionary with string keys.
         /// </summary>
         /// <param name="json">The JSON string to deserialize.</param>
-        /// <returns>A <see cref="StringExtensions"/> instance, or null if the JSON represents null.</returns>
-        public static StringExtensions? FromJson(string json)
+        /// <returns>A dictionary, or null if JSON is null or empty.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+        /// <exception cref="JsonException">Thrown when JSON is invalid.</exception>
+        public static System.Collections.Generic.Dictionary<string, object?>? FromJson(string json)
         {
-            return JsonSerializer.Deserialize<StringExtensions>(json, _options);
+            ArgumentNullException.ThrowIfNull(json);
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object?>>(json, _options);
         }
 
         /// <summary>
-        /// Attempts to deserialize a JSON string into a <see cref="StringExtensions"/> instance.
+        /// Attempts to deserialize a JSON string to a dictionary.
         /// </summary>
         /// <param name="json">The JSON string to deserialize.</param>
-        /// <param name="value">When this method returns, contains the deserialized value if successful; otherwise null.</param>
-        /// <returns>True if deserialization succeeded; otherwise false.</returns>
-        public static bool TryFromJson(string json, out StringExtensions? value)
+        /// <param name="value">Receives the deserialized value if successful.</param>
+        /// <returns>True if deserialization succeeds; otherwise false.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+        public static bool TryFromJson(string json, out System.Collections.Generic.Dictionary<string, object?>? value)
         {
+            ArgumentNullException.ThrowIfNull(json);
+
+            value = null;
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return true;
+            }
+
             try
             {
-                value = FromJson(json);
+                value = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object?>>(json, _options);
                 return true;
             }
             catch (JsonException)
             {
-                value = null;
                 return false;
             }
         }
