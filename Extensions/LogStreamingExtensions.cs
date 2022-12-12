@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,17 +15,19 @@ public static class LogStreamingExtensions
 {
     private static readonly JsonSerializerOptions SseJsonOptions = new()
     {
-        PropertyNamingPolicy         = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition       = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     /// <summary>
     /// Registers <see cref="ILogStreamService"/> with the dependency injection container.
     /// </summary>
     /// <param name="services">The <see cref="IServiceCollection"/> to configure.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/></exception>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
     public static IServiceCollection AddLogStreaming(this IServiceCollection services)
     {
+        ArgumentNullException.ThrowIfNull(services);
         services.AddScoped<ILogStreamService, LogStreamService>();
         return services;
     }
@@ -39,38 +42,44 @@ public static class LogStreamingExtensions
     ///
     /// Query parameters:
     /// <list type="bullet">
-    ///   <item><term>serviceName</term><description>Restrict to one unit (optional).</description></item>
-    ///   <item><term>searchTerm</term><description>Case-insensitive substring filter (optional).</description></item>
-    ///   <item><term>minLevel</term><description>Numeric syslog threshold; 0 = Emergency … 7 = Debug (optional).</description></item>
-    ///   <item><term>bufferSize</term><description>Historical entries to replay (default 50, max 500).</description></item>
-    ///   <item><term>pollingIntervalMs</term><description>Live-tail poll cadence in ms (default 2000, range 500–30 000).</description></item>
+    /// <item><term>serviceName</term><description>Restrict to one unit (optional).</description></item>
+    /// <item><term>searchTerm</term><description>Case-insensitive substring filter (optional).</description></item>
+    /// <item><term>minLevel</term><description>Numeric syslog threshold; 0 = Emergency … 7 = Debug (optional).</description></item>
+    /// <item><term>bufferSize</term><description>Historical entries to replay (default 50, max 500).</description></item>
+    /// <item><term>pollingIntervalMs</term><description>Live-tail poll cadence in ms (default 2000, range 500–30 000).</description></item>
     /// </list>
     /// </remarks>
     /// <param name="app">The <see cref="WebApplication"/> to register the route on.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="app"/> is <see langword="null"/></exception>
     /// <returns>The same <see cref="WebApplication"/> for chaining.</returns>
     public static WebApplication MapLogStreamEndpoints(this WebApplication app)
     {
+        ArgumentNullException.ThrowIfNull(app);
+
         app.MapGet("/api/stream/logs", async (
-            HttpContext            context,
-            ILogStreamService      streamService,
-            [FromQuery] string?    serviceName,
-            [FromQuery] string?    searchTerm,
-            [FromQuery] int?       minLevel,
-            [FromQuery] int        bufferSize        = 50,
-            [FromQuery] int        pollingIntervalMs = 2000,
-            CancellationToken      ct                = default) =>
+            HttpContext context,
+            ILogStreamService streamService,
+            [FromQuery] string? serviceName,
+            [FromQuery] string? searchTerm,
+            [FromQuery] int? minLevel,
+            [FromQuery] int bufferSize = 50,
+            [FromQuery] int pollingIntervalMs = 2000,
+            CancellationToken ct = default) =>
         {
+            ArgumentNullException.ThrowIfNull(context);
+            ArgumentNullException.ThrowIfNull(streamService);
+
             var response = context.Response;
-            response.Headers.Append("Content-Type",      "text/event-stream");
-            response.Headers.Append("Cache-Control",     "no-cache");
+            response.Headers.Append("Content-Type", "text/event-stream");
+            response.Headers.Append("Cache-Control", "no-cache");
             response.Headers.Append("X-Accel-Buffering", "no");
 
             var filter = new LogStreamFilter
             {
-                ServiceName       = serviceName,
-                SearchTerm        = searchTerm,
-                MinLevel          = minLevel.HasValue ? (SyslogLevel)minLevel.Value : null,
-                BufferSize        = bufferSize,
+                ServiceName = serviceName,
+                SearchTerm = searchTerm,
+                MinLevel = minLevel.HasValue ? (SyslogLevel)minLevel.Value : null,
+                BufferSize = bufferSize,
                 PollingIntervalMs = pollingIntervalMs,
             };
 
