@@ -1,5 +1,8 @@
 #nullable enable
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Models;
@@ -8,34 +11,40 @@ using SystemdServiceMonitor.Services;
 namespace SystemdServiceMonitor.Extensions;
 
 /// <summary>
-/// Extension methods for registering the alert rules engine, on-call schedule service,
-/// and the background escalation worker into the ASP.NET Core DI container.
+/// Extension methods for registering alert-related services into the ASP.NET Core DI container.
 /// </summary>
 public static class AlertExtensions
 {
     /// <summary>
-    /// Registers all alert rules engine dependencies:
-    /// <list type="bullet">
-    ///   <item><see cref="IAlertRulesEngine"/> / <see cref="AlertRulesEngine"/> — singleton engine</item>
-    ///   <item><see cref="IOnCallScheduleService"/> / <see cref="InMemoryOnCallScheduleService"/> — singleton schedule store</item>
-    ///   <item><see cref="AlertEscalationWorker"/> — hosted background service for periodic evaluation and escalation</item>
-    ///   <item><see cref="AlertOptions"/> bound from the <c>Alerts</c> configuration section</item>
-    ///   <item>Named <see cref="HttpClient"/> for outbound webhook delivery</item>
-    /// </list>
+    /// Adds alert rules engine services to the DI container.
     /// </summary>
-    /// <param name="services">The application's service collection.</param>
-    /// <param name="configuration">The application configuration root.</param>
-    /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+    /// <remarks>
+    /// Registers the following services:
+    /// <list type="bullet">
+    /// <item><see cref="IAlertRulesEngine"/> and <see cref="AlertRulesEngine"/> — singleton alert evaluation engine</item>
+    /// <item><see cref="IOnCallScheduleService"/> and <see cref="InMemoryOnCallScheduleService"/> — singleton on-call schedule service</item>
+    /// <item><see cref="AlertEscalationWorker"/> — hosted background service for periodic alert evaluation and escalation</item>
+    /// <item><see cref="AlertOptions"/> — configuration options bound from the <c>Alerts</c> section</item>
+    /// <item>Named <see cref="HttpClient"/> for outbound webhook delivery with configured timeout and default headers</item>
+    /// </list>
+    /// </remarks>
+    /// <param name="services"><see cref="IServiceCollection"/> to add services to.</param>
+    /// <param name="configuration"><see cref="IConfiguration"/> providing application configuration.</param>
+    /// <returns>The same <see cref="IServiceCollection"/> instance for method chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> or <paramref name="configuration"/> is <see langword="null"/>.</exception>
     public static IServiceCollection AddAlertRulesEngine(
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services.Configure<AlertOptions>(configuration.GetSection(AlertOptions.SectionName));
 
         services.AddSingleton<IOnCallScheduleService, InMemoryOnCallScheduleService>();
         services.AddSingleton<IAlertRulesEngine, AlertRulesEngine>();
 
-        services.AddHttpClient(nameof(AlertRulesEngine), (sp, client) =>
+        services.AddHttpClient(nameof(AlertRulesEngine), static (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<AlertOptions>>().Value;
             client.Timeout = TimeSpan.FromSeconds(opts.Webhook.TimeoutSeconds);
@@ -53,16 +62,16 @@ public static class AlertExtensions
 /// <summary>
 /// Long-running background service that drives two periodic responsibilities:
 /// <list type="number">
-///   <item>
-///     <b>Service evaluation</b> — resolves the current status of all monitored services
-///     via <see cref="IServiceMonitorService"/> and feeds each snapshot into
-///     <see cref="IAlertRulesEngine.EvaluateServiceAsync"/>.
-///   </item>
-///   <item>
-///     <b>Escalation promotion</b> — inspects open incidents whose last escalation
-///     timestamp is older than the policy's configured delay and advances them to the
-///     next escalation level.
-///   </item>
+/// <item>
+/// <b>Service evaluation</b> — resolves the current status of all monitored services
+/// via <see cref="IServiceMonitorService"/> and feeds each snapshot into
+/// <see cref="IAlertRulesEngine.EvaluateServiceAsync"/>.
+/// </item>
+/// <item>
+/// <b>Escalation promotion</b> — inspects open incidents whose last escalation
+/// timestamp is older than the policy's configured delay and advances them to the
+/// next escalation level.
+/// </item>
 /// </list>
 /// </summary>
 public sealed class AlertEscalationWorker : BackgroundService
@@ -75,6 +84,11 @@ public sealed class AlertEscalationWorker : BackgroundService
     /// <summary>
     /// Initializes a new instance of <see cref="AlertEscalationWorker"/>.
     /// </summary>
+    /// <param name="logger"><see cref="ILogger"/> instance.</param>
+    /// <param name="scopeFactory"><see cref="IServiceScopeFactory"/> for creating scoped services.</param>
+    /// <param name="alertEngine"><see cref="IAlertRulesEngine"/> instance.</param>
+    /// <param name="options"><see cref="AlertOptions"/> configuration.</param>
+    /// <exception cref="ArgumentNullException">Any parameter is <see langword="null"/>.</exception>
     public AlertEscalationWorker(
         ILogger<AlertEscalationWorker> logger,
         IServiceScopeFactory scopeFactory,
@@ -96,14 +110,14 @@ public sealed class AlertEscalationWorker : BackgroundService
             return;
         }
 
-        _logger.LogInformation("Alert escalation worker starting (startup delay: {Delay}s)",
-            _options.StartupDelaySeconds);
+        _logger.LogInformation("Alert escalation worker starting (startup delay: {Delay}s)", _options.StartupDelaySeconds);
 
         await Task.Delay(TimeSpan.FromSeconds(_options.StartupDelaySeconds), stoppingToken);
 
         _logger.LogInformation(
             "Alert escalation worker active — evaluation every {EvalInterval}s, escalation check every {EscInterval}s",
-            _options.ServiceEvaluationIntervalSeconds, _options.EscalationCheckIntervalSeconds);
+            _options.ServiceEvaluationIntervalSeconds,
+            _options.EscalationCheckIntervalSeconds);
 
         var evaluationTimer = TimeSpan.FromSeconds(_options.ServiceEvaluationIntervalSeconds);
         var escalationTimer = TimeSpan.FromSeconds(_options.EscalationCheckIntervalSeconds);
@@ -208,7 +222,8 @@ public sealed class AlertEscalationWorker : BackgroundService
             {
                 _logger.LogDebug(
                     "Incident {IncidentId} has reached the maximum escalation level ({Max}); no further promotion",
-                    incident.Id, _options.EscalationDefaults.MaxEscalationLevels);
+                    incident.Id,
+                    _options.EscalationDefaults.MaxEscalationLevels);
                 continue;
             }
 
@@ -216,7 +231,8 @@ public sealed class AlertEscalationWorker : BackgroundService
             {
                 _logger.LogInformation(
                     "Incident {IncidentId} due for escalation after {Minutes} minutes unacknowledged",
-                    incident.Id, (int)(now - lastActionAt).TotalMinutes);
+                    incident.Id,
+                    (int)(now - lastActionAt).TotalMinutes);
 
                 try
                 {
