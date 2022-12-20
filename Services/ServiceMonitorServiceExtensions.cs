@@ -15,15 +15,18 @@ public static class ServiceMonitorServiceExtensions
     /// <summary>
     /// Filters services by their current state.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="state">The state to filter by</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Filtered collection of services matching the specified state</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="state">The state to filter by.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Filtered collection of services matching the specified state.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
     public static async Task<IEnumerable<ServiceInfo>> GetServicesByStateAsync(
         this ServiceMonitorService serviceMonitor,
         ServiceState state,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+
         var allServices = await serviceMonitor.GetAllServicesAsync(ct);
         return allServices.Where(s => s.State == state);
     }
@@ -31,15 +34,18 @@ public static class ServiceMonitorServiceExtensions
     /// <summary>
     /// Filters services by their current sub-state.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="subState">The sub-state to filter by</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Filtered collection of services matching the specified sub-state</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="subState">The sub-state to filter by.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Filtered collection of services matching the specified sub-state.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
     public static async Task<IEnumerable<ServiceInfo>> GetServicesBySubStateAsync(
         this ServiceMonitorService serviceMonitor,
         ServiceSubState subState,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+
         var allServices = await serviceMonitor.GetAllServicesAsync(ct);
         return allServices.Where(s => s.SubState == subState);
     }
@@ -47,15 +53,20 @@ public static class ServiceMonitorServiceExtensions
     /// <summary>
     /// Gets a service by name with fallback to refresh if not found.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="unitName">The service unit name</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>The service info or null if not found</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="unitName">The service unit name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The service info or null if not found.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="unitName"/> is <see langword="null"/> or whitespace.</exception>
     public static async Task<ServiceInfo?> GetServiceByNameWithRefreshAsync(
         this ServiceMonitorService serviceMonitor,
         string unitName,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         var service = await serviceMonitor.GetServiceByNameAsync(unitName, ct);
 
         if (service is null)
@@ -70,15 +81,20 @@ public static class ServiceMonitorServiceExtensions
     /// <summary>
     /// Gets the status of multiple services in a single call.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="unitNames">Collection of service unit names</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Collection of service statuses</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="unitNames">Collection of service unit names.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Collection of service statuses.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="unitNames"/> is <see langword="null"/>.</exception>
     public static async Task<IEnumerable<ServiceStatus>> GetMultipleServiceStatusesAsync(
         this ServiceMonitorService serviceMonitor,
         IEnumerable<string> unitNames,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+        ArgumentNullException.ThrowIfNull(unitNames);
+
         var statuses = new List<ServiceStatus>();
 
         foreach (var unitName in unitNames)
@@ -96,28 +112,36 @@ public static class ServiceMonitorServiceExtensions
     /// <summary>
     /// Checks if a specific service is currently being monitored.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="unitName">The service unit name</param>
-    /// <returns>True if the service is being monitored, false otherwise</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="unitName">The service unit name.</param>
+    /// <returns>True if the service is being monitored, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="unitName"/> is <see langword="null"/> or whitespace.</exception>
     public static bool IsServiceMonitored(
         this ServiceMonitorService serviceMonitor,
         string unitName)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         return serviceMonitor.GetMonitoredServices().Contains(unitName);
     }
 
     /// <summary>
     /// Gets statistics filtered by service state.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="state">The state to filter statistics by</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Statistics for services matching the specified state</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="state">The state to filter statistics by.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Statistics for services matching the specified state.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
     public static async Task<ServiceStatistics> GetStatisticsByStateAsync(
         this ServiceMonitorService serviceMonitor,
         ServiceState state,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+
         var services = await serviceMonitor.GetServicesByStateAsync(state, ct);
         var serviceList = services.ToList();
 
@@ -155,13 +179,16 @@ public static class ServiceMonitorServiceExtensions
     /// <summary>
     /// Gets a summary of all services with computed status information.
     /// </summary>
-    /// <param name="serviceMonitor">The service monitor instance</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Collection of service info with computed status information</returns>
+    /// <param name="serviceMonitor">The service monitor instance.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Collection of service info with computed status information.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="serviceMonitor"/> is <see langword="null"/>.</exception>
     public static async Task<IEnumerable<ServiceInfo>> GetServicesWithStatusAsync(
         this ServiceMonitorService serviceMonitor,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(serviceMonitor);
+
         var services = (await serviceMonitor.GetAllServicesAsync(ct)).ToList();
         var monitoredServices = serviceMonitor.GetMonitoredServices().ToHashSet();
 
