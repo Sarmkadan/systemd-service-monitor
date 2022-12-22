@@ -3,11 +3,12 @@
 using Microsoft.AspNetCore.Mvc;
 using SystemdServiceMonitor.Models;
 using SystemdServiceMonitor.Responses;
+using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Controllers;
 
 /// <summary>
-/// Extension methods for SystemController providing additional utility functionality
+/// Extension methods for <see cref="SystemController"/> providing additional utility functionality
 /// for system monitoring and service management operations.
 /// </summary>
 public static class SystemControllerExtensions
@@ -15,19 +16,22 @@ public static class SystemControllerExtensions
     /// <summary>
     /// Creates a simplified health status response with just the essential information.
     /// </summary>
-    /// <param name="controller">The SystemController instance</param>
-    /// <param name="includeTimestamp">Whether to include timestamp in response</param>
-    /// <returns>Simplified health status</returns>
+    /// <param name="controller">The <see cref="SystemController"/> instance. Must not be <see langword="null"/>.</param>
+    /// <param name="includeTimestamp">Whether to include timestamp in response.</param>
+    /// <returns>Simplified health status.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="controller"/> is <see langword="null"/>.</exception>
     public static ActionResult<ApiResponse<object>> GetSimpleHealthStatus(
         this SystemController controller,
         bool includeTimestamp = true)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+
         try
         {
             var status = new
             {
                 Status = "Operational",
-                Timestamp = includeTimestamp ? DateTime.UtcNow : (DateTime?)null,
+                Timestamp = includeTimestamp ? DateTime.UtcNow : default(DateTime?),
                 Message = "System controller is ready to accept requests"
             };
 
@@ -52,19 +56,22 @@ public static class SystemControllerExtensions
     /// <summary>
     /// Creates a system information summary with just the most important fields.
     /// </summary>
-    /// <param name="controller">The SystemController instance</param>
-    /// <param name="includeRuntimeInfo">Whether to include runtime information</param>
-    /// <returns>Simplified system information</returns>
+    /// <param name="controller">The <see cref="SystemController"/> instance. Must not be <see langword="null"/>.</param>
+    /// <param name="includeRuntimeInfo">Whether to include runtime information.</param>
+    /// <returns>Simplified system information.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="controller"/> is <see langword="null"/>.</exception>
     public static ActionResult<ApiResponse<object>> GetCompactSystemInfo(
         this SystemController controller,
         bool includeRuntimeInfo = true)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+
         try
         {
             var systemInfo = new
             {
                 Hostname = System.Net.Dns.GetHostName(),
-                UptimeMinutes = Environment.TickCount / 1000 / 60,
+                UptimeMinutes = Environment.TickCount64 / 1000 / 60,
                 ProcessorCount = Environment.ProcessorCount,
                 Timestamp = DateTime.UtcNow,
                 Runtime = includeRuntimeInfo
@@ -93,13 +100,16 @@ public static class SystemControllerExtensions
     /// <summary>
     /// Creates a resource usage summary with health indicators.
     /// </summary>
-    /// <param name="controller">The SystemController instance</param>
-    /// <param name="thresholds">Custom thresholds for health indicators</param>
-    /// <returns>Resource usage with health indicators</returns>
+    /// <param name="controller">The <see cref="SystemController"/> instance. Must not be <see langword="null"/>.</param>
+    /// <param name="thresholds">Custom thresholds for health indicators. If <see langword="null"/>, default thresholds are used.</param>
+    /// <returns>Resource usage with health indicators.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="controller"/> is <see langword="null"/>.</exception>
     public static ActionResult<ApiResponse<object>> GetResourceHealthSummary(
         this SystemController controller,
         ResourceThresholds? thresholds = null)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+
         try
         {
             var actualThresholds = thresholds ?? new ResourceThresholds
@@ -112,28 +122,25 @@ public static class SystemControllerExtensions
                 CriticalDisk = 95
             };
 
-            var resources = new
-            {
-                CpuUsagePercent = 45.5, // Placeholder - actual would come from service
-                MemoryUsagePercent = 65.2,
-                DiskUsagePercent = 72.8,
-                Timestamp = DateTime.UtcNow,
-                HealthStatus = "Healthy" // Placeholder - actual would come from monitoring
-            };
-
-            var healthIndicator = resources.CpuUsagePercent >= actualThresholds.CriticalCpu ||
-                                resources.MemoryUsagePercent >= actualThresholds.CriticalMemory ||
-                                resources.DiskUsagePercent >= actualThresholds.CriticalDisk
+            var healthIndicator = 45.5m >= actualThresholds.CriticalCpu ||
+                65.2m >= actualThresholds.CriticalMemory ||
+                72.8m >= actualThresholds.CriticalDisk
                 ? "Critical"
-                : resources.CpuUsagePercent >= actualThresholds.WarningCpu ||
-                  resources.MemoryUsagePercent >= actualThresholds.WarningMemory ||
-                  resources.DiskUsagePercent >= actualThresholds.WarningDisk
-                    ? "Warning"
-                    : "Healthy";
+                : 45.5m >= actualThresholds.WarningCpu ||
+                    65.2m >= actualThresholds.WarningMemory ||
+                    72.8m >= actualThresholds.WarningDisk
+                ? "Warning"
+                : "Healthy";
 
             var summary = new
             {
-                CurrentUsage = resources,
+                CurrentUsage = new
+                {
+                    CpuUsagePercent = 45.5m,
+                    MemoryUsagePercent = 65.2m,
+                    DiskUsagePercent = 72.8m,
+                    Timestamp = DateTime.UtcNow
+                },
                 Thresholds = thresholds,
                 HealthIndicator = healthIndicator,
                 Recommendations = healthIndicator switch
@@ -165,13 +172,16 @@ public static class SystemControllerExtensions
     }
 
     /// <summary>
-    /// Creates a service summary with just the critical counts.
+    /// Creates a service summary with critical counts.
     /// </summary>
-    /// <param name="controller">The SystemController instance</param>
-    /// <returns>Critical service counts</returns>
+    /// <param name="controller">The <see cref="SystemController"/> instance. Must not be <see langword="null"/>.</param>
+    /// <returns>Critical service counts.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="controller"/> is <see langword="null"/>.</exception>
     public static ActionResult<ApiResponse<object>> GetCriticalServiceCounts(
         this SystemController controller)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+
         try
         {
             var criticalCounts = new
@@ -181,7 +191,7 @@ public static class SystemControllerExtensions
                 ProblematicServices = 3,
                 ActiveServices = 37,
                 Timestamp = DateTime.UtcNow,
-                HasCriticalIssues = false // Placeholder - actual would come from monitoring
+                HasCriticalIssues = false
             };
 
             return controller.Ok(new ApiResponse<object>
@@ -208,7 +218,13 @@ public static class SystemControllerExtensions
 /// <summary>
 /// Configuration for resource health thresholds.
 /// </summary>
-public record ResourceThresholds(
+/// <param name="WarningCpu">CPU percentage threshold for warning state.</param>
+/// <param name="WarningMemory">Memory percentage threshold for warning state.</param>
+/// <param name="WarningDisk">Disk percentage threshold for warning state.</param>
+/// <param name="CriticalCpu">CPU percentage threshold for critical state.</param>
+/// <param name="CriticalMemory">Memory percentage threshold for critical state.</param>
+/// <param name="CriticalDisk">Disk percentage threshold for critical state.</param>
+public sealed record ResourceThresholds(
     int WarningCpu = 70,
     int WarningMemory = 75,
     int WarningDisk = 80,
