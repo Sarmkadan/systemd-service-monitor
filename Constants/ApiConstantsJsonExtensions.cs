@@ -4,24 +4,30 @@ using System.Text.Json;
 namespace SystemdServiceMonitor.Constants;
 
 /// <summary>
-/// Provides JSON serialization and deserialization helpers for ApiConstants.
+/// Provides JSON serialization and deserialization helpers for API constants.
 /// </summary>
 public static class ApiConstantsJsonExtensions
 {
-    private static readonly JsonSerializerOptions Options = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true
     };
 
+    private static JsonSerializerOptions JsonSerializerOptions() => new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     /// <summary>
     /// Serializes the ApiConstants to a JSON string.
-    /// Note: Due to ApiConstants being a static class, this serializes a representative object.
     /// </summary>
+    /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
+    /// <returns>A JSON string representing the API constants.</returns>
     public static string ToJson(bool indented = false)
     {
-        var options = indented ? Options : new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        
+        var options = indented ? Options : JsonSerializerOptions();
+
         var constants = new
         {
             ApiConstants.ApiVersion,
@@ -36,21 +42,31 @@ public static class ApiConstantsJsonExtensions
     }
 
     /// <summary>
-    /// Deserializes JSON string to a dynamic object representing ApiConstants structure.
+    /// Deserializes JSON string to a strongly-typed object representing ApiConstants structure.
     /// </summary>
-    public static dynamic? FromJson(string json)
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <returns>A strongly-typed object containing the API constants.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    public static ApiConstantsDto? FromJson(string json)
     {
-        return JsonSerializer.Deserialize<dynamic>(json, Options);
+        ArgumentNullException.ThrowIfNull(json);
+        return JsonSerializer.Deserialize<ApiConstantsDto>(json, Options);
     }
 
     /// <summary>
-    /// Tries to deserialize JSON string to a dynamic object representing ApiConstants structure.
+    /// Attempts to deserialize JSON string to a strongly-typed object representing ApiConstants structure.
     /// </summary>
-    public static bool TryFromJson(string json, out dynamic? value)
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <param name="value">Receives the deserialized object if successful.</param>
+    /// <returns>True if deserialization succeeded; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    public static bool TryFromJson(string json, out ApiConstantsDto? value)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         try
         {
-            value = JsonSerializer.Deserialize<dynamic>(json, Options);
+            value = JsonSerializer.Deserialize<ApiConstantsDto>(json, Options);
             return true;
         }
         catch (JsonException)
@@ -58,5 +74,19 @@ public static class ApiConstantsJsonExtensions
             value = null;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Data Transfer Object for API constants serialization.
+    /// </summary>
+    public sealed class ApiConstantsDto
+    {
+        public string ApiVersion { get; set; } = string.Empty;
+        public int DefaultPageSize { get; set; }
+        public int MaxPageSize { get; set; }
+        public int DefaultRateLimit { get; set; }
+        public int DefaultCacheTtlSeconds { get; set; }
+        public int MaxLogLines { get; set; }
+        public int DefaultLogLines { get; set; }
     }
 }
