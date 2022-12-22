@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.AspNetCore.Mvc;
+using System;
 using SystemdServiceMonitor.Models;
 using SystemdServiceMonitor.Responses;
 
@@ -10,6 +11,7 @@ namespace SystemdServiceMonitor.Controllers;
 /// Extension methods for <see cref="DependencyGraphController"/> providing additional utility functionality
 /// for dependency graph analysis and manipulation.
 /// </summary>
+/// <exception cref="ArgumentNullException">Thrown if the controller is <see langword="null"/></exception>
 public static class DependencyGraphControllerExtensions
 {
     /// <summary>
@@ -19,11 +21,15 @@ public static class DependencyGraphControllerExtensions
     /// <param name="predicate">Filter function to select which services to include</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Filtered dependency graph with only matching services</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="controller"/> or <paramref name="predicate"/> is <see langword="null"/></exception>
     public static async Task<ActionResult<ApiResponse<ServiceDependencyGraph>>> GetFilteredGraph(
         this DependencyGraphController controller,
         Func<DependencyNode, bool> predicate,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+        ArgumentNullException.ThrowIfNull(predicate);
+
         var graph = await controller.DependencyGraphService.BuildGraphAsync(ct);
 
         var filteredNodes = graph.Nodes
@@ -61,15 +67,20 @@ public static class DependencyGraphControllerExtensions
     /// <param name="serviceName">Name of the service to find dependents for</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>List of services that depend on the specified service</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="controller"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="serviceName"/> is <see langword="null"/> or whitespace</exception>
     public static async Task<ActionResult<ApiResponse<List<DependencyNode>>>> GetDependents(
         this DependencyGraphController controller,
         string serviceName,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+        ArgumentException.ThrowIfNullOrEmpty(serviceName);
+
         var graph = await controller.DependencyGraphService.BuildGraphAsync(ct);
         var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
 
-        if (!nodeLookup.TryGetValue(serviceName, out var targetNode))
+        if (!nodeLookup.TryGetValue(serviceName, out var _))
         {
             return controller.NotFound(new ApiResponse<List<DependencyNode>>
             {
@@ -100,16 +111,22 @@ public static class DependencyGraphControllerExtensions
     /// <param name="maxDepth">Maximum depth to traverse dependencies (default: 10)</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>List of services that the specified service depends on</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="controller"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="serviceName"/> is <see langword="null"/> or whitespace</exception>
     public static async Task<ActionResult<ApiResponse<List<DependencyNode>>>> GetAllDependencies(
         this DependencyGraphController controller,
         string serviceName,
         int maxDepth = 10,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+        ArgumentException.ThrowIfNullOrEmpty(serviceName);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxDepth, 0);
+
         var graph = await controller.DependencyGraphService.BuildGraphAsync(ct);
         var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
 
-        if (!nodeLookup.TryGetValue(serviceName, out var targetNode))
+        if (!nodeLookup.TryGetValue(serviceName, out var _))
         {
             return controller.NotFound(new ApiResponse<List<DependencyNode>>
             {
@@ -135,14 +152,15 @@ public static class DependencyGraphControllerExtensions
             }
 
             var node = graph.Nodes.FirstOrDefault(n => string.Equals(n.ServiceName, currentService, StringComparison.OrdinalIgnoreCase));
-            if (node != null && node.Dependencies.Any())
+            if (node?.Dependencies.Any() == true)
             {
                 foreach (var dep in node.Dependencies.OrderBy(d => d))
                 {
                     if (!visited.Contains(dep))
                     {
                         visited.Add(dep);
-                        queue.Enqueue(new ValueTuple<string, int>(dep, currentDepth + 1));
+                        queue.Enqueue((dep, currentDepth + 1));
+
                         var depNode = graph.Nodes.FirstOrDefault(n => string.Equals(n.ServiceName, dep, StringComparison.OrdinalIgnoreCase));
                         if (depNode != null)
                         {
@@ -167,10 +185,13 @@ public static class DependencyGraphControllerExtensions
     /// <param name="controller">The controller instance</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Summary statistics about the dependency graph</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="controller"/> is <see langword="null"/></exception>
     public static async Task<ActionResult<ApiResponse<DependencyGraphSummary>>> GetGraphSummary(
         this DependencyGraphController controller,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(controller);
+
         var graph = await controller.DependencyGraphService.BuildGraphAsync(ct);
 
         var summary = new DependencyGraphSummary
@@ -198,7 +219,7 @@ public static class DependencyGraphControllerExtensions
 /// <summary>
 /// Summary statistics for a dependency graph.
 /// </summary>
-public class DependencyGraphSummary
+public sealed class DependencyGraphSummary
 {
     /// <summary>Total number of nodes in the graph</summary>
     public int TotalNodes { get; set; }
