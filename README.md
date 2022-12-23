@@ -313,6 +313,45 @@ bool requiresConsecutive = alertRule.RequiresConsecutiveEvaluations();
 int requiredEvaluations = alertRule.GetRequiredEvaluationCount();
 ```
 
+## ServiceLogExtensions
+
+The `ServiceLogExtensions` class provides static extension methods for `ServiceLog` objects that simplify common log entry operations. It includes utilities for severity level checking, detailed formatting, and concise summarization of service log entries.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Models;
+
+// Create a service log entry
+var logEntry = new ServiceLog
+{
+    Timestamp = DateTime.UtcNow,
+    UnitName = "nginx.service",
+    Level = SyslogLevel.Error,
+    Message = "Failed to start nginx: Address already in use",
+    ProcessId = 1234,
+    ErrNo = "EADDRINUSE",
+    MessageId = "nginx-start-failed",
+    Metadata = new Dictionary<string, string> { { "unit", "nginx.service" }, { "pid", "1234" } }
+};
+
+// Check if log entry represents an error or higher severity
+bool isErrorOrHigher = logEntry.IsErrorOrHigher(); // true
+bool isWarningOrHigher = logEntry.IsWarningOrHigher(); // true
+
+// Check if log matches a specific severity level
+bool isError = logEntry.HasLevel(SyslogLevel.Error); // true
+bool isWarning = logEntry.HasLevel(SyslogLevel.Warning); // false
+
+// Get a detailed string representation of the log entry
+string detailedString = logEntry.ToDetailedString();
+// Example output: [2024-07-12 14:30:45.123] [ERROR] [nginx.service] Failed to start nginx: Address already in use | ERRNO: EADDRINUSE | MSGID: nginx-start-failed | PID: 1234 | METADATA: {unit=nginx.service, pid=1234}
+
+// Get a concise summary suitable for dashboards
+string summary = logEntry.ToSummaryString();
+// Example output: [E] nginx.service: Failed to start nginx: Address already in use
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
