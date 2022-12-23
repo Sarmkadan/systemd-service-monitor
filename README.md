@@ -268,6 +268,51 @@ var humanReadable = uptime.ToHumanReadableString();
 Console.WriteLine($"Uptime: {humanReadable}"); // "2d"
 ```
 
+## AlertRuleExtensions
+
+The `AlertRuleExtensions` class provides static extension methods for `AlertRule` objects that simplify common alert evaluation operations. It includes utilities for severity comparison, tag management, cooldown calculations, and rule evaluation state checks.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Models;
+
+// Create an alert rule
+var alertRule = new AlertRule
+{
+    Name = "High CPU Usage",
+    Severity = AlertSeverity.Critical,
+    ServicePattern = "nginx.service",
+    Condition = "cpu_usage > 90",
+    Threshold = 90,
+    Tags = new List<string> { "performance", "nginx", "production" },
+    CooldownMinutes = 5,
+    IsEnabled = true,
+    ConsecutiveEvaluationsRequired = 3
+};
+
+// Check if rule severity meets minimum requirements
+bool isCriticalOrHigher = alertRule.IsSeverityAtLeast(AlertSeverity.Critical);
+bool isGreaterThanWarning = alertRule.IsSeverityGreaterThan(AlertSeverity.Warning);
+
+// Check for specific tags
+bool hasNginxTag = alertRule.HasAnyTag("nginx");
+bool hasAllTags = alertRule.HasAllTags("performance", "production");
+
+// Get cooldown period in seconds
+int cooldownSeconds = alertRule.GetCooldownSeconds();
+
+// Check if rule is active and ready for evaluation
+bool isActive = alertRule.IsActive();
+
+// Get a formatted summary of the rule
+string summary = alertRule.GetSummary();
+
+// Check if rule requires consecutive evaluations
+bool requiresConsecutive = alertRule.RequiresConsecutiveEvaluations();
+int requiredEvaluations = alertRule.GetRequiredEvaluationCount();
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
