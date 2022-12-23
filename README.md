@@ -1,32 +1,32 @@
 // ... rest of the file content ...
-## ResultExtensions
+## ServiceExtensions
 
-The `ResultExtensions` class provides a set of static extension methods for working with `ApiResponse` and `PaginatedResponse` types. It simplifies common operations such as mapping, transforming, and checking the state of these types.
+The `ServiceExtensions` class provides a set of static extension methods for configuring services in the application. It allows you to add application services, application middleware, response caching, JSON options, background services, event bus, and API documentation.
 
 ### Usage Example
 
 ```csharp
 using SystemdServiceMonitor.Extensions;
 
-// Create an ApiResponse instance
-var response = new ApiResponse<string>("Success message");
+// Add application services
+var services = new ServiceCollection();
+services.AddApplicationServices();
 
-// Convert to success response
-var successResponse = response.ToSuccess(); // ApiResponse<string> with "Success message"
+// Add response caching
+services.AddResponseCaching();
 
-// Convert to error response
-var errorResponse = response.ToError("Error message"); // ApiResponse<string> with error code and message
+// Add JSON options
+var builder = new WebApplicationBuilder();
+builder.AddJsonOptions();
 
-// Map to a different type
-var mappedResponse = response.Map<string, int>().Value; // int value
+// Add background services
+services.AddBackgroundServices();
 
-// Check if response has data
-bool hasData = response.HasData(); // true
+// Add event bus
+services.AddEventBus();
 
-// Get data or throw an exception
-var data = response.GetDataOrThrow(); // string value
-
-// Get data or return default value
-var dataOrDefault = response.GetDataOrDefault(); // string value or null
+// Add API documentation
+services.AddApiDocumentation();
 ```
 // ... rest of the file content ...
+```
