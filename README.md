@@ -51,3 +51,34 @@ Console.WriteLine($"Service '{service.Name}' is {(isActive ? "active" : "inactiv
 ```
 
 This example demonstrates how to use the static methods of `ServiceInfoExtensions` to extract and display key status information from a `ServiceInfo` object in a clear and concise way.
+
+## ServiceStatusUpdateWorkerExtensions
+
+The `ServiceStatusUpdateWorkerExtensions` class provides a set of static extension methods for configuring the `ServiceStatusUpdateWorker`. It allows you to configure the update interval, error backoff, cache TTL, batch size, and logging verbosity. 
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.BackgroundWorkers;
+
+var services = new ServiceCollection();
+services.ConfigureServiceStatusUpdateWorker(options =>
+{
+    options.UpdateIntervalMs = ServiceStatusUpdateWorkerExtensions.GetUpdateIntervalMs();
+    options.ErrorBackoffMs = ServiceStatusUpdateWorkerExtensions.GetErrorBackoffMs();
+});
+
+var updateIntervalMs = ServiceStatusUpdateWorkerExtensions.GetUpdateIntervalMs();
+var errorBackoffMs = ServiceStatusUpdateWorkerExtensions.GetErrorBackoffMs();
+var cacheTtl = ServiceStatusUpdateWorkerExtensions.GetCacheTtl();
+var batchSize = ServiceStatusUpdateWorkerExtensions.GetBatchSize();
+var isVerboseLoggingEnabled = ServiceStatusUpdateWorkerExtensions.IsVerboseLoggingEnabled();
+
+var workerOptions = ServiceStatusUpdateWorkerExtensions.CloneOptions();
+var updatedOptions = ServiceStatusUpdateWorkerExtensions.WithUpdateInterval(workerOptions, 1000);
+var updatedOptionsWithBackoff = ServiceStatusUpdateWorkerExtensions.WithErrorBackoff(updatedOptions, 5000);
+
+ServiceStatusUpdateWorkerExtensions.LogConfiguration(updatedOptionsWithBackoff);
+```
+
+This example demonstrates how to use the static methods of `ServiceStatusUpdateWorkerExtensions` to configure and log the `ServiceStatusUpdateWorker` settings.
