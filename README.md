@@ -1,84 +1,56 @@
-## ServiceExtensions
+// existing content ...
 
-The `ServiceExtensions` class provides a set of static extension methods for configuring services in the application. It allows you to add application services, application middleware, response caching, JSON options, background services, event bus, and API documentation.
+## AlertRulesEngineExtensions
 
-### Usage Example
-
-```csharp
-using SystemdServiceMonitor.Extensions;
-
-// Add application services
-var services = new ServiceCollection();
-services.AddApplicationServices();
-
-// Add response caching
-services.AddResponseCaching();
-
-// Add JSON options
-var builder = new WebApplicationBuilder();
-builder.AddJsonOptions();
-
-// Add background services
-services.AddBackgroundServices();
-
-// Add event bus
-services.AddEventBus();
-
-// Add API documentation
-var apiBuilder = new WebApplicationBuilder();
-apiBuilder.AddApiDocumentation();
-```
-
-## ServiceInfoExtensions
-
-The `ServiceInfoExtensions` class provides utility methods for inspecting and formatting the status of a `ServiceInfo` object. These methods simplify common operations such as checking service state, uptime formatting, and generating status summaries.
+The `AlertRulesEngineExtensions` class provides utility methods for retrieving alert rules and incidents based on various criteria. It enables flexible querying of alert data, facilitating incident management and monitoring.
 
 ### Usage Example
 
 ```csharp
+using SystemdServiceMonitor.Services;
 using SystemdServiceMonitor.Models;
 
-ServiceInfo service = GetServiceInfo(); // Assume this method retrieves a ServiceInfo instance
+// Retrieve alert rules by severity
+var rulesBySeverity = await AlertRulesEngineExtensions.GetRulesBySeverityAsync(AlertSeverity.Critical);
+Console.WriteLine($"Critical alert rules: {rulesBySeverity.Count()}");
 
-bool isActive = ServiceInfoExtensions.IsActive(service);
-bool isFailed = ServiceInfoExtensions.IsFailed(service);
-bool isEnabled = ServiceInfoExtensions.IsEnabled(service);
-string uptime = ServiceInfoExtensions.GetFormattedUptime(service);
-bool canRestart = ServiceInfoExtensions.CanRestart(service);
-string summary = ServiceInfoExtensions.GetStatusSummary(service);
+// Get active incidents by severity
+var activeIncidentsBySeverity = await AlertRulesEngineExtensions.GetActiveIncidentsBySeverityAsync(AlertSeverity.Warning);
+Console.WriteLine($"Active warning incidents: {activeIncidentsBySeverity.Count()}");
 
-Console.WriteLine($"Service '{service.Name}' is {(isActive ? "active" : "inactive")}, {(isFailed ? "failed" : "healthy")}, and {(isEnabled ? "enabled" : "disabled")}. Uptime: {uptime}. Status: {summary}. Can restart: {canRestart}.");
-```
+// Get incidents by service
+var incidentsByService = await AlertRulesEngineExtensions.GetIncidentsByServiceAsync("service-name");
+Console.WriteLine($"Incidents for service 'service-name': {incidentsByService.Count()}");
 
-This example demonstrates how to use the static methods of `ServiceInfoExtensions` to extract and display key status information from a `ServiceInfo` object in a clear and concise way.
-
-## ServiceStatusUpdateWorkerExtensions
-
-The `ServiceStatusUpdateWorkerExtensions` class provides a set of static extension methods for configuring the `ServiceStatusUpdateWorker`. It allows you to configure the update interval, error backoff, cache TTL, batch size, and logging verbosity. 
-
-### Usage Example
-
-```csharp
-using SystemdServiceMonitor.BackgroundWorkers;
-
-var services = new ServiceCollection();
-services.ConfigureServiceStatusUpdateWorker(options =>
+// Get active incident counts by severity
+var activeIncidentCounts = await AlertRulesEngineExtensions.GetActiveIncidentCountsBySeverityAsync();
+foreach (var count in activeIncidentCounts)
 {
-    options.UpdateIntervalMs = ServiceStatusUpdateWorkerExtensions.GetUpdateIntervalMs();
-    options.ErrorBackoffMs = ServiceStatusUpdateWorkerExtensions.GetErrorBackoffMs();
-});
+    Console.WriteLine($"{count.Key}: {count.Value}");
+}
 
-var updateIntervalMs = ServiceStatusUpdateWorkerExtensions.GetUpdateIntervalMs();
-var errorBackoffMs = ServiceStatusUpdateWorkerExtensions.GetErrorBackoffMs();
-var cacheTtl = ServiceStatusUpdateWorkerExtensions.GetCacheTtl();
-var batchSize = ServiceStatusUpdateWorkerExtensions.GetBatchSize();
-var isVerboseLoggingEnabled = ServiceStatusUpdateWorkerExtensions.IsVerboseLoggingEnabled();
+// Retrieve rules by service pattern
+var rulesByServicePattern = await AlertRulesEngineExtensions.GetRulesByServicePatternAsync("service-pattern");
+Console.WriteLine($"Rules matching service pattern 'service-pattern': {rulesByServicePattern.Count()}");
 
-var workerOptions = ServiceStatusUpdateWorkerExtensions.CloneOptions();
-var updatedOptions = ServiceStatusUpdateWorkerExtensions.WithUpdateInterval(workerOptions, 1000);
-var updatedOptionsWithBackoff = ServiceStatusUpdateWorkerExtensions.WithErrorBackoff(updatedOptions, 5000);
+// Get latest incident for a service
+var latestIncident = await AlertRulesEngineExtensions.GetLatestIncidentForServiceAsync("service-name");
+Console.WriteLine($"Latest incident for 'service-name': {latestIncident?.Id}");
 
-ServiceStatusUpdateWorkerExtensions.LogConfiguration(updatedOptionsWithBackoff);
+// Get unacknowledged active incidents
+var unacknowledgedIncidents = await AlertRulesEngineExtensions.GetUnacknowledgedActiveIncidentsAsync();
+Console.WriteLine($"Unacknowledged active incidents: {unacknowledgedIncidents.Count()}");
+
+// Get escalated incidents
+var escalatedIncidents = await AlertRulesEngineExtensions.GetEscalatedIncidentsAsync();
+Console.WriteLine($"Escalated incidents: {escalatedIncidents.Count()}");
+
+// Get incident counts by state
+var incidentCountsByState = await AlertRulesEngineExtensions.GetIncidentCountsByStateAsync();
+foreach (var count in incidentCountsByState)
+{
+    Console.WriteLine($"{count.Key}: {count.Value}");
+}
 ```
 
-This example demonstrates how to use the static methods of `ServiceStatusUpdateWorkerExtensions` to configure and log the `ServiceStatusUpdateWorker` settings.
+This example demonstrates how to use the methods of `AlertRulesEngineExtensions` to query alert rules and incidents based on different criteria, aiding in the management and monitoring of alerts within the system.
