@@ -1,34 +1,34 @@
 // existing content ...
 
-## ServiceMonitorServiceExtensions
+## PerformanceMonitorExtensions
 
-The `ServiceMonitorServiceExtensions` class provides utility methods for querying and analyzing service information. It enables you to retrieve services by state, sub-state, or name, as well as get service statuses and statistics.
+The `PerformanceMonitorExtensions` class provides utility methods for measuring and monitoring performance in your application. It enables you to record checkpoints, measure execution time, and generate detailed summaries. 
 
 ### Usage Example
 
 ```csharp
-using SystemdServiceMonitor.Models;
-using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Utilities;
 
-// Assuming a list of ServiceInfo objects named 'services'
-var services = await ServiceMonitorServiceExtensions.GetServicesByStateAsync(ServiceState.Running);
-Console.WriteLine($"Running services: {string.Join(", ", services.Select(s => s.Id))}");
+// Measure synchronous execution time
+var (elapsedMs, success) = PerformanceMonitorExtensions.MeasureWithSuccess(() =>
+{
+    // Code to be measured
+    System.Threading.Thread.Sleep(100);
+});
+Console.WriteLine($"Elapsed: {PerformanceMonitorExtensions.GetFormattedElapsed(elapsedMs)}, Success: {success}");
 
-var activeServices = await ServiceMonitorServiceExtensions.GetServicesBySubStateAsync(ServiceSubState.Active);
-Console.WriteLine($"Active services: {string.Join(", ", activeServices.Select(s => s.Id))}");
+// Measure asynchronous execution time
+var (asyncElapsedMs, asyncSuccess) = await PerformanceMonitorExtensions.MeasureWithSuccessAsync(async () =>
+{
+    // Asynchronous code to be measured
+    await Task.Delay(100);
+});
+Console.WriteLine($"Elapsed: {PerformanceMonitorExtensions.GetFormattedElapsed(asyncElapsedMs)}, Success: {asyncSuccess}");
 
-var serviceInfo = await ServiceMonitorServiceExtensions.GetServiceByNameWithRefreshAsync("service-name");
-Console.WriteLine($"Service info for 'service-name': {serviceInfo?.Id}");
+// Record a checkpoint
+PerformanceMonitorExtensions.RecordCheckpoints("Checkpoint 1");
 
-var serviceStatuses = await ServiceMonitorServiceExtensions.GetMultipleServiceStatusesAsync(new[] { "service1", "service2" });
-Console.WriteLine($"Service statuses: {string.Join(", ", serviceStatuses.Select(s => $"{s.ServiceId}: {s.Status}"))}");
-
-var isMonitored = ServiceMonitorServiceExtensions.IsServiceMonitored("service-name");
-Console.WriteLine($"Is 'service-name' monitored: {isMonitored}");
-
-var statistics = await ServiceMonitorServiceExtensions.GetStatisticsByStateAsync(ServiceState.Failed);
-Console.WriteLine($"Statistics for failed services: {statistics}");
-
-var servicesWithStatus = await ServiceMonitorServiceExtensions.GetServicesWithStatusAsync(ServiceStatusType.Warning);
-Console.WriteLine($"Services with warning status: {string.Join(", ", servicesWithStatus.Select(s => s.Id))}");
+// Get a detailed summary
+var detailedSummary = PerformanceMonitorExtensions.GetDetailedSummary();
+Console.WriteLine($"Detailed Summary: {detailedSummary}");
 ```
