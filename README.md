@@ -59,3 +59,35 @@ string healthSummary = serviceDetails.GetHealthSummary();
 
 Console.WriteLine($"Is Active: {isActive}, Is Failed: {isFailed}, Status Display: {statusDisplay}, Health Summary: {healthSummary}");
 ```
+
+## SystemControllerExtensions
+
+The `SystemControllerExtensions` class provides a set of extension methods for `SystemController` that expose health‑related information as API responses. These helpers return `ActionResult<ApiResponse<object>>` objects for simple health status, compact system info, resource health summaries, and critical service counts.
+
+### Usage Example
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using SystemdServiceMonitor.Controllers;
+
+// In a real application the controller instance is typically obtained via dependency injection.
+var controller = new SystemController();
+
+// Simple health status
+ActionResult<ApiResponse<object>> health = controller.GetSimpleHealthStatus();
+
+// Compact system information
+ActionResult<ApiResponse<object>> compactInfo = controller.GetCompactSystemInfo();
+
+// Resource health summary
+ActionResult<ApiResponse<object>> resourceSummary = controller.GetResourceHealthSummary();
+
+// Critical service counts
+ActionResult<ApiResponse<object>> criticalCounts = controller.GetCriticalServiceCounts();
+
+// Example of using the ResourceThresholds record
+var thresholds = new SystemControllerExtensions.ResourceThresholds(
+    cpuThreshold: 80,
+    memoryThreshold: 1024,
+    diskThreshold: 90);
+```
