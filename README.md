@@ -1,56 +1,37 @@
 // existing content ...
 
-## AlertRulesEngineExtensions
+## ServiceDependencyGraphServiceExtensions
 
-The `AlertRulesEngineExtensions` class provides utility methods for retrieving alert rules and incidents based on various criteria. It enables flexible querying of alert data, facilitating incident management and monitoring.
+The `ServiceDependencyGraphServiceExtensions` class provides utility methods for querying and analyzing service dependency graphs. It enables you to filter graphs, retrieve dependent services, and detect circular dependencies.
 
 ### Usage Example
 
 ```csharp
-using SystemdServiceMonitor.Services;
 using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Services;
 
-// Retrieve alert rules by severity
-var rulesBySeverity = await AlertRulesEngineExtensions.GetRulesBySeverityAsync(AlertSeverity.Critical);
-Console.WriteLine($"Critical alert rules: {rulesBySeverity.Count()}");
+// Assuming a ServiceDependencyGraph named 'graph'
+var graph = new ServiceDependencyGraph();
+// Initialize graph with services and dependencies...
 
-// Get active incidents by severity
-var activeIncidentsBySeverity = await AlertRulesEngineExtensions.GetActiveIncidentsBySeverityAsync(AlertSeverity.Warning);
-Console.WriteLine($"Active warning incidents: {activeIncidentsBySeverity.Count()}");
+var filteredGraph = await ServiceDependencyGraphServiceExtensions.FilterGraphAsync(graph, "filter-criteria");
+Console.WriteLine($"Filtered graph: {filteredGraph}");
 
-// Get incidents by service
-var incidentsByService = await AlertRulesEngineExtensions.GetIncidentsByServiceAsync("service-name");
-Console.WriteLine($"Incidents for service 'service-name': {incidentsByService.Count()}");
+var dependentServices = await ServiceDependencyGraphServiceExtensions.GetDependentServicesAsync(graph, "service-name");
+Console.WriteLine($"Dependent services of 'service-name': {string.Join(", ", dependentServices.Select(d => d.Id))}");
 
-// Get active incident counts by severity
-var activeIncidentCounts = await AlertRulesEngineExtensions.GetActiveIncidentCountsBySeverityAsync();
-foreach (var count in activeIncidentCounts)
-{
-    Console.WriteLine($"{count.Key}: {count.Value}");
-}
+var serviceDependencies = await ServiceDependencyGraphServiceExtensions.GetServiceDependenciesAsync(graph, "service-name");
+Console.WriteLine($"Dependencies of 'service-name': {string.Join(", ", serviceDependencies.Select(d => d.Id))}");
 
-// Retrieve rules by service pattern
-var rulesByServicePattern = await AlertRulesEngineExtensions.GetRulesByServicePatternAsync("service-pattern");
-Console.WriteLine($"Rules matching service pattern 'service-pattern': {rulesByServicePattern.Count()}");
+var allServices = await ServiceDependencyGraphServiceExtensions.GetAllServicesAsync(graph);
+Console.WriteLine($"All services: {string.Join(", ", allServices.Select(s => s.Id))}");
 
-// Get latest incident for a service
-var latestIncident = await AlertRulesEngineExtensions.GetLatestIncidentForServiceAsync("service-name");
-Console.WriteLine($"Latest incident for 'service-name': {latestIncident?.Id}");
+var hasCircularDependency = await ServiceDependencyGraphServiceExtensions.HasCircularDependencyAsync(graph);
+Console.WriteLine($"Has circular dependency: {hasCircularDependency}");
 
-// Get unacknowledged active incidents
-var unacknowledgedIncidents = await AlertRulesEngineExtensions.GetUnacknowledgedActiveIncidentsAsync();
-Console.WriteLine($"Unacknowledged active incidents: {unacknowledgedIncidents.Count()}");
+var longestDependencyChain = await ServiceDependencyGraphServiceExtensions.GetLongestDependencyChainAsync(graph);
+Console.WriteLine($"Longest dependency chain: {string.Join(" -> ", longestDependencyChain)}");
 
-// Get escalated incidents
-var escalatedIncidents = await AlertRulesEngineExtensions.GetEscalatedIncidentsAsync();
-Console.WriteLine($"Escalated incidents: {escalatedIncidents.Count()}");
-
-// Get incident counts by state
-var incidentCountsByState = await AlertRulesEngineExtensions.GetIncidentCountsByStateAsync();
-foreach (var count in incidentCountsByState)
-{
-    Console.WriteLine($"{count.Key}: {count.Value}");
-}
+var longestChainFromService = await ServiceDependencyGraphServiceExtensions.GetLongestChainFromServiceAsync(graph, "service-name");
+Console.WriteLine($"Longest chain from 'service-name': {string.Join(" -> ", longestChainFromService)}");
 ```
-
-This example demonstrates how to use the methods of `AlertRulesEngineExtensions` to query alert rules and incidents based on different criteria, aiding in the management and monitoring of alerts within the system.
