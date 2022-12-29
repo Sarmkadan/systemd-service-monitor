@@ -91,3 +91,38 @@ var thresholds = new SystemControllerExtensions.ResourceThresholds(
     memoryThreshold: 1024,
     diskThreshold: 90);
 ```
+
+## DependencyGraphControllerExtensions
+
+The `DependencyGraphControllerExtensions` class provides utility methods for analyzing and querying service dependency graphs. It enables filtering services by criteria, finding dependent services, retrieving all dependencies for a service, and generating summary statistics about the graph structure and service states.
+
+### Usage Example
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using SystemdServiceMonitor.Controllers;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Responses;
+
+// In a real application the controller instance is typically obtained via dependency injection.
+var controller = new DependencyGraphController();
+
+// Get a filtered dependency graph containing only active services
+ActionResult<ApiResponse<ServiceDependencyGraph>> filteredGraph = await controller.GetFilteredGraph(
+    node => node.State == Enums.ServiceState.Active);
+
+// Get all services that depend on the "nginx" service
+ActionResult<ApiResponse<List<DependencyNode>>> nginxDependents = await controller.GetDependents("nginx");
+
+// Get all dependencies for the "web-app" service (up to depth 5)
+ActionResult<ApiResponse<List<DependencyNode>>> webAppDependencies = await controller.GetAllDependencies("web-app", maxDepth: 5);
+
+// Get summary statistics about the entire dependency graph
+ActionResult<ApiResponse<DependencyGraphSummary>> summary = await controller.GetGraphSummary();
+
+// Access summary properties
+var graphSummary = summary.Value.Data;
+Console.WriteLine($"Total nodes: {graphSummary.TotalNodes}, Total edges: {graphSummary.TotalEdges}");
+Console.WriteLine($"Active: {graphSummary.ActiveServices}, Failed: {graphSummary.FailedServices}");
+Console.WriteLine($"Generated at: {graphSummary.GeneratedAt}");
+```
