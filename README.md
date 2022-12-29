@@ -92,6 +92,55 @@ var thresholds = new SystemControllerExtensions.ResourceThresholds(
     diskThreshold: 90);
 ```
 
+## EnumExtensions
+
+The `EnumExtensions` class provides utility methods for working with enum types. It includes functionality for retrieving enum values and descriptions, parsing strings to enum values, checking flag values, converting enums to numeric values, and creating human-readable string representations.
+
+### Usage Example
+
+```csharp
+using System.ComponentModel;
+using SystemdServiceMonitor.Extensions;
+
+// Define an enum with Description attributes
+public enum ServiceState
+{
+    [Description("Service is active and running")]
+    Active,
+    
+    [Description("Service is inactive")]
+    Inactive,
+    
+    [Description("Service has failed")]
+    Failed
+}
+
+// Get description from enum value
+var state = ServiceState.Active;
+string description = state.GetDescription(); // "Service is active and running"
+
+// Parse string to enum
+string stateString = "Failed";
+var parsedState = stateString.TryParseEnum<ServiceState>(); // ServiceState.Failed
+
+// Get all enum values
+var allStates = EnumExtensions.GetValues<ServiceState>();
+
+// Get all enum values with descriptions
+var statesWithDescriptions = EnumExtensions.GetValuesWithDescriptions<ServiceState>();
+
+// Check if enum has a specific flag
+var combinedFlags = ServiceState.Active | ServiceState.Inactive;
+bool hasFlag = combinedFlags.HasFlag(ServiceState.Active); // true
+
+// Get numeric value of enum
+object numericValue = ServiceState.Active.GetNumericValue(); // 0 (or underlying type value)
+
+// Convert enum to friendly string
+string friendlyName = ServiceState.Active.ToFriendlyString(); // "Active"
+string friendlyNameWithSpaces = ServiceState.Active.ToFriendlyString(addSpaces: true); // "Service State"
+```
+
 ## DependencyGraphControllerExtensions
 
 The `DependencyGraphControllerExtensions` class provides utility methods for analyzing and querying service dependency graphs. It enables filtering services by criteria, finding dependent services, retrieving all dependencies for a service, and generating summary statistics about the graph structure and service states.
