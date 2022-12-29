@@ -75,7 +75,7 @@ public static class ServiceHealthChecker
             _ => "Unknown"
         };
 
-        var details = new List<string> { $"{icon} {statusText}" };
+        var details = new List<string> { $"{service.UnitName}: {icon} {statusText}" };
 
         if (service.State.ToString() != "Active")
             details.Add($"State: {service.State}");
