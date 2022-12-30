@@ -96,3 +96,35 @@ var failedServiceRule = new AlertRule
 
 Console.WriteLine($"Created alert rule '{cpuAlertRule.Name}' for services matching '{cpuAlertRule.ServicePattern}'");
 ```
+
+## ServiceLog
+
+The `ServiceLog` class represents a structured log entry captured from systemd journald for a specific service. It provides comprehensive diagnostic details including severity level, process identifiers, source code location, and system-specific metadata to facilitate troubleshooting and service monitoring.
+
+### Usage Example
+
+```csharp
+var log = new ServiceLog
+{
+    Id = Guid.NewGuid(),
+    ServiceInfoId = Guid.NewGuid(),
+    UnitName = "nginx.service",
+    Level = SyslogLevel.Error,
+    Message = "Failed to bind to port 80: Address already in use",
+    ProcessId = 1234,
+    UserId = 0,
+    Hostname = "web-server-01",
+    CodeFile = "nginx.c",
+    CodeLine = 42,
+    CodeFunction = "main",
+    ErrNo = "EADDRINUSE",
+    MessageId = "1234567890abcdef",
+    Sequence = 1001,
+    BootId = "a1b2c3d4e5f6g7h8",
+    Timestamp = DateTime.UtcNow,
+    Metadata = new Dictionary<string, string> { { "Environment", "Production" } }
+};
+
+Console.WriteLine(log.ToString());
+```
+
