@@ -29,6 +29,40 @@ var status = new ServiceStatus
 Console.WriteLine($"Service {status.UnitName} is {status.State} with {status.CpuUsagePercent}% CPU usage");
 ```
 
+## ServiceInfo
+
+The `ServiceInfo` class stores metadata and configuration about a systemd service, including its identity, dependencies, and operational policies. It provides a comprehensive view of a service's static configuration and relationships, which is used alongside `ServiceStatus` to monitor and manage services.
+
+### Usage Example
+
+```csharp
+ServiceInfo info = new ServiceInfo
+{
+    Id = Guid.NewGuid(),
+    LoadState = ServiceLoadState.Running,
+    CpuUsagePercent = 50,
+    MemoryUsageMb = 1024,
+    UnitName = "nginx.service",
+    Description = "High-performance HTTP server and reverse proxy",
+    UnitFilePath = "/lib/systemd/system/nginx.service",
+    State = ServiceState.Active,
+    SubState = ServiceSubState.Running,
+    MainProcessId = 1234,
+    Result = "success",
+    RestartPolicy = RestartPolicy.Always,
+    AutoStart = true,
+    Restart = true,
+    Dependencies = new List<string> { "network.target", "syslog.socket" },
+    Dependents = new List<string> { "website.target" },
+    LastStartTime = DateTime.UtcNow.AddMinutes(-10),
+    LastStopTime = null,
+    UptimeSeconds = 600,
+    RestartCount = 0
+};
+
+Console.WriteLine($"Service {info.UnitName} is configured with {info.Dependencies.Count} dependencies");
+```
+
 ## AlertRule
 
 The `AlertRule` class defines monitoring policies that evaluate service status against configurable conditions to automatically open incidents when services exceed defined thresholds or enter problematic states. It supports both state-based conditions (service failed, inactive) and metric-based conditions (CPU, memory, uptime, restarts) with configurable severity levels, cooldown periods, and escalation policies.
