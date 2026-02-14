@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -18,7 +19,7 @@ public static class ServiceHealthChecker
     /// </summary>
     public static ServiceHealthStatus GetHealthStatus(ServiceInfo service)
     {
-        if (service == null)
+        if (service is null)
             return ServiceHealthStatus.Unknown;
 
         // Check for critical issues first
@@ -58,7 +59,7 @@ public static class ServiceHealthChecker
     /// </summary>
     public static string GetHealthSummary(ServiceInfo service)
     {
-        if (service == null)
+        if (service is null)
             return "Service information unavailable";
 
         var status = GetHealthStatus(service);
@@ -163,7 +164,7 @@ public static class ServiceHealthChecker
     /// </summary>
     public static double CalculateReliability(ServiceInfo service)
     {
-        if (service == null)
+        if (service is null)
             return 0;
 
         // Base reliability on restart count and status
