@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -94,7 +95,7 @@ public class ServicesController(
 
             var service = await monitorService.GetServiceAsync(serviceName);
 
-            if (service == null)
+            if (service is null)
             {
                 return NotFound(new ApiResponse<ServiceInfo>
                 {

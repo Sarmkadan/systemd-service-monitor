@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -45,7 +46,7 @@ public class RequestPipelineBuilder<TRequest, TResult>
     /// </summary>
     public RequestPipelineBuilder<TRequest, TResult> Use(RequestPipelineStep<TRequest, TResult> middleware)
     {
-        if (middleware == null)
+        if (middleware is null)
             throw new ArgumentNullException(nameof(middleware));
 
         _steps.Add(middleware);
@@ -58,7 +59,7 @@ public class RequestPipelineBuilder<TRequest, TResult>
     public RequestPipelineBuilder<TRequest, TResult> UseValidation(
         Func<TRequest, Task<(bool IsValid, string ErrorMessage)>> validator)
     {
-        if (validator == null)
+        if (validator is null)
             throw new ArgumentNullException(nameof(validator));
 
         return Use(async (request, next, ct) =>
@@ -105,7 +106,7 @@ public class RequestPipelineBuilder<TRequest, TResult>
         Func<TRequest, string> cacheKeySelector,
         TimeSpan? cacheDuration = null)
     {
-        if (cacheKeySelector == null)
+        if (cacheKeySelector is null)
             throw new ArgumentNullException(nameof(cacheKeySelector));
 
         return Use(async (request, next, ct) =>
@@ -142,7 +143,7 @@ public class RequestPipelineBuilder<TRequest, TResult>
             {
                 _logger.LogError(ex, "Exception in pipeline");
 
-                if (errorHandler != null)
+                if (errorHandler is not null)
                 {
                     return await errorHandler(ex);
                 }
@@ -157,7 +158,7 @@ public class RequestPipelineBuilder<TRequest, TResult>
     /// </summary>
     public RequestHandler<TRequest, TResult> Build(RequestHandler<TRequest, TResult> innerHandler)
     {
-        if (innerHandler == null)
+        if (innerHandler is null)
             throw new ArgumentNullException(nameof(innerHandler));
 
         // Build pipeline by wrapping handlers in reverse order

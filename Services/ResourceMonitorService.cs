@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -153,7 +154,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public async Task StartContinuousMonitoringAsync(int intervalMs = 5000, CancellationToken ct = default)
     {
-        if (_monitoringCts != null && !_monitoringCts.Token.IsCancellationRequested)
+        if (_monitoringCts is not null && !_monitoringCts.Token.IsCancellationRequested)
         {
             _logger.LogWarning("Resource monitoring is already running");
             return;
@@ -211,7 +212,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public async Task StopContinuousMonitoringAsync()
     {
-        if (_monitoringCts != null && !_monitoringCts.Token.IsCancellationRequested)
+        if (_monitoringCts is not null && !_monitoringCts.Token.IsCancellationRequested)
         {
             _monitoringCts.Cancel();
             _logger.LogInformation("Stopped continuous resource monitoring");
@@ -242,7 +243,7 @@ public class ResourceMonitorService : IResourceMonitorService
                 a.AlertType == alert.AlertType &&
                 a.AlertTime > DateTime.UtcNow.AddMinutes(-5));
 
-            if (recentAlert == null)
+            if (recentAlert is null)
             {
                 _alerts.Add(alert);
                 _logger.LogWarning("Resource alert: {Message}", alert.Message);
