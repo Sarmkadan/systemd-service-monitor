@@ -1,0 +1,8 @@
+version: '3.4'
+services:
+  systemd-service-monitor:
+    ports:
+      - "8080:80"
+    environment:
+      - LOG_LEVEL=Debug
+      - MONITORING_SERVICES__ENABLEMONITORING=true
