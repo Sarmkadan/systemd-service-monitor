@@ -47,6 +47,9 @@ builder.Services.AddEventBus();
 builder.Services.AddBackgroundServices();
 builder.Services.AddLogStreaming();
 
+// Register alert rules engine with escalation policies and on-call rotation
+builder.Services.AddAlertRulesEngine(builder.Configuration);
+
 // Configure caching
 builder.Services.Configure<SystemdServiceMonitor.Caching.CacheOptions>(options =>
 {
