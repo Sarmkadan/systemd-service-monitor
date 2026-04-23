@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -19,11 +20,13 @@ public class MemoryCacheProvider : IServiceCache
     private readonly CacheOptions _options;
     private readonly Dictionary<string, long> _expirationMap = new();
     private readonly object _lockObject = new();
+    private readonly ILogger<MemoryCacheProvider> _logger;
 
-    public MemoryCacheProvider(IMemoryCache cache, IOptions<CacheOptions>? options = null)
+    public MemoryCacheProvider(IMemoryCache cache, IOptions<CacheOptions>? options = null, ILogger<MemoryCacheProvider> logger)
     {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _options = options?.Value ?? new CacheOptions();
+        _logger = logger;
     }
 
     public async Task<T?> GetAsync<T>(string key) where T : class
@@ -49,8 +52,9 @@ public class MemoryCacheProvider : IServiceCache
 
             return null;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving item from cache with key: {Key}", key);
             return null;
         }
     }
@@ -86,9 +90,9 @@ public class MemoryCacheProvider : IServiceCache
 
             await Task.CompletedTask;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Log and continue - cache failures shouldn't break the application
+            _logger.LogError(ex, "Error setting item in cache with key: {Key}", key);
         }
     }
 

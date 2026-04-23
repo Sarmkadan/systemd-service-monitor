@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -23,7 +24,7 @@ public class LogContextEnricher : ILogEventEnricher
 
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
-        if (_httpContextAccessor?.HttpContext == null)
+        if (_httpContextAccessor?.HttpContext is null)
             return;
 
         var context = _httpContextAccessor.HttpContext;
@@ -41,7 +42,7 @@ public class LogContextEnricher : ILogEventEnricher
         }
 
         // Add user information
-        if (context.User?.Identity?.Name != null)
+        if (context.User?.Identity?.Name is not null)
         {
             logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("User", context.User.Identity.Name));
         }
