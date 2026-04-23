@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -75,7 +76,7 @@ public static class ResultExtensions
     {
         return new ApiResponse<TResult>
         {
-            Data = response.Data != null ? mapper(response.Data) : null,
+            Data = response.Data is not null ? mapper(response.Data) : null,
             Success = response.Success,
             Message = response.Message,
             ErrorDetails = response.ErrorDetails,
@@ -90,7 +91,7 @@ public static class ResultExtensions
         this ApiResponse<T> response,
         Action<T> action) where T : class
     {
-        if (response.Success && response.Data != null)
+        if (response.Success && response.Data is not null)
         {
             action(response.Data);
         }
@@ -116,7 +117,7 @@ public static class ResultExtensions
     /// </summary>
     public static bool HasData<T>(this ApiResponse<T> response) where T : class
     {
-        return response.Success && response.Data != null;
+        return response.Success && response.Data is not null;
     }
 
     /// <summary>

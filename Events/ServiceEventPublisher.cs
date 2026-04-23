@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -87,7 +88,7 @@ public class ServiceEventPublisher : IServiceEventPublisher
     /// </summary>
     public void Subscribe(Func<ServiceEventBase, Task> handler)
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
 
         lock (_subscriberLock)
@@ -101,7 +102,7 @@ public class ServiceEventPublisher : IServiceEventPublisher
     /// </summary>
     public void Unsubscribe(Func<ServiceEventBase, Task> handler)
     {
-        if (handler == null)
+        if (handler is null)
             return;
 
         lock (_subscriberLock)
