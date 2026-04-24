@@ -17,8 +17,8 @@ public class SystemdOptions
     public int MaxLogEntriesPerRequest { get; set; } = 1000;
     public bool EnableRemoteOperations { get; set; } = true;
     public int OperationTimeoutMs { get; set; } = 30000;
-    public int ConnectionRetryCount { get; set; } = 3;
-    public int ConnectionRetryDelayMs { get; set; } = 1000;
+    public int ConnectionRetryCount { get; set; } = 5;
+    public int ConnectionRetryDelayMs { get; set; } = 2000;
     public bool EnableHealthChecks { get; set; } = true;
 }
 
