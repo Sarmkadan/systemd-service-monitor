@@ -41,6 +41,8 @@ public class SystemdConnectionService : ISystemdConnectionService
     public bool IsConnected => _isConnected;
     public DateTime? ConnectedSince => _connectedSince;
 
+    public SystemdServiceMonitor.Integration.DBusConnectionManager DBusConnectionManager => _dbusConnectionManager;
+
     public SystemdConnectionService(ILogger<SystemdConnectionService> logger, SystemdOptions options, DBusConnectionManager dbusConnectionManager)
     {
         _logger = logger;
