@@ -128,3 +128,33 @@ var log = new ServiceLog
 Console.WriteLine(log.ToString());
 ```
 
+## RestartPolicyConfig
+
+The `RestartPolicyConfig` class defines detailed restart behavior configuration for systemd services. It controls when and how services are automatically restarted after failures, including timing, limits, and custom commands to execute before and after restarts. This configuration is used to implement sophisticated restart strategies beyond simple systemd restart policies.
+
+### Usage Example
+
+```csharp
+var restartConfig = new RestartPolicyConfig
+{
+    Id = Guid.NewGuid(),
+    ServiceInfoId = Guid.NewGuid(),
+    PolicyType = RestartPolicy.OnFailure,
+    RestartDelaySec = 5,
+    MaxRestarts = 3,
+    RestartWindowSec = 120,
+    StartLimitIntervalSec = 10,
+    StartLimitBurst = 5,
+    TimeoutStartSec = 120,
+    TimeoutStopSec = 60,
+    RestartStrategy = RestartStrategy.Graceful,
+    IsEnabled = true,
+    PreRestartCommand = "systemctl stop dependent-service.service",
+    PostRestartCommand = "systemctl start backup-service.service",
+    NotifyOnRestart = true,
+    TrackRestartHistory = true
+};
+
+Console.WriteLine($"Configured restart policy: {restartConfig.PolicyType} with {restartConfig.MaxRestarts} max restarts");
+```
+
