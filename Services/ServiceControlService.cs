@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Enums;
 using SystemdServiceMonitor.Exceptions;
+using SystemdServiceMonitor.Integration; // Add this for ISystemdManager
+using Tmds.DBus; // Add this
 
 namespace SystemdServiceMonitor.Services;
 
@@ -31,12 +33,19 @@ public class ServiceControlService : IServiceControlService
         _options = options;
     }
 
+    private async Task<ISystemdManager> GetSystemdManagerProxy()
+    {
+        var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
+        return connection.CreateProxy<ISystemdManager>("org.freedesktop.systemd1", "/org/freedesktop/systemd1");
+    }
+
     public async Task<bool> StartServiceAsync(string unitName, CancellationToken ct = default)
     {
         return await ExecuteOperationAsync(unitName, "Start", async () =>
         {
             _logger.LogInformation("Starting service: {ServiceName}", unitName);
-            // Placeholder: would call systemd D-Bus StartUnit method
+            var manager = await GetSystemdManagerProxy();
+            await manager.StartUnitAsync(unitName, "replace"); // "replace" mode for unit operations
             return true;
         }, ct);
     }
@@ -46,7 +55,8 @@ public class ServiceControlService : IServiceControlService
         return await ExecuteOperationAsync(unitName, "Stop", async () =>
         {
             _logger.LogInformation("Stopping service: {ServiceName}", unitName);
-            // Placeholder: would call systemd D-Bus StopUnit method
+            var manager = await GetSystemdManagerProxy();
+            await manager.StopUnitAsync(unitName, "replace");
             return true;
         }, ct);
     }
@@ -56,7 +66,8 @@ public class ServiceControlService : IServiceControlService
         return await ExecuteOperationAsync(unitName, "Restart", async () =>
         {
             _logger.LogInformation("Restarting service: {ServiceName}", unitName);
-            // Placeholder: would call systemd D-Bus RestartUnit method
+            var manager = await GetSystemdManagerProxy();
+            await manager.RestartUnitAsync(unitName, "replace");
             return true;
         }, ct);
     }
@@ -66,7 +77,8 @@ public class ServiceControlService : IServiceControlService
         return await ExecuteOperationAsync(unitName, "Reload", async () =>
         {
             _logger.LogInformation("Reloading service: {ServiceName}", unitName);
-            // Placeholder: would call systemd D-Bus ReloadUnit method
+            var manager = await GetSystemdManagerProxy();
+            await manager.ReloadUnitAsync(unitName, "replace");
             return true;
         }, ct);
     }
@@ -76,8 +88,14 @@ public class ServiceControlService : IServiceControlService
         return await ExecuteOperationAsync(unitName, "Enable", async () =>
         {
             _logger.LogInformation("Enabling service: {ServiceName}", unitName);
-            // Placeholder: would call systemctl enable via D-Bus
-            return true;
+            var manager = await GetSystemdManagerProxy();
+            // runtime: false - persist across reboots, force: true - create symlinks even if already existing
+            var (success, failures) = await manager.EnableUnitFilesAsync(new[] { unitName }, false, true);
+            if (!success)
+            {
+                _logger.LogError("Failed to enable service {ServiceName}. Failures: {Failures}", unitName, string.Join(", ", failures));
+            }
+            return success;
         }, ct);
     }
 
@@ -86,8 +104,14 @@ public class ServiceControlService : IServiceControlService
         return await ExecuteOperationAsync(unitName, "Disable", async () =>
         {
             _logger.LogInformation("Disabling service: {ServiceName}", unitName);
-            // Placeholder: would call systemctl disable via D-Bus
-            return true;
+            var manager = await GetSystemdManagerProxy();
+            // runtime: false - persist across reboots
+            var (success, failures) = await manager.DisableUnitFilesAsync(new[] { unitName }, false);
+            if (!success)
+            {
+                _logger.LogError("Failed to disable service {ServiceName}. Failures: {Failures}", unitName, string.Join(", ", failures));
+            }
+            return success;
         }, ct);
     }
 
@@ -101,8 +125,11 @@ public class ServiceControlService : IServiceControlService
             return strategy switch
             {
                 RestartStrategy.Immediate => await RestartServiceAsync(unitName, ct),
-                RestartStrategy.Graceful => await GracefulShutdownAsync(unitName, 30, ct),
-                RestartStrategy.RollingRestart => await RollingRestartAsync(unitName, ct),
+                // Graceful and RollingRestart strategies would need more complex logic
+                // involving monitoring service status and potentially dependent services.
+                // For now, treat them as a direct restart.
+                RestartStrategy.Graceful => await RestartServiceAsync(unitName, ct), // Simplified
+                RestartStrategy.RollingRestart => await RestartServiceAsync(unitName, ct), // Simplified
                 _ => throw new ArgumentException($"Unknown restart strategy: {strategy}")
             };
         }, ct);
@@ -115,8 +142,10 @@ public class ServiceControlService : IServiceControlService
             _logger.LogInformation("Gracefully shutting down service: {ServiceName} (timeout: {TimeoutSeconds}s)",
                 unitName, timeoutSeconds);
 
-            // Placeholder: would send SIGTERM and wait for timeout before SIGKILL
-            await Task.Delay(100, ct);
+            var manager = await GetSystemdManagerProxy();
+            await manager.KillUnitAsync(unitName, "SIGTERM"); // Send SIGTERM for graceful shutdown
+            // In a real scenario, we might wait and check status here, then send SIGKILL if needed.
+            // For this implementation, we just send SIGTERM.
             return true;
         }, ct);
     }
@@ -177,16 +206,5 @@ public class ServiceControlService : IServiceControlService
                 operation, unitName);
             throw new ServiceOperationException(unitName, operation, ex.Message, ex);
         }
-    }
-
-    private async Task<bool> RollingRestartAsync(string unitName, CancellationToken ct)
-    {
-        // Placeholder for rolling restart strategy
-        // This would involve:
-        // 1. Stopping dependent services gracefully
-        // 2. Restarting the main service
-        // 3. Restarting dependent services
-        await Task.Delay(100, ct);
-        return true;
     }
 }
