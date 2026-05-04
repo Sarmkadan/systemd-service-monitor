@@ -62,7 +62,7 @@ public class ServiceLogService : IServiceLogService
         }
     }
 
-    public async Task<IEnumerable<ServiceLog>> GetLogsByLevelAsync(string unitName, LogLevel level, CancellationToken ct = default)
+    public async Task<IEnumerable<ServiceLog>> GetLogsByLevelAsync(string unitName, SyslogLevel level, CancellationToken ct = default)
     {
         try
         {
@@ -106,7 +106,7 @@ public class ServiceLogService : IServiceLogService
                 {
                     Id = Guid.NewGuid(),
                     UnitName = unitName,
-                    Level = LogLevel.Info,
+                    Level = SyslogLevel.Info,
                     Message = $"Sample log message {i + 1}",
                     Timestamp = now.AddSeconds(-i),
                     ProcessId = 1000 + i,
@@ -180,9 +180,9 @@ public class ServiceLogService : IServiceLogService
             {
                 UnitName = unitName,
                 TotalLogEntries = allLogs.Count,
-                ErrorCount = allLogs.Count(l => l.Level == LogLevel.Error),
-                WarningCount = allLogs.Count(l => l.Level == LogLevel.Warning),
-                InfoCount = allLogs.Count(l => l.Level == LogLevel.Info),
+                ErrorCount = allLogs.Count(l => l.Level == SyslogLevel.Error),
+                WarningCount = allLogs.Count(l => l.Level == SyslogLevel.Warning),
+                InfoCount = allLogs.Count(l => l.Level == SyslogLevel.Info),
                 OldestLogTime = allLogs.Any() ? allLogs.Min(l => l.Timestamp) : DateTime.UtcNow,
                 LatestLogTime = allLogs.Any() ? allLogs.Max(l => l.Timestamp) : DateTime.UtcNow
             };
