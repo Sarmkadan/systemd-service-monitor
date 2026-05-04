@@ -17,6 +17,8 @@ public interface ISystemdManager : IDBusObject
     Task RestartUnitAsync(string name, string mode);
     Task ReloadUnitAsync(string name, string mode);
     Task KillUnitAsync(string name, string signal);
+    Task<(bool Success, string[] Failures)> EnableUnitFilesAsync(string[] names, bool runtime, bool force);
+    Task<(bool Success, string[] Failures)> DisableUnitFilesAsync(string[] names, bool runtime);
 }
 
 /// <summary>
