@@ -7,6 +7,9 @@
     <RootNamespace>SystemdServiceMonitor</RootNamespace>
     <AssemblyName>systemd-service-monitor</AssemblyName>
     <LangVersion>latest</LangVersion>
+    <Authors>Vladyslav Zaiets</Authors>
+    <RepositoryUrl>https://github.com/sarmkadan/systemd-service-monitor</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

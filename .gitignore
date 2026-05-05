@@ -34,6 +34,8 @@ bld/
 # Dependencies
 node_modules/
 .nuget/
+*.nupkg
+packages/
 
 # Environment
 .env

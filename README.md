@@ -36,49 +36,49 @@ systemd Service Monitor provides a centralized web-based interface for monitorin
 
 ## Features
 
-### 🔍 Service Monitoring
+### Service Monitoring
 - Real-time monitoring of systemd services with automatic status updates
 - Service discovery and dependency tracking
 - Active/failed service filtering and search
 - Custom service grouping and tags
 - Service state change notifications
 
-### 📊 Resource Tracking
+### Resource Tracking
 - CPU and memory usage metrics per service
 - Disk I/O statistics and network traffic monitoring
 - Historical metrics collection for trend analysis
 - Real-time performance dashboards with charts
 - Resource alerts and thresholds
 
-### 📋 Log Management
+### Log Management
 - Access systemd journald logs with full-text search
 - Filter logs by priority, date range, and keyword
 - Log retention policies and automatic cleanup
 - Export logs to JSON and CSV formats
 - Structured logging for integration with SIEM tools
 
-### ⚙️ Service Control
+### Service Control
 - Start, stop, restart, enable, and disable services
 - Multiple restart strategies (always, on-failure, systemd-defined)
 - Bulk operations on service groups
 - Service dependency resolution before operations
 - Operation audit trail and activity logging
 
-### 💚 Health Checks
+### Health Checks
 - Configurable health checks with HTTP, TCP, and custom probe support
 - Automatic health status indicators
 - Health check history and trend analysis
 - Alerting on health status changes
 - Customizable success criteria and timeout settings
 
-### 🚀 REST API
+### REST API
 - Complete REST API for integration with monitoring and orchestration tools
 - JSON request/response format with standardized envelopes
 - Pagination support for large result sets
 - Rate limiting and request throttling
 - API versioning and backward compatibility
 
-### 🎨 Web Dashboard
+### Web Dashboard
 - Modern, responsive web interface
 - Real-time status updates using polling
 - Service management and control
