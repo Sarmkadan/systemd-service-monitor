@@ -306,11 +306,13 @@ public class ResourceMonitorService : IResourceMonitorService
 
                         if (totalCpuTimeAvailable > 0)
                         {
-                            // Scale by cores to get percentage across all cores, not just one.
-                            // If a service uses 1 core 100%, and system has 4 cores, it's 25% of total system CPU.
-                            // The cgroup cpuacct.usage gives total CPU time consumed, so we divide by total available time across all cores.
-                            metrics.CpuUsagePercent = (decimal)(cpuTimeDifference / (totalCpuTimeAvailable * Environment.ProcessorCount) * 100);
-                            if (metrics.CpuUsagePercent > 100) metrics.CpuUsagePercent = 100; // Cap at 100%
+                            // Normalise by the number of logical CPU cores so that a service
+                            // fully saturating one core on a 4-core host reports 25 %, and a
+                            // service saturating all cores reports 100 %.  Without the core
+                            // divisor the raw cgroup value can exceed 100 % on multi-core hosts.
+                            double cpuPercent = cpuTimeDifference
+                                / (totalCpuTimeAvailable * Environment.ProcessorCount) * 100.0;
+                            metrics.CpuUsagePercent = Math.Clamp((decimal)cpuPercent, 0m, 100m);
                         }
                     }
                 }
