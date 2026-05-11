@@ -406,4 +406,79 @@ public class ServicesController(
             });
         }
     }
+
+    /// <summary>
+    /// Restarts multiple services concurrently.
+    /// Returns per-service success/failure results.
+    /// </summary>
+    [HttpPost("bulk-restart")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ApiResponse<BulkOperationResult>>> BulkRestartServices(
+        [FromBody] BulkRestartRequest request)
+    {
+        try
+        {
+            if (request?.ServiceNames == null || !request.ServiceNames.Any())
+            {
+                return BadRequest(new ApiResponse<BulkOperationResult>
+                {
+                    Success = false,
+                    Message = "At least one service name must be provided"
+                });
+            }
+
+            var maxConcurrency = Math.Clamp(request.MaxConcurrency, 1, 20);
+            var result = await controlService.BulkRestartAsync(request.ServiceNames, maxConcurrency);
+
+            logger.LogInformation(
+                "Bulk restart completed: {Success}/{Total} services succeeded",
+                result.SuccessCount, result.Results.Count);
+
+            return Ok(new ApiResponse<BulkOperationResult>
+            {
+                Data = result,
+                Success = result.AllSucceeded,
+                Message = $"Bulk restart: {result.SuccessCount} succeeded, {result.FailureCount} failed"
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Unauthorized bulk restart attempt");
+            return StatusCode(403, new ApiResponse<BulkOperationResult>
+            {
+                Success = false,
+                Message = "Insufficient permissions to restart services",
+                ErrorDetails = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during bulk restart");
+            return StatusCode(500, new ApiResponse<BulkOperationResult>
+            {
+                Success = false,
+                Message = "Bulk restart failed",
+                ErrorDetails = ex.Message
+            });
+        }
+    }
+}
+
+/// <summary>
+/// Request body for bulk service restart operations.
+/// </summary>
+public class BulkRestartRequest
+{
+    /// <summary>
+    /// List of systemd unit names to restart (e.g. ["nginx.service", "app.service"]).
+    /// </summary>
+    public IEnumerable<string> ServiceNames { get; set; } = [];
+
+    /// <summary>
+    /// Maximum number of concurrent D-Bus RestartUnit calls. Defaults to 3.
+    /// </summary>
+    public int MaxConcurrency { get; set; } = 3;
 }
