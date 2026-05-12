@@ -218,8 +218,63 @@ public class LogsController(
     }
 
     /// <summary>
-    /// Exports service logs in a specified format (JSON, CSV, XML).
+    /// Retrieves logs for a specific service filtered by syslog priority level.
+    /// Only entries at or above the specified severity are returned.
+    /// Priority levels follow syslog convention: 0=emerg, 1=alert, 2=crit, 3=err,
+    /// 4=warning, 5=notice, 6=info, 7=debug.
     /// </summary>
+    [HttpGet("{serviceName}/by-priority")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ApiResponse<List<ServiceLog>>>> GetLogsByPriority(
+        string serviceName,
+        [FromQuery] int priority = 6,
+        [FromQuery] int lines = 200)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(serviceName))
+            {
+                return BadRequest(new ApiResponse<List<ServiceLog>>
+                {
+                    Success = false,
+                    Message = "Service name cannot be empty"
+                });
+            }
+
+            if (priority < 0 || priority > 7)
+            {
+                return BadRequest(new ApiResponse<List<ServiceLog>>
+                {
+                    Success = false,
+                    Message = "Priority must be between 0 (emerg) and 7 (debug)"
+                });
+            }
+
+            lines = Math.Clamp(lines, 1, 10000);
+
+            var minPriority = (SyslogLevel)priority;
+            var logs = await logService.FetchFromJournalByPriorityAsync(serviceName, minPriority, lines);
+
+            return Ok(new ApiResponse<List<ServiceLog>>
+            {
+                Data = logs.ToList(),
+                Success = true,
+                Message = $"Retrieved {logs.Count()} log entries for '{serviceName}' at priority ≤ {priority} ({minPriority})"
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving priority-filtered logs for {ServiceName}", serviceName);
+            return StatusCode(500, new ApiResponse<List<ServiceLog>>
+            {
+                Success = false,
+                Message = "Failed to retrieve logs",
+                ErrorDetails = ex.Message
+            });
+        }
+    }
     [HttpGet("{serviceName}/export")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

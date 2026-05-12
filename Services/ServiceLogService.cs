@@ -23,15 +23,18 @@ public class ServiceLogService : IServiceLogService
     private readonly ILogger<ServiceLogService> _logger;
     private readonly ILogRepository _logRepository;
     private readonly SystemdOptions _options;
+    private readonly ISystemdConnectionService _connectionService;
 
     public ServiceLogService(
         ILogger<ServiceLogService> logger,
         ILogRepository logRepository,
-        SystemdOptions options)
+        SystemdOptions options,
+        ISystemdConnectionService connectionService)
     {
         _logger = logger;
         _logRepository = logRepository;
         _options = options;
+        _connectionService = connectionService;
     }
 
     public async Task<IEnumerable<ServiceLog>> GetServiceLogsAsync(string unitName, int limit = 100, CancellationToken ct = default)
@@ -97,9 +100,20 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<IEnumerable<ServiceLog>> FetchLatestFromJournalAsync(string unitName, int count = 50, CancellationToken ct = default)
     {
+        return await FetchFromJournalByPriorityAsync(unitName, SyslogLevel.Debug, count, ct);
+    }
+
+    public async Task<IEnumerable<ServiceLog>> FetchFromJournalByPriorityAsync(
+        string unitName,
+        SyslogLevel minimumPriority,
+        int count = 50,
+        CancellationToken ct = default)
+    {
         try
         {
-            _logger.LogInformation("Fetching latest logs from journald for service: {ServiceName}", unitName);
+            _logger.LogInformation(
+                "Fetching latest logs from journald for service: {ServiceName} (minPriority: {Priority})",
+                unitName, minimumPriority);
 
             if (!_connectionService.IsConnected)
             {
@@ -111,7 +125,7 @@ public class ServiceLogService : IServiceLogService
             var journal = connection.CreateProxy<IJournal>("org.freedesktop.Journal1", "/org/freedesktop/Journal1");
 
             var logs = new List<ServiceLog>();
-            
+
             // Add match for the specific unit
             await journal.AddMatchAsync($"_SYSTEMD_UNIT={unitName}");
             // Seek to the end of the journal
@@ -121,10 +135,20 @@ public class ServiceLogService : IServiceLogService
             while (entriesCount < (ulong)count && await journal.NextAsync() > 0)
             {
                 var data = await journal.GetDataAsync();
-                
+
+                // Apply priority filter: journald PRIORITY values are 0 (emerg) – 7 (debug).
+                // Lower numeric value = higher severity.  We keep entries whose numeric
+                // priority is <= the requested minimum (i.e. at least as severe).
+                if (data.TryGetValue("PRIORITY", out string? priorityStr)
+                    && int.TryParse(priorityStr, out int priorityInt))
+                {
+                    if (priorityInt > (int)minimumPriority)
+                        continue;
+                }
+
                 ServiceLog log = new()
                 {
-                    Id = Guid.NewGuid(), // Generate a new ID for each fetched log
+                    Id = Guid.NewGuid(),
                     UnitName = unitName,
                 };
 
@@ -132,10 +156,9 @@ public class ServiceLogService : IServiceLogService
                 {
                     log.Message = message;
                 }
-                if (data.TryGetValue("PRIORITY", out string? priorityStr) && int.TryParse(priorityStr, out int priorityInt))
+                if (data.TryGetValue("PRIORITY", out string? pStr) && int.TryParse(pStr, out int pInt))
                 {
-                    // Map syslog priority to our SyslogLevel enum
-                    log.Level = (SyslogLevel)priorityInt;
+                    log.Level = (SyslogLevel)pInt;
                 }
                 if (data.TryGetValue("_HOSTNAME", out string? hostname))
                 {
@@ -145,30 +168,45 @@ public class ServiceLogService : IServiceLogService
                 {
                     log.ProcessId = pidInt;
                 }
-                if (data.TryGetValue("__REALTIME_TIMESTAMP", out string? timestampStr) && ulong.TryParse(timestampStr, out ulong timestampUs))
+                if (data.TryGetValue("__REALTIME_TIMESTAMP", out string? timestampStr)
+                    && ulong.TryParse(timestampStr, out ulong timestampUs))
                 {
-                    // Timestamp from Journald is in microseconds since epoch
                     var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                     log.Timestamp = epoch.AddTicks((long)timestampUs * 10);
                 }
-                if (data.TryGetValue("__MONOTONIC_TIMESTAMP", out string? monotonicTimestampStr) && ulong.TryParse(monotonicTimestampStr, out ulong monotonicTimestampUs))
+                if (data.TryGetValue("__MONOTONIC_TIMESTAMP", out string? monotonicTimestampStr)
+                    && ulong.TryParse(monotonicTimestampStr, out ulong monotonicTimestampUs))
                 {
-                    log.Sequence = monotonicTimestampUs; // Using monotonic timestamp as sequence
+                    log.Sequence = monotonicTimestampUs;
                 }
-                
+
                 logs.Add(log);
                 entriesCount++;
             }
-            
-            // Clear matches to avoid affecting subsequent queries
+
             await journal.FlushMatchesAsync();
 
             return logs;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch latest logs from journald for service: {ServiceName}", unitName);
+            _logger.LogError(ex, "Failed to fetch logs from journald for service: {ServiceName}", unitName);
             throw new ServiceMonitorException($"Failed to fetch logs for service '{unitName}' from journald", ex);
+        }
+    }
+
+    public async Task<IEnumerable<ServiceLog>> GetRecentLogsAsync(int limit = 100, CancellationToken ct = default)
+    {
+        try
+        {
+            limit = Math.Min(limit, _options.MaxLogEntriesPerRequest);
+            var recent = await _logRepository.GetRecentAsync(TimeSpan.FromHours(24), ct);
+            return recent.Take(limit).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve recent logs");
+            throw;
         }
     }
 
