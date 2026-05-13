@@ -9,6 +9,7 @@ A comprehensive ASP.NET web dashboard for monitoring and managing systemd servic
 ## Table of Contents
 
 - [Overview](#overview)
+- [Quick Start](#quick-start)
 - [Features](#features)
 - [Architecture](#architecture)
 - [System Requirements](#system-requirements)
@@ -36,6 +37,26 @@ systemd Service Monitor provides a centralized web-based interface for monitorin
 - **Log Aggregation**: Search and filter systemd journald logs with retention policies
 - **Service Orchestration**: Start, stop, restart services with multiple restart strategies
 - **Resource Tracking**: Monitor CPU, memory, disk, and network usage per service
+
+## Quick Start
+
+**Prerequisites**: Linux with systemd, .NET 10 SDK (or Docker)
+
+```bash
+git clone https://github.com/sarmkadan/systemd-service-monitor.git
+cd systemd-service-monitor
+dotnet run
+```
+
+The API is live at `http://localhost:5001/api/services` and Swagger UI at `http://localhost:5001/swagger`.
+
+With Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+For full configuration options see [Installation](#installation) and [Configuration](#configuration).
 
 ## Features
 
@@ -844,6 +865,4 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 ---
 
-**Built by [Vladyslav Zaiets](https://sarmkadan.com) - CTO & Software Architect**
-
-[Portfolio](https://sarmkadan.com) | [GitHub](https://github.com/Sarmkadan) | [Telegram](https://t.me/sarmkadan)
+Built by [Vladyslav Zaiets](https://sarmkadan.com)
