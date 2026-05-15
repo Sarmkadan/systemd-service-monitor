@@ -58,6 +58,9 @@ builder.Services.Configure<SystemdServiceMonitor.Caching.CacheOptions>(options =
     options.MaxSizeMb = 100;
 });
 
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
 builder.Services.AddControllers(options =>
 {
     // Add global filters
@@ -91,15 +94,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "systemd-service-monitor API v1");
-        c.RoutePrefix = string.Empty;
+        c.RoutePrefix = "swagger";
     });
 }
 
 app.UseCors("AllowAll");
 app.UseResponseCaching();
 app.UseAuthorization();
+app.UseAntiforgery();
 app.MapControllers();
 app.MapLogStreamEndpoints();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 // Map health check endpoint
 app.MapHealthChecks("/health");
