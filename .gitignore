@@ -37,6 +37,16 @@ node_modules/
 *.nupkg
 packages/
 
+# Test results and coverage
+TestResults/
+*.trx
+coverage.xml
+coverage.cobertura.xml
+lcov.info
+
+# Publish output
+publish/
+
 # Environment
 .env
 .env.local
