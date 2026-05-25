@@ -7,6 +7,7 @@
 using SystemdServiceMonitor.Caching;
 using SystemdServiceMonitor.Integration;
 using SystemdServiceMonitor.Middleware;
+using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Extensions;
 
@@ -27,6 +28,8 @@ public static class ServiceExtensions
 
         // Add health checks
         services.AddHealthChecks();
+
+        services.AddScoped<IServiceDependencyGraphService, ServiceDependencyGraphService>();
 
         return services;
     }
@@ -67,11 +70,6 @@ public static class ServiceExtensions
         TimeSpan? defaultDuration = null)
     {
         services.AddResponseCaching();
-        services.Configure<ResponseCachingOptions>(options =>
-        {
-            options.MaximumBodySize = 1024 * 1024; // 1MB
-            options.UseCaseSensitivePaths = true;
-        });
 
         return services;
     }
