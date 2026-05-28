@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using SystemdServiceMonitor.Enums;
 
@@ -14,6 +10,21 @@ namespace SystemdServiceMonitor.Models;
 public class ServiceInfo
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>
+    /// Load state of the unit file (loaded, not-found, masked, etc.).
+    /// </summary>
+    public ServiceLoadState LoadState { get; set; } = ServiceLoadState.Unknown;
+
+    /// <summary>
+    /// Current CPU usage percentage (populated by resource monitor).
+    /// </summary>
+    public double CpuUsagePercent { get; set; } = 0;
+
+    /// <summary>
+    /// Current memory usage in MB (populated by resource monitor).
+    /// </summary>
+    public long MemoryUsageMb { get; set; } = 0;
 
     /// <summary>
     /// Unique identifier of the service within systemd.

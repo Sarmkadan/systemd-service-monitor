@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
 using SystemdServiceMonitor.Models;
@@ -72,16 +68,18 @@ public class MetricsController(
                 });
             }
 
-            var metrics = await resourceService.GetServiceMetricsAsync(serviceName);
-
-            if (metrics is null)
+            var resourceMetrics = await resourceService.GetServiceResourceMetricsAsync(serviceName);
+            var metrics = new ServiceMetric
             {
-                return NotFound(new ApiResponse<ServiceMetric>
-                {
-                    Success = false,
-                    Message = $"Metrics not available for service '{serviceName}'"
-                });
-            }
+                ServiceName = resourceMetrics.UnitName,
+                CpuPercentage = (double)resourceMetrics.CpuUsagePercent,
+                MemoryUsageMb = resourceMetrics.MemoryUsageMb,
+                NetworkBytesIn = resourceMetrics.NetworkBytesIn,
+                NetworkBytesOut = resourceMetrics.NetworkBytesOut,
+                DiskReadBytesPerSec = resourceMetrics.DiskBytesRead,
+                DiskWriteBytesPerSec = resourceMetrics.DiskBytesWritten,
+                Timestamp = resourceMetrics.MeasuredAt
+            };
 
             return Ok(new ApiResponse<ServiceMetric>
             {
@@ -115,10 +113,21 @@ public class MetricsController(
     {
         try
         {
-            var metrics = await resourceService.GetAllServiceMetricsAsync();
+            var raw = (await resourceService.CollectAllMetricsAsync()).ToList();
+            var metrics = raw.Select(r => new ServiceMetric
+            {
+                ServiceName = r.UnitName,
+                CpuPercentage = (double)r.CpuUsagePercent,
+                MemoryUsageMb = r.MemoryUsageMb,
+                NetworkBytesIn = r.NetworkBytesIn,
+                NetworkBytesOut = r.NetworkBytesOut,
+                DiskReadBytesPerSec = r.DiskBytesRead,
+                DiskWriteBytesPerSec = r.DiskBytesWritten,
+                Timestamp = r.MeasuredAt
+            });
 
             // Apply sorting based on query parameter
-            metrics = (sortBy?.ToLower()) switch
+            var sorted = (sortBy?.ToLower()) switch
             {
                 "memory" => descending
                     ? metrics.OrderByDescending(m => m.MemoryUsageMb).ToList()
@@ -136,9 +145,9 @@ public class MetricsController(
 
             return Ok(new ApiResponse<List<ServiceMetric>>
             {
-                Data = metrics,
+                Data = sorted,
                 Success = true,
-                Message = $"Retrieved metrics for {metrics.Count} services"
+                Message = $"Retrieved metrics for {sorted.Count} services"
             });
         }
         catch (Exception ex)
@@ -166,9 +175,9 @@ public class MetricsController(
         try
         {
             limit = Math.Clamp(limit, 1, 100);
-            var metrics = await resourceService.GetAllServiceMetricsAsync();
-
-            var topMemory = metrics
+            var raw = await resourceService.CollectAllMetricsAsync();
+            var topMemory = raw
+                .Select(r => new ServiceMetric { ServiceName = r.UnitName, CpuPercentage = (double)r.CpuUsagePercent, MemoryUsageMb = r.MemoryUsageMb, Timestamp = r.MeasuredAt })
                 .OrderByDescending(m => m.MemoryUsageMb)
                 .Take(limit)
                 .ToList();
@@ -205,9 +214,9 @@ public class MetricsController(
         try
         {
             limit = Math.Clamp(limit, 1, 100);
-            var metrics = await resourceService.GetAllServiceMetricsAsync();
-
-            var topCpu = metrics
+            var raw = await resourceService.CollectAllMetricsAsync();
+            var topCpu = raw
+                .Select(r => new ServiceMetric { ServiceName = r.UnitName, CpuPercentage = (double)r.CpuUsagePercent, MemoryUsageMb = r.MemoryUsageMb, Timestamp = r.MeasuredAt })
                 .OrderByDescending(m => m.CpuPercentage)
                 .Take(limit)
                 .ToList();
@@ -251,23 +260,14 @@ public class MetricsController(
                 });
             }
 
-            var metrics = await resourceService.GetServiceMetricsAsync(serviceName);
-
-            if (metrics is null)
-            {
-                return NotFound(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"Disk metrics not available for service '{serviceName}'"
-                });
-            }
+            var metrics = await resourceService.GetServiceResourceMetricsAsync(serviceName);
 
             var diskMetrics = new
             {
                 ServiceName = serviceName,
-                DiskReadBytesPerSec = metrics.DiskReadBytesPerSec,
-                DiskWriteBytesPerSec = metrics.DiskWriteBytesPerSec,
-                Timestamp = metrics.Timestamp
+                DiskReadBytesPerSec = metrics.DiskBytesRead,
+                DiskWriteBytesPerSec = metrics.DiskBytesWritten,
+                Timestamp = metrics.MeasuredAt
             };
 
             return Ok(new ApiResponse<object>
@@ -309,23 +309,14 @@ public class MetricsController(
                 });
             }
 
-            var metrics = await resourceService.GetServiceMetricsAsync(serviceName);
-
-            if (metrics is null)
-            {
-                return NotFound(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"Network metrics not available for service '{serviceName}'"
-                });
-            }
+            var metrics = await resourceService.GetServiceResourceMetricsAsync(serviceName);
 
             var networkMetrics = new
             {
                 ServiceName = serviceName,
                 NetworkBytesIn = metrics.NetworkBytesIn,
                 NetworkBytesOut = metrics.NetworkBytesOut,
-                Timestamp = metrics.Timestamp
+                Timestamp = metrics.MeasuredAt
             };
 
             return Ok(new ApiResponse<object>
