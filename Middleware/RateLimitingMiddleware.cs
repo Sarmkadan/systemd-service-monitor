@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -15,6 +11,7 @@ namespace SystemdServiceMonitor.Middleware;
 /// Tracks requests per IP address and enforces configurable rate limits.
 /// </summary>
 public class RateLimitingMiddleware(
+    RequestDelegate next,
     ILogger<RateLimitingMiddleware> logger,
     RateLimitOptions options)
 {
@@ -36,7 +33,7 @@ public class RateLimitingMiddleware(
 
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             context.Response.ContentType = "application/json";
-            context.Response.Headers.Add("Retry-After", "60");
+            context.Response.Headers["Retry-After"] = "60";
 
             var response = new ApiResponse<object>
             {
@@ -50,7 +47,7 @@ public class RateLimitingMiddleware(
             return;
         }
 
-        await context.Next();
+        await next(context);
     }
 
     /// <summary>
