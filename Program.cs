@@ -1,10 +1,7 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Serilog;
+using SystemdServiceMonitor;
 using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Data.Repositories;
 using SystemdServiceMonitor.Extensions;
