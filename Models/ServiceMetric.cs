@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 namespace SystemdServiceMonitor.Models;
 
@@ -72,6 +68,15 @@ public class ServiceMetric
     /// Timestamp of the measurement.
     /// </summary>
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    // Resource snapshot fields (used when ServiceMetric represents a per-service resource summary)
+    public string? ServiceName { get; set; }
+    public double CpuPercentage { get; set; }
+    public double MemoryUsageMb { get; set; }
+    public long NetworkBytesIn { get; set; }
+    public long NetworkBytesOut { get; set; }
+    public long DiskReadBytesPerSec { get; set; }
+    public long DiskWriteBytesPerSec { get; set; }
 
     /// <summary>
     /// Duration of the measurement window in seconds.

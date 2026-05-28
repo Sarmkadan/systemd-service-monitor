@@ -1,8 +1,6 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
+
+using Microsoft.Extensions.Options;
 
 namespace SystemdServiceMonitor.BackgroundWorkers;
 

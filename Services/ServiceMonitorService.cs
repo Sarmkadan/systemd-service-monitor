@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.Extensions.Logging;
 using SystemdServiceMonitor.Data.Repositories;
@@ -98,7 +94,7 @@ public class ServiceMonitorService : IServiceMonitorService
         {
             _logger.LogInformation("Refreshing service list from systemd");
 
-            if (!await _connectionService.IsConnected)
+            if (!_connectionService.IsConnected)
             {
                 _logger.LogWarning("D-Bus connection not established, attempting to connect.");
                 await _connectionService.ConnectAsync(ct);
@@ -128,30 +124,28 @@ public class ServiceMonitorService : IServiceMonitorService
                 try
                 {
                     // Get detailed properties for the unit
-                    var unitProperties = await properties.GetAllAsync("org.freedesktop.systemd1.Unit", unit.Path);
+                    var unitProperties = await properties.GetAllAsync("org.freedesktop.systemd1.Unit");
 
-                    if (unitProperties.TryGetValue("MainPID", out object? mainPid) && mainPid is uint pid)
+                    if (unitProperties.TryGetValue("MainPID", out object? mainPidVal))
                     {
-                        serviceInfo.MainProcessId = (int)pid;
+                        if (mainPidVal is uint pidUint) serviceInfo.MainProcessId = (int)pidUint;
                     }
-                    if (unitProperties.TryGetValue("NRestarts", out object? nRestarts) && nRestarts is uint restarts)
+                    if (unitProperties.TryGetValue("NRestarts", out object? nRestartsVal))
                     {
-                        serviceInfo.RestartCount = (int)restarts;
+                        if (nRestartsVal is uint restartsUint) serviceInfo.RestartCount = (int)restartsUint;
                     }
-                    if (unitProperties.TryGetValue("ActiveEnterTimestamp", out object? activeEnterTimestamp) && activeEnterTimestamp is ulong timestampMicroseconds)
+                    if (unitProperties.TryGetValue("ActiveEnterTimestamp", out object? tsVal))
                     {
-                        // ActiveEnterTimestamp is in microseconds since epoch
-                        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                        var activeEnterDateTime = epoch.AddTicks((long)timestampMicroseconds * 10); // 10 ticks per microsecond
-                        serviceInfo.UptimeSeconds = (long)(DateTime.UtcNow - activeEnterDateTime).TotalSeconds;
+                        if (tsVal is ulong tsMicro)
+                        {
+                            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                            var activeAt = epoch.AddTicks((long)tsMicro * 10);
+                            serviceInfo.UptimeSeconds = (long)(DateTime.UtcNow - activeAt).TotalSeconds;
+                        }
                     }
-                    if (unitProperties.TryGetValue("CPUUsageNsec", out object? cpuUsageNsec) && cpuUsageNsec is ulong cpuNs)
+                    if (unitProperties.TryGetValue("MemoryCurrentBytes", out object? memVal))
                     {
-                        // serviceInfo.CpuUsagePercent = (double)cpuNs / (Environment.ProcessorCount * 1_000_000_000); // Need more context for accurate calculation
-                    }
-                    if (unitProperties.TryGetValue("MemoryCurrentBytes", out object? memoryCurrentBytes) && memoryCurrentBytes is ulong memoryBytes)
-                    {
-                        serviceInfo.MemoryUsageMb = (long)(memoryBytes / (1024.0 * 1024.0));
+                        if (memVal is ulong memBytes) serviceInfo.MemoryUsageMb = (long)(memBytes / (1024.0 * 1024.0));
                     }
 
                     serviceInfos.Add(serviceInfo);
@@ -194,7 +188,7 @@ public class ServiceMonitorService : IServiceMonitorService
                 IsEnabled = service.AutoStart, // AutoStart is not fetched from D-Bus directly, assumes it's persisted
                 IsRunning = service.State == ServiceState.Active,
                 ProcessId = service.MainProcessId,
-                CpuUsagePercent = service.CpuUsagePercent, // Populated by RefreshServiceListAsync
+                CpuUsagePercent = (decimal)service.CpuUsagePercent, // Populated by RefreshServiceListAsync
                 MemoryUsageMb = service.MemoryUsageMb, // Populated by RefreshServiceListAsync
                 HasFailed = service.State == ServiceState.Failed,
                 FailureReason = service.Result, // Result is not directly fetched from D-Bus in this method
@@ -307,7 +301,7 @@ public class ServiceMonitorService : IServiceMonitorService
                 FailedServices = failedServices.Count(),
                 InactiveServices = allServices.Count() - activeServices.Count(),
                 MonitoredServices = _monitoringTokens.Count,
-                AverageCpuUsage = monitoredCount > 0 ? totalCpu / monitoredCount : 0,
+                AverageCpuUsage = monitoredCount > 0 ? (decimal)(totalCpu / monitoredCount) : 0,
                 AverageMemoryUsage = monitoredCount > 0 ? totalMemory / monitoredCount : 0,
                 TotalRestarts = allServices.Sum(s => s.RestartCount),
                 LastRefreshTime = DateTime.UtcNow

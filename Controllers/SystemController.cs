@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
 using SystemdServiceMonitor.Models;
@@ -43,7 +39,7 @@ public class SystemController(
                 Timestamp = DateTime.UtcNow,
                 Services = new
                 {
-                    MonitoredCount = services.Count,
+                    MonitoredCount = services.Count(),
                     ActiveCount = services.Count(s => s.State.ToString() == "Active"),
                     FailedCount = services.Count(s => s.State.ToString() == "Failed")
                 },
@@ -163,7 +159,7 @@ public class SystemController(
                 Timestamp = DateTime.UtcNow,
                 Services = new
                 {
-                    Total = services.Count,
+                    Total = services.Count(),
                     Active = services.Count(s => s.State.ToString() == "Active"),
                     Inactive = services.Count(s => s.State.ToString() == "Inactive"),
                     Failed = services.Count(s => s.State.ToString() == "Failed"),
@@ -174,8 +170,8 @@ public class SystemController(
                     CpuPercent = Math.Round(resources.CpuUsagePercent, 2),
                     MemoryPercent = Math.Round(resources.MemoryUsagePercent, 2),
                     DiskPercent = Math.Round(resources.DiskUsagePercent, 2),
-                    MemoryAvailableMb = resources.MemoryAvailableMb,
-                    DiskAvailableGb = resources.DiskAvailableGb
+                    MemoryAvailableMb = resources.AvailableMemoryMb,
+                    DiskAvailableGb = resources.AvailableDiskGb
                 }
             };
 
@@ -315,7 +311,7 @@ public class SystemController(
                 ConnectionStatus = "Connected",
                 ServiceMetrics = new
                 {
-                    TotalServices = services.Count,
+                    TotalServices = services.Count(),
                     ActiveServices = services.Count(s => s.State.ToString() == "Active"),
                     FailedServices = services.Count(s => s.State.ToString() == "Failed"),
                     AverageRestartCount = Math.Round(services.Average(s => s.RestartCount), 2)

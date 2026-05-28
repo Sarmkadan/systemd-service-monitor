@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Tmds.DBus;
 
@@ -68,7 +64,9 @@ public class DBusConnectionManager : IDisposable
     private async Task<Connection> CreateConnectionAsync()
     {
         _logger.LogInformation("Initializing D-Bus connection to systemd");
-        return await Connection.GetSessionConnectionAsync();
+        var connection = new Connection(Address.System);
+        await connection.ConnectAsync();
+        return connection;
     }
 
     /// <summary>
@@ -139,8 +137,8 @@ public class DBusConnectionManager : IDisposable
 
         try
         {
-            var connection = await GetConnectionAsync();
-            return connection.State == DBusConnectionState.Connected;
+            await GetConnectionAsync();
+            return true;
         }
         catch
         {
@@ -155,11 +153,11 @@ public class DBusConnectionManager : IDisposable
     {
         try
         {
-            var connection = await GetConnectionAsync();
+            await GetConnectionAsync();
             return new ConnectionStatusInfo
             {
-                IsConnected = connection.State == DBusConnectionState.Connected,
-                State = connection.State.ToString(),
+                IsConnected = true,
+                State = "Connected",
                 LastStatusCheck = DateTime.UtcNow,
                 ReconnectAttempts = _reconnectAttempts
             };
@@ -216,13 +214,3 @@ public class ConnectionStatusInfo
     public int ReconnectAttempts { get; set; }
 }
 
-/// <summary>
-/// D-Bus connection states for status tracking.
-/// </summary>
-public enum DBusConnectionState
-{
-    Connected,
-    Disconnected,
-    Connecting,
-    Error
-}

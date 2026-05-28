@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -14,7 +10,6 @@ namespace SystemdServiceMonitor.Filters;
 /// Action filter that validates model state and returns a consistent error response for validation failures.
 /// Prevents execution of invalid requests and provides clear validation error messages.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public class ValidateModelFilter : IAsyncActionFilter
 {
     private readonly ILogger<ValidateModelFilter> _logger;

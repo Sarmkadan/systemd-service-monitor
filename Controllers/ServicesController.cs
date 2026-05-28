@@ -1,8 +1,4 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
 using SystemdServiceMonitor.Models;
@@ -20,7 +16,6 @@ namespace SystemdServiceMonitor.Controllers;
 public class ServicesController(
     IServiceMonitorService monitorService,
     IServiceControlService controlService,
-    IServiceLogService logService,
     ILogger<ServicesController> logger) : ControllerBase
 {
     /// <summary>
@@ -43,7 +38,7 @@ public class ServicesController(
                 services = services.Where(s => s.State.ToString().Equals(state, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
-            var totalCount = services.Count;
+            var totalCount = services.Count();
             var paginatedServices = services
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -93,7 +88,7 @@ public class ServicesController(
                 });
             }
 
-            var service = await monitorService.GetServiceAsync(serviceName);
+            var service = await monitorService.GetServiceByNameAsync(serviceName);
 
             if (service is null)
             {

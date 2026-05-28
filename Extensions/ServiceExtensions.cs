@@ -1,9 +1,6 @@
 #nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
 
+using Microsoft.OpenApi.Models;
 using SystemdServiceMonitor.Caching;
 using SystemdServiceMonitor.Integration;
 using SystemdServiceMonitor.Middleware;
@@ -121,29 +118,11 @@ public static class ServiceExtensions
     {
         services.AddSwaggerGen(options =>
         {
-            options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+            options.SwaggerDoc("v1", new OpenApiInfo
             {
                 Title = "systemd-service-monitor API",
                 Version = "v1",
-                Description = "REST API for monitoring and controlling systemd services via D-Bus",
-                Contact = new Microsoft.OpenApi.Models.OpenApiContact
-                {
-                    Name = "systemd-service-monitor",
-                    Url = new Uri("https://github.com/vzaiets/systemd-service-monitor")
-                },
-                License = new Microsoft.OpenApi.Models.OpenApiLicense
-                {
-                    Name = "MIT License",
-                    Url = new Uri("https://opensource.org/licenses/MIT")
-                }
-            });
-
-            // Add security scheme for potential authentication
-            options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Description = "JWT Authorization header using the Bearer scheme",
-                Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-                Scheme = "bearer"
+                Description = "REST API for monitoring and controlling systemd services via D-Bus"
             });
 
             // Include XML documentation if available
