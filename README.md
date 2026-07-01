@@ -36,9 +36,53 @@ dotnet build --configuration Release
 
 ### Option 3: Use Docker
 
+Build and run the application using Docker:
+
 ```bash
+# Build the Docker image
 docker build -t systemd-service-monitor .
-docker run --privileged --net=host -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket systemd-service-monitor
+
+# Run the container with required privileges and volume mounts
+# Note: Using --net=host is recommended for systemd monitoring
+docker run --privileged --net=host \
+  -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket \
+  -v /var/log/journal:/var/log/journal:ro \
+  -v /sys:/sys:ro \
+  -v /proc:/proc:ro \
+  -v ./logs:/app/logs \
+  -e ASPNETCORE_ENVIRONMENT=Production \
+  -e ASPNETCORE_URLS=https://0.0.0.0:5001 \
+  --name systemd-monitor \
+  -d -p 5001:5001 \
+  systemd-service-monitor
+```
+
+
+#### Using Docker Compose
+
+For production deployments, use Docker Compose:
+
+```bash
+# Start the service in production mode
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop the service
+docker compose down
+```
+
+
+For development with additional services (PostgreSQL, Redis):
+
+```bash
+# Start development environment
+docker compose -f docker-compose.dev.yml up -d
+
+# Access development services
+# PostgreSQL: localhost:5432
+# Redis: localhost:6379
 ```
 
 ## Quick Start
