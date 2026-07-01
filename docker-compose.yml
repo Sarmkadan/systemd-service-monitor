@@ -7,27 +7,22 @@ services:
       dockerfile: Dockerfile
     container_name: systemd-monitor
     restart: always
-
     ports:
       - "5001:5001"
-
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=https://0.0.0.0:5001
-
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
     volumes:
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/log/journal:/var/log/journal:ro
       - /sys:/sys:ro
       - /proc:/proc:ro
       - ./logs:/app/logs
-
     privileged: true
-
     cap_add:
       - SYS_ADMIN
       - SYS_PTRACE
-
     deploy:
       resources:
         limits:
@@ -36,14 +31,12 @@ services:
         reservations:
           cpus: '1'
           memory: 512M
-
     healthcheck:
       test: ["CMD", "curl", "-f", "-k", "https://localhost:5001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
     logging:
       driver: "json-file"
       options:

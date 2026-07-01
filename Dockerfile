@@ -1,8 +1,3 @@
-# =============================================================================
-# Author: Vladyslav Zaiets | https://sarmkadan.com
-# CTO & Software Architect
-# =============================================================================
-
 # Build stage - compile the application
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS builder
 WORKDIR /src
