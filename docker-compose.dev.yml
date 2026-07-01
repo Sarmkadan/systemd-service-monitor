@@ -42,7 +42,7 @@ services:
       - SYS_PTRACE
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "-k", "https://localhost:5001/api/system/health"]
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:5001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
