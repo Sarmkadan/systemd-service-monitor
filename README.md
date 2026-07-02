@@ -138,6 +138,24 @@ Configuration is done via `appsettings.json`:
 }
 ```
 
+## Performance Benchmarks
+
+Performance benchmarks are implemented using [BenchmarkDotNet](https://benchmarkdotnet.org/).
+
+### Running Benchmarks
+
+```bash
+cd tests/systemd-service-monitor.Benchmarks
+dotnet run -c Release
+```
+
+### Results (ServiceRepository)
+
+| Method         | Mean       | Error     | StdDev    | Gen0   | Allocated |
+|--------------- |-----------:|----------:|----------:|-------:|----------:|
+| GetAllServices | 491.269 us | 9.2551 us | 7.7284 us | 2.9297 |   28440 B |
+| GetByUnitName  |   2.152 us | 0.0426 us | 0.0700 us | 0.0114 |      96 B |
+
 ## API Reference
 
 
