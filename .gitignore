@@ -55,3 +55,6 @@ appsettings.Development.json
 # OS
 .DS_Store
 Thumbs.db
+
+# aider internal state - never commit
+.aider*
