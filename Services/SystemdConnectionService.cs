@@ -48,15 +48,20 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task<bool> ConnectAsync(CancellationToken ct = default)
     {
+        _logger.LogDebug("Attempting to connect to systemd D-Bus via DBusConnectionManager");
+
         if (_isConnected)
+        {
+            _logger.LogInformation("Already connected to systemd D-Bus");
             return true;
+        }
 
         try
         {
             await _dbusConnectionManager.GetConnectionAsync();
             _isConnected = true;
             _connectedSince = DateTime.UtcNow;
-            _logger.LogInformation("Successfully connected to systemd D-Bus via DBusConnectionManager");
+            _logger.LogInformation("Successfully connected to systemd D-Bus via DBusConnectionManager at {ConnectedSince}", _connectedSince);
             return true;
         }
         catch (Exception ex)
@@ -68,8 +73,13 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task<bool> VerifyConnectionAsync(CancellationToken ct = default)
     {
+        _logger.LogDebug("Verifying systemd D-Bus connection status");
+
         if (!_isConnected)
+        {
+            _logger.LogWarning("Verification attempted while not connected");
             return false;
+        }
 
         try
         {
@@ -78,12 +88,15 @@ public class SystemdConnectionService : ISystemdConnectionService
             {
                 _isConnected = false;
                 _connectedSince = null;
+                _logger.LogWarning("Underlying DBusConnectionManager reports disconnected");
                 return false;
             }
 
             // Attempt a simple D-Bus call to verify connection is active, e.g., get systemd version
             var version = await GetSystemdVersionAsync(ct);
-            return !string.IsNullOrEmpty(version);
+            var success = !string.IsNullOrEmpty(version);
+            _logger.LogInformation("Connection verification succeeded, systemd version: {Version}", version);
+            return success;
         }
         catch (Exception ex)
         {
@@ -97,8 +110,13 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task DisconnectAsync(CancellationToken ct = default)
     {
+        _logger.LogDebug("Disconnecting from systemd D-Bus");
+
         if (!_isConnected)
+        {
+            _logger.LogInformation("Disconnect called but already in disconnected state");
             return;
+        }
 
         _logger.LogInformation("SystemdConnectionService state set to disconnected.");
         _isConnected = false;
@@ -126,16 +144,17 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task<string> GetSystemdVersionAsync(CancellationToken ct = default)
     {
+        _logger.LogDebug("Fetching systemd version using D-Bus");
+
         if (!_isConnected)
             throw new DBusConnectionException("Not connected to systemd D-Bus");
 
         try
         {
-            _logger.LogDebug("Fetching systemd version using D-Bus");
             var connection = await _dbusConnectionManager.GetConnectionAsync();
             var managerProxy = connection.CreateProxy<ISystemdManagerProperties>(SystemdService, SystemdPath);
             string version = await managerProxy.GetVersionAsync();
-            _logger.LogInformation("Systemd version: {Version}", version);
+            _logger.LogInformation("Retrieved systemd version: {Version}", version);
             return version;
         }
         catch (Exception ex)
