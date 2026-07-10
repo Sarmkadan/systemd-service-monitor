@@ -24,6 +24,31 @@ public class ServiceStatusUpdateWorker : BackgroundService
         _options = options?.Value ?? new ServiceWorkerOptions();
     }
 
+    /// <summary>
+    /// Gets the update interval in milliseconds from the configuration.
+    /// </summary>
+    public int UpdateIntervalMs => _options.UpdateIntervalMs;
+
+    /// <summary>
+    /// Gets the error backoff delay in milliseconds from the configuration.
+    /// </summary>
+    public int ErrorBackoffMs => _options.ErrorBackoffMs;
+
+    /// <summary>
+    /// Gets the cache TTL (time-to-live) from the configuration.
+    /// </summary>
+    public TimeSpan CacheTtl => _options.CacheTtl;
+
+    /// <summary>
+    /// Gets the batch size for processing services from the configuration.
+    /// </summary>
+    public int BatchSize => _options.BatchSize;
+
+    /// <summary>
+    /// Gets a value indicating whether verbose logging is enabled from the configuration.
+    /// </summary>
+    public bool VerboseLogging => _options.VerboseLogging;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("ServiceStatusUpdateWorker started");
