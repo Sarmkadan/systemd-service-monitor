@@ -8,12 +8,22 @@ using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Controllers;
 
+/// <summary>
+/// Controller for managing systemd service alerts and incidents.
+/// Provides endpoints for creating, reading, updating, and deleting alert rules,
+/// as well as managing and acknowledging alert incidents.
+/// </summary>
 [ApiController]
 [Route("api/alerts")]
 public class AlertsController(
     IAlertRulesEngine alertRulesEngine,
     ILogger<AlertsController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Retrieves all alert rules from the system.
+    /// </summary>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing a list of alert rules with success status.</returns>
     [HttpGet("rules")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -39,6 +49,12 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Retrieves a specific alert rule by its unique identifier.
+    /// </summary>
+    /// <param name="id">The unique identifier of the alert rule to retrieve.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the requested alert rule or 404 if not found.</returns>
     [HttpGet("rules/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -71,6 +87,12 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Creates a new alert rule in the system.
+    /// </summary>
+    /// <param name="dto">The alert rule data to create.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the created alert rule with 201 status.</returns>
     [HttpPost("rules")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -109,6 +131,13 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Updates an existing alert rule in the system.
+    /// </summary>
+    /// <param name="id">The unique identifier of the alert rule to update.</param>
+    /// <param name="dto">The updated alert rule data.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the updated alert rule or 404 if not found.</returns>
     [HttpPut("rules/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -141,6 +170,12 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Deletes an alert rule from the system.
+    /// </summary>
+    /// <param name="id">The unique identifier of the alert rule to delete.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result indicating success or 404 if not found.</returns>
     [HttpDelete("rules/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -174,6 +209,11 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Retrieves all active alert incidents from the system.
+    /// </summary>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing a list of active alert incidents with success status.</returns>
     [HttpGet("incidents")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -199,6 +239,12 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Retrieves a specific alert incident by its unique identifier.
+    /// </summary>
+    /// <param name="id">The unique identifier of the alert incident to retrieve.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the requested alert incident or 404 if not found.</returns>
     [HttpGet("incidents/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -231,6 +277,13 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Acknowledges an active alert incident.
+    /// </summary>
+    /// <param name="id">The unique identifier of the alert incident to acknowledge.</param>
+    /// <param name="dto">The acknowledgment details including who acknowledged the incident.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the acknowledged alert incident or appropriate error status.</returns>
     [HttpPost("incidents/{id:guid}/acknowledge")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -275,6 +328,13 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Resolves an acknowledged alert incident.
+    /// </summary>
+    /// <param name="id">The unique identifier of the alert incident to resolve.</param>
+    /// <param name="dto">The resolution details including who resolved the incident and notes.</param>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the resolved alert incident or appropriate error status.</returns>
     [HttpPost("incidents/{id:guid}/resolve")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -319,6 +379,11 @@ public class AlertsController(
         }
     }
 
+    /// <summary>
+    /// Retrieves a summary of all alerts and incidents in the system.
+    /// </summary>
+    /// <param name="ct">Cancellation token for async operation.</param>
+    /// <returns>Action result containing the alert summary with success status.</returns>
     [HttpGet("summary")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -362,7 +427,8 @@ public class AlertsController(
         rule.ConsecutiveEvaluationsRequired,
         rule.Tags,
         rule.CreatedAt,
-        rule.UpdatedAt);
+        rule.UpdatedAt
+    );
 
     private static AlertIncidentDto ToAlertIncidentDto(AlertIncident incident) => new(
         incident.Id,
@@ -388,7 +454,9 @@ public class AlertsController(
             history.NotificationTarget,
             history.NotificationDelivered,
             history.DeliveryError,
-            history.OccurredAt)).ToList(),
+            history.OccurredAt
+        )).ToList(),
         incident.CreatedAt,
-        incident.UpdatedAt);
+        incident.UpdatedAt
+    );
 }
