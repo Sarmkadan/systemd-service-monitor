@@ -24,12 +24,10 @@ public static class ValidationHelperTestsJsonExtensions
     /// <param name="value">The ValidationHelperTests instance to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the ValidationHelperTests instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static string ToJson(this ValidationHelperTests value, bool indented = false)
     {
-        if (value is null)
-        {
-            return "null";
-        }
+        ArgumentNullException.ThrowIfNull(value);
 
         var options = indented
             ? new JsonSerializerOptions(_jsonOptions)
@@ -46,8 +44,11 @@ public static class ValidationHelperTestsJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized ValidationHelperTests instance, or null if the JSON is null or empty.</returns>
-    public static ValidationHelperTests? FromJson(string json)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    public static ValidationHelperTests? FromJson(string? json)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         if (string.IsNullOrWhiteSpace(json) || json == "null")
         {
             return null;
@@ -62,13 +63,16 @@ public static class ValidationHelperTestsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">The deserialized ValidationHelperTests instance if successful, otherwise null.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
-    public static bool TryFromJson(string json, out ValidationHelperTests? value)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    public static bool TryFromJson(string? json, out ValidationHelperTests? value)
     {
         value = default;
 
+        ArgumentNullException.ThrowIfNull(json);
+
         if (string.IsNullOrWhiteSpace(json) || json == "null")
         {
-            return true;
+            return false;
         }
 
         try
