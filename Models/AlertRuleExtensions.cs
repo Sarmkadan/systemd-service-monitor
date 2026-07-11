@@ -18,12 +18,10 @@ public static class AlertRuleExtensions
     /// <param name="rule">The alert rule to check.</param>
     /// <param name="severity">The severity to compare against.</param>
     /// <returns><c>true</c> if this rule's severity is greater than or equal to the specified severity; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static bool IsSeverityAtLeast(this AlertRule rule, AlertSeverity severity)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return rule.Severity >= severity;
     }
@@ -34,12 +32,10 @@ public static class AlertRuleExtensions
     /// <param name="rule">The alert rule to check.</param>
     /// <param name="severity">The severity to compare against.</param>
     /// <returns><c>true</c> if this rule's severity is strictly greater than the specified severity; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static bool IsSeverityGreaterThan(this AlertRule rule, AlertSeverity severity)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return rule.Severity > severity;
     }
@@ -50,12 +46,10 @@ public static class AlertRuleExtensions
     /// <param name="rule">The alert rule to check.</param>
     /// <param name="tags">The tags to search for.</param>
     /// <returns><c>true</c> if the rule has any of the specified tags; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static bool HasAnyTag(this AlertRule rule, params string[] tags)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         if (tags == null || tags.Length == 0)
         {
@@ -71,12 +65,10 @@ public static class AlertRuleExtensions
     /// <param name="rule">The alert rule to check.</param>
     /// <param name="tags">The tags that must all be present.</param>
     /// <returns><c>true</c> if the rule has all the specified tags; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static bool HasAllTags(this AlertRule rule, params string[] tags)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         if (tags == null || tags.Length == 0)
         {
@@ -91,12 +83,10 @@ public static class AlertRuleExtensions
     /// </summary>
     /// <param name="rule">The alert rule.</param>
     /// <returns>The cooldown period in seconds.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static int GetCooldownSeconds(this AlertRule rule)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return rule.CooldownMinutes * 60;
     }
@@ -106,12 +96,10 @@ public static class AlertRuleExtensions
     /// </summary>
     /// <param name="rule">The alert rule to check.</param>
     /// <returns><c>true</c> if the rule is enabled; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static bool IsActive(this AlertRule rule)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return rule.IsEnabled && !string.IsNullOrWhiteSpace(rule.ServicePattern);
     }
@@ -121,12 +109,10 @@ public static class AlertRuleExtensions
     /// </summary>
     /// <param name="rule">The alert rule.</param>
     /// <returns>A formatted string summary.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static string GetSummary(this AlertRule rule)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return $"{rule.Name} ({rule.Severity}) - {rule.Condition} (Threshold: {rule.Threshold}) for {rule.ServicePattern}";
     }
@@ -136,12 +122,10 @@ public static class AlertRuleExtensions
     /// </summary>
     /// <param name="rule">The alert rule to check.</param>
     /// <returns><c>true</c> if the rule requires consecutive evaluations; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static bool RequiresConsecutiveEvaluations(this AlertRule rule)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return rule.ConsecutiveEvaluationsRequired > 1;
     }
@@ -151,12 +135,10 @@ public static class AlertRuleExtensions
     /// </summary>
     /// <param name="rule">The alert rule.</param>
     /// <returns>The number of consecutive evaluations required.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
     public static int GetRequiredEvaluationCount(this AlertRule rule)
     {
-        if (rule == null)
-        {
-            throw new ArgumentNullException(nameof(rule));
-        }
+        ArgumentNullException.ThrowIfNull(rule);
 
         return rule.ConsecutiveEvaluationsRequired;
     }
