@@ -49,4 +49,32 @@ var summary = ServiceHealthChecker.GetHealthSummary(service);
 Console.WriteLine($"Health summary: {summary}");
 ```
 
+## DBusConnectionManager
+
+The `DBusConnectionManager` class is responsible for managing connections to the DBus system. It provides methods to establish and manage connections, check connection status, and handle reconnections. The class also provides information about the current connection state, such as the last status check time and any error messages.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Integration;
+
+// Create a new DBusConnectionManager instance
+var connectionManager = new DBusConnectionManager();
+
+// Get the current connection status
+var isConnected = await connectionManager.IsConnectedAsync();
+Console.WriteLine($"Is connected: {isConnected}");
+
+// Get the current connection status info
+var statusInfo = await connectionManager.GetStatusAsync();
+Console.WriteLine($"Connection status: {statusInfo}");
+
+// Reconnect to the DBus system if necessary
+var reconnectResult = await connectionManager.ReconnectAsync();
+Console.WriteLine($"Reconnect result: {reconnectResult}");
+
+// Dispose of the connection manager when finished
+connectionManager.Dispose();
+```
+
 // ... existing content ...
