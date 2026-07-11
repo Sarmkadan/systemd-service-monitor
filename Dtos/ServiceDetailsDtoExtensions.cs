@@ -3,37 +3,34 @@
 namespace SystemdServiceMonitor.Dtos;
 
 /// <summary>
-/// Extension methods for ServiceDetailsDto providing utility operations.
+/// Extension methods for <see cref="ServiceDetailsDto"/> providing utility operations.
 /// </summary>
 public static class ServiceDetailsDtoExtensions
 {
     /// <summary>
     /// Determines if the service is currently active (running or activating).
     /// </summary>
-    /// <param name="service">The service details to check</param>
-    /// <returns>True if the service is active; otherwise false</returns>
+    /// <param name="service">The service details to check.</param>
+    /// <returns>True if the service is active; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static bool IsActive(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
-        var stateLower = service.State.ToLowerInvariant();
-        return stateLower is "active" or "activating" or "reloading";
+        return service.State.Equals("active", StringComparison.OrdinalIgnoreCase)
+               || service.State.Equals("activating", StringComparison.OrdinalIgnoreCase)
+               || service.State.Equals("reloading", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// Determines if the service is in a failed state.
     /// </summary>
-    /// <param name="service">The service details to check</param>
-    /// <returns>True if the service is failed; otherwise false</returns>
+    /// <param name="service">The service details to check.</param>
+    /// <returns>True if the service is failed; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static bool IsFailed(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         return string.Equals(service.State, "failed", StringComparison.OrdinalIgnoreCase);
     }
@@ -41,14 +38,12 @@ public static class ServiceDetailsDtoExtensions
     /// <summary>
     /// Determines if the service is enabled to start automatically at boot.
     /// </summary>
-    /// <param name="service">The service details to check</param>
-    /// <returns>True if auto-start is enabled; otherwise false</returns>
+    /// <param name="service">The service details to check.</param>
+    /// <returns>True if auto-start is enabled; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static bool IsAutoStartEnabled(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         return service.AutoStart && service.Restart;
     }
@@ -56,14 +51,12 @@ public static class ServiceDetailsDtoExtensions
     /// <summary>
     /// Gets a formatted status string suitable for display in dashboards.
     /// </summary>
-    /// <param name="service">The service details</param>
-    /// <returns>Formatted status string with emoji and state information</returns>
+    /// <param name="service">The service details.</param>
+    /// <returns>Formatted status string with emoji and state information.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static string GetStatusDisplay(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         var stateLower = service.State.ToLowerInvariant();
         var subStateLower = service.SubState.ToLowerInvariant();
@@ -88,14 +81,12 @@ public static class ServiceDetailsDtoExtensions
     /// <summary>
     /// Gets a health status summary combining multiple health indicators.
     /// </summary>
-    /// <param name="service">The service details</param>
-    /// <returns>Health status summary string</returns>
+    /// <param name="service">The service details.</param>
+    /// <returns>Health status summary string.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static string GetHealthSummary(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         // If HealthStatus is explicitly set, use it
         if (!string.IsNullOrWhiteSpace(service.HealthStatus))
@@ -115,14 +106,13 @@ public static class ServiceDetailsDtoExtensions
             {
                 return "Healthy - Running successfully";
             }
-            else if (service.Result.Equals("exit-code", StringComparison.OrdinalIgnoreCase))
+
+            if (service.Result.Equals("exit-code", StringComparison.OrdinalIgnoreCase))
             {
                 return "Warning - Exited with non-zero code";
             }
-            else
-            {
-                return "Healthy - Active";
-            }
+
+            return "Healthy - Active";
         }
 
         if (service.State.Equals("inactive", StringComparison.OrdinalIgnoreCase))
@@ -136,14 +126,12 @@ public static class ServiceDetailsDtoExtensions
     /// <summary>
     /// Gets the formatted uptime as a human-readable string.
     /// </summary>
-    /// <param name="service">The service details</param>
-    /// <returns>Formatted uptime string (e.g., "2h 30m 15s")</returns>
+    /// <param name="service">The service details.</param>
+    /// <returns>Formatted uptime string (e.g., "2h 30m 15s").</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static string GetFormattedUptime(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         if (service.UptimeSeconds <= 0)
         {
@@ -157,29 +145,27 @@ public static class ServiceDetailsDtoExtensions
     /// <summary>
     /// Determines if the service should be restarted based on its restart policy.
     /// </summary>
-    /// <param name="service">The service details</param>
-    /// <returns>True if the service should be restarted; otherwise false</returns>
+    /// <param name="service">The service details.</param>
+    /// <returns>True if the service should be restarted; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
     public static bool ShouldRestart(this ServiceDetailsDto service)
     {
-        if (service == null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         return service.Restart && service.RestartCount > 0;
     }
 }
 
 /// <summary>
-/// Extension methods for TimeSpan to provide human-readable formatting.
+/// Extension methods for <see cref="TimeSpan"/> to provide human-readable formatting.
 /// </summary>
 internal static class TimeSpanExtensions
 {
     /// <summary>
-    /// Converts TimeSpan to a human-readable string (e.g., "2h 30m 15s").
+    /// Converts <see cref="TimeSpan"/> to a human-readable string (e.g., "2h 30m 15s").
     /// </summary>
-    /// <param name="timeSpan">The time span to format</param>
-    /// <returns>Human-readable string representation</returns>
+    /// <param name="timeSpan">The time span to format.</param>
+    /// <returns>Human-readable string representation.</returns>
     internal static string ToHumanReadableString(this TimeSpan timeSpan)
     {
         var parts = new List<string>();
