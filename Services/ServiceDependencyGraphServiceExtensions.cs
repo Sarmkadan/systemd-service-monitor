@@ -15,15 +15,13 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="predicate">Predicate to filter services by name</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Filtered dependency graph containing only matching services</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is <see langword="null"/></exception>
     public static async Task<ServiceDependencyGraph> FilterGraphAsync(
         this ServiceDependencyGraphService service,
         Func<string, bool> predicate,
         CancellationToken ct = default)
     {
-        if (predicate is null)
-        {
-            throw new ArgumentNullException(nameof(predicate));
-        }
+        ArgumentNullException.ThrowIfNull(predicate);
 
         var graph = await service.BuildGraphAsync(ct);
         var filteredNodes = graph.Nodes
@@ -36,18 +34,18 @@ public static class ServiceDependencyGraphServiceExtensions
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var filteredGraph = new ServiceDependencyGraph
+        var filteredEdges = graph.Edges
+            .Where(edge => filteredServiceNames.Contains(edge.FromService) && filteredServiceNames.Contains(edge.ToService))
+            .ToList();
+
+        return new ServiceDependencyGraph
         {
             Nodes = filteredNodes,
-            Edges = graph.Edges
-                .Where(edge => filteredServiceNames.Contains(edge.FromService) && filteredServiceNames.Contains(edge.ToService))
-                .ToList(),
+            Edges = filteredEdges,
             TotalNodes = filteredNodes.Count,
-            TotalEdges = graph.Edges.Count(edge => filteredServiceNames.Contains(edge.FromService) && filteredServiceNames.Contains(edge.ToService)),
+            TotalEdges = filteredEdges.Count,
             GeneratedAt = DateTime.UtcNow
         };
-
-        return filteredGraph;
     }
 
     /// <summary>
@@ -57,30 +55,20 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="serviceName">Name of the service to find dependents for</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Collection of services that depend on the specified service</returns>
+    /// <exception cref="ArgumentException"><paramref name="serviceName"/> is <see langword="null"/>, empty, or whitespace</exception>
     public static async Task<IEnumerable<DependencyNode>> GetDependentServicesAsync(
         this ServiceDependencyGraphService service,
         string serviceName,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(serviceName))
-        {
-            throw new ArgumentException("Service name cannot be null or whitespace", nameof(serviceName));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
 
         var graph = await service.BuildGraphAsync(ct);
-        var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
 
-        if (!nodeLookup.TryGetValue(serviceName, out var targetNode))
-        {
-            return [];
-        }
-
-        var dependents = graph.Nodes
+        return graph.Nodes
             .Where(node => node.Dependencies.Contains(serviceName, StringComparer.OrdinalIgnoreCase))
             .OrderBy(node => node.ServiceName)
             .ToList();
-
-        return dependents;
     }
 
     /// <summary>
@@ -90,30 +78,20 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="serviceName">Name of the service to find dependencies for</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Collection of services that the specified service depends on</returns>
+    /// <exception cref="ArgumentException"><paramref name="serviceName"/> is <see langword="null"/>, empty, or whitespace</exception>
     public static async Task<IEnumerable<DependencyNode>> GetServiceDependenciesAsync(
         this ServiceDependencyGraphService service,
         string serviceName,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(serviceName))
-        {
-            throw new ArgumentException("Service name cannot be null or whitespace", nameof(serviceName));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
 
         var graph = await service.BuildGraphAsync(ct);
-        var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
 
-        if (!nodeLookup.TryGetValue(serviceName, out var targetNode))
-        {
-            return [];
-        }
-
-        var dependencies = graph.Nodes
+        return graph.Nodes
             .Where(node => node.Dependents.Contains(serviceName, StringComparer.OrdinalIgnoreCase))
             .OrderBy(node => node.ServiceName)
             .ToList();
-
-        return dependencies;
     }
 
     /// <summary>
@@ -122,10 +100,13 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="service">The service dependency graph service</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>All services in the graph, ordered by name</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/></exception>
     public static async Task<IEnumerable<DependencyNode>> GetAllServicesAsync(
         this ServiceDependencyGraphService service,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         var graph = await service.BuildGraphAsync(ct);
         return graph.Nodes.OrderBy(node => node.ServiceName);
     }
@@ -137,28 +118,20 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="serviceName">Name of the service to check for circular dependencies</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>True if circular dependency exists, false otherwise</returns>
+    /// <exception cref="ArgumentException"><paramref name="serviceName"/> is <see langword="null"/>, empty, or whitespace</exception>
     public static async Task<bool> HasCircularDependencyAsync(
         this ServiceDependencyGraphService service,
         string serviceName,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(serviceName))
-        {
-            throw new ArgumentException("Service name cannot be null or whitespace", nameof(serviceName));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
 
         var graph = await service.BuildGraphAsync(ct);
-        var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
-
-        if (!nodeLookup.TryGetValue(serviceName, out var startNode))
-        {
-            return false;
-        }
 
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var recursionStack = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return CheckCircularDependency(startNode.ServiceName, graph, visited, recursionStack);
+        return CheckCircularDependency(serviceName, graph, visited, recursionStack);
     }
 
     private static bool CheckCircularDependency(
@@ -181,7 +154,7 @@ public static class ServiceDependencyGraphServiceExtensions
         recursionStack.Add(currentService);
 
         var currentNode = graph.Nodes.FirstOrDefault(node => string.Equals(node.ServiceName, currentService, StringComparison.OrdinalIgnoreCase));
-        if (currentNode != null)
+        if (currentNode is not null)
         {
             foreach (var dependency in currentNode.Dependencies)
             {
@@ -202,15 +175,14 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="service">The service dependency graph service</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Longest dependency chain found, or empty if no chains exist</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/></exception>
     public static async Task<IEnumerable<string>> GetLongestDependencyChainAsync(
         this ServiceDependencyGraphService service,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         var graph = await service.BuildGraphAsync(ct);
-        if (graph.Nodes.Count == 0)
-        {
-            return [];
-        }
 
         var longestChain = new List<string>();
 
@@ -233,26 +205,18 @@ public static class ServiceDependencyGraphServiceExtensions
     /// <param name="fromService">Starting service name</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Longest dependency chain from the specified service</returns>
+    /// <exception cref="ArgumentException"><paramref name="fromService"/> is <see langword="null"/>, empty, or whitespace</exception>
     public static async Task<IEnumerable<string>> GetLongestChainFromServiceAsync(
         this ServiceDependencyGraphService service,
         string fromService,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(fromService))
-        {
-            throw new ArgumentException("Service name cannot be null or whitespace", nameof(fromService));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(fromService);
 
         var graph = await service.BuildGraphAsync(ct);
-        var nodeLookup = graph.Nodes.ToDictionary(node => node.ServiceName, StringComparer.OrdinalIgnoreCase);
-
-        if (!nodeLookup.TryGetValue(fromService, out var startNode))
-        {
-            return [];
-        }
 
         var longestChain = new List<string>();
-        FindLongestChain(startNode.ServiceName, graph, new List<string>(), new HashSet<string>(), longestChain);
+        FindLongestChain(fromService, graph, new List<string>(), new HashSet<string>(), longestChain);
 
         return longestChain;
     }
@@ -273,9 +237,9 @@ public static class ServiceDependencyGraphServiceExtensions
         currentChain.Add(currentService);
 
         var currentNode = graph.Nodes.FirstOrDefault(node => string.Equals(node.ServiceName, currentService, StringComparison.OrdinalIgnoreCase));
-        if (currentNode != null)
+        if (currentNode is not null)
         {
-            foreach (var dependency in currentNode.Dependencies.OrderBy(d => d))
+            foreach (var dependency in currentNode.Dependencies.Order())
             {
                 FindLongestChain(dependency, graph, currentChain, new HashSet<string>(visited), longestChain);
             }
