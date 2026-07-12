@@ -1,4 +1,5 @@
-// ... rest of the file content ...
+// entire file content ...
+// ... goes in between
 ## ServiceExtensions
 
 The `ServiceExtensions` class provides a set of static extension methods for configuring services in the application. It allows you to add application services, application middleware, response caching, JSON options, background services, event bus, and API documentation.
@@ -26,7 +27,7 @@ services.AddBackgroundServices();
 services.AddEventBus();
 
 // Add API documentation
-services.AddApiDocumentation();
+var apiBuilder = new WebApplicationBuilder();
+apiBuilder.AddApiDocumentation();
 ```
 // ... rest of the file content ...
-```
