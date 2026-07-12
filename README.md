@@ -1,8 +1,8 @@
 // existing content ...
 
-## ServiceDependencyGraphServiceExtensions
+## ServiceMonitorServiceExtensions
 
-The `ServiceDependencyGraphServiceExtensions` class provides utility methods for querying and analyzing service dependency graphs. It enables you to filter graphs, retrieve dependent services, and detect circular dependencies.
+The `ServiceMonitorServiceExtensions` class provides utility methods for querying and analyzing service information. It enables you to retrieve services by state, sub-state, or name, as well as get service statuses and statistics.
 
 ### Usage Example
 
@@ -10,28 +10,25 @@ The `ServiceDependencyGraphServiceExtensions` class provides utility methods for
 using SystemdServiceMonitor.Models;
 using SystemdServiceMonitor.Services;
 
-// Assuming a ServiceDependencyGraph named 'graph'
-var graph = new ServiceDependencyGraph();
-// Initialize graph with services and dependencies...
+// Assuming a list of ServiceInfo objects named 'services'
+var services = await ServiceMonitorServiceExtensions.GetServicesByStateAsync(ServiceState.Running);
+Console.WriteLine($"Running services: {string.Join(", ", services.Select(s => s.Id))}");
 
-var filteredGraph = await ServiceDependencyGraphServiceExtensions.FilterGraphAsync(graph, "filter-criteria");
-Console.WriteLine($"Filtered graph: {filteredGraph}");
+var activeServices = await ServiceMonitorServiceExtensions.GetServicesBySubStateAsync(ServiceSubState.Active);
+Console.WriteLine($"Active services: {string.Join(", ", activeServices.Select(s => s.Id))}");
 
-var dependentServices = await ServiceDependencyGraphServiceExtensions.GetDependentServicesAsync(graph, "service-name");
-Console.WriteLine($"Dependent services of 'service-name': {string.Join(", ", dependentServices.Select(d => d.Id))}");
+var serviceInfo = await ServiceMonitorServiceExtensions.GetServiceByNameWithRefreshAsync("service-name");
+Console.WriteLine($"Service info for 'service-name': {serviceInfo?.Id}");
 
-var serviceDependencies = await ServiceDependencyGraphServiceExtensions.GetServiceDependenciesAsync(graph, "service-name");
-Console.WriteLine($"Dependencies of 'service-name': {string.Join(", ", serviceDependencies.Select(d => d.Id))}");
+var serviceStatuses = await ServiceMonitorServiceExtensions.GetMultipleServiceStatusesAsync(new[] { "service1", "service2" });
+Console.WriteLine($"Service statuses: {string.Join(", ", serviceStatuses.Select(s => $"{s.ServiceId}: {s.Status}"))}");
 
-var allServices = await ServiceDependencyGraphServiceExtensions.GetAllServicesAsync(graph);
-Console.WriteLine($"All services: {string.Join(", ", allServices.Select(s => s.Id))}");
+var isMonitored = ServiceMonitorServiceExtensions.IsServiceMonitored("service-name");
+Console.WriteLine($"Is 'service-name' monitored: {isMonitored}");
 
-var hasCircularDependency = await ServiceDependencyGraphServiceExtensions.HasCircularDependencyAsync(graph);
-Console.WriteLine($"Has circular dependency: {hasCircularDependency}");
+var statistics = await ServiceMonitorServiceExtensions.GetStatisticsByStateAsync(ServiceState.Failed);
+Console.WriteLine($"Statistics for failed services: {statistics}");
 
-var longestDependencyChain = await ServiceDependencyGraphServiceExtensions.GetLongestDependencyChainAsync(graph);
-Console.WriteLine($"Longest dependency chain: {string.Join(" -> ", longestDependencyChain)}");
-
-var longestChainFromService = await ServiceDependencyGraphServiceExtensions.GetLongestChainFromServiceAsync(graph, "service-name");
-Console.WriteLine($"Longest chain from 'service-name': {string.Join(" -> ", longestChainFromService)}");
+var servicesWithStatus = await ServiceMonitorServiceExtensions.GetServicesWithStatusAsync(ServiceStatusType.Warning);
+Console.WriteLine($"Services with warning status: {string.Join(", ", servicesWithStatus.Select(s => s.Id))}");
 ```
