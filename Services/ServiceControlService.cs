@@ -140,8 +140,30 @@ public class ServiceControlService : IServiceControlService
 
             var manager = await GetSystemdManagerProxy();
             await manager.KillUnitAsync(unitName, "SIGTERM"); // Send SIGTERM for graceful shutdown
-            // In a real scenario, we might wait and check status here, then send SIGKILL if needed.
-            // For this implementation, we just send SIGTERM.
+
+            var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
+            var unitPath = await manager.GetUnitAsync(unitName);
+            var unitProxy = connection.CreateProxy<IProperties>("org.freedesktop.systemd1.Unit", unitPath);
+
+            var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                var unitProperties = await unitProxy.GetAllAsync("org.freedesktop.systemd1.Unit");
+                if (unitProperties.TryGetValue("ActiveState", out var stateVal) &&
+                    stateVal is string state && !string.Equals(state, "active", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(state, "deactivating", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("Service {ServiceName} stopped gracefully with state {State}", unitName, state);
+                    return true;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+            }
+
+            _logger.LogWarning("Service {ServiceName} did not stop within {TimeoutSeconds}s, sending SIGKILL", unitName, timeoutSeconds);
+            await manager.KillUnitAsync(unitName, "SIGKILL");
             return true;
         }, ct);
     }

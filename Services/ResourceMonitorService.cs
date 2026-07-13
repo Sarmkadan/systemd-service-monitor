@@ -27,6 +27,10 @@ public class ResourceMonitorService : IResourceMonitorService
     private ulong _lastIdleCpuTime;
     private DateTime _lastCpuMeasurementTime;
 
+    // For disk IOPS calculation
+    private ulong _lastTotalDiskOps;
+    private DateTime? _lastDiskStatsTime;
+
     // Per-service CPU usage calculation
     private readonly Dictionary<string, (ulong LastCpuTime, DateTime LastMeasurementTime)> _lastServiceCpuStats = new();
 
@@ -56,7 +60,7 @@ public class ResourceMonitorService : IResourceMonitorService
             {
                 var uptimeContent = await File.ReadAllTextAsync("/proc/uptime", ct);
                 var parts = uptimeContent.Split(' ');
-                if (parts.Length > 0 && double.TryParse(parts[0], out double uptimeSeconds))
+                if (parts.Length > 0 && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double uptimeSeconds))
                 {
                     resources.SystemUptimeSeconds = (long)uptimeSeconds;
                 }
@@ -113,13 +117,13 @@ public class ResourceMonitorService : IResourceMonitorService
                     var parts = cpuLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length >= 8) // user, nice, system, idle, iowait, irq, softirq, steal
                     {
-                        ulong user = ulong.Parse(parts[1]);
-                        ulong nice = ulong.Parse(parts[2]);
-                        ulong system = ulong.Parse(parts[3]);
-                        ulong idle = ulong.Parse(parts[4]);
-                        ulong iowait = ulong.Parse(parts[5]);
-                        ulong irq = ulong.Parse(parts[6]);
-                        ulong softirq = ulong.Parse(parts[7]);
+                        ulong user = ulong.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
+                        ulong nice = ulong.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
+                        ulong system = ulong.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture);
+                        ulong idle = ulong.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture);
+                        ulong iowait = ulong.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture);
+                        ulong irq = ulong.Parse(parts[6], System.Globalization.CultureInfo.InvariantCulture);
+                        ulong softirq = ulong.Parse(parts[7], System.Globalization.CultureInfo.InvariantCulture);
 
                         ulong currentTotalCpuTime = user + nice + system + idle + iowait + irq + softirq;
                         ulong currentIdleCpuTime = idle + iowait; // idle + I/O wait are considered idle
@@ -166,8 +170,43 @@ public class ResourceMonitorService : IResourceMonitorService
                 _logger.LogWarning(diskEx, "Could not get disk info for root filesystem");
             }
             
-            // Disk IOPS is hard to get reliably without specialized tools or parsing complex /proc files
-            resources.DiskIopsPerSecond = 0; // Keeping as placeholder
+            // Disk IOPS from /proc/diskstats: sum completed reads + writes across physical disks,
+            // divided by elapsed time since the last measurement.
+            if (File.Exists("/proc/diskstats"))
+            {
+                ulong currentTotalOps = 0;
+                var diskstatsLines = await File.ReadAllLinesAsync("/proc/diskstats", ct);
+                foreach (var line in diskstatsLines)
+                {
+                    var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    // Fields: major minor name reads_completed ... writes_completed ...
+                    if (fields.Length < 10) continue;
+
+                    var deviceName = fields[2];
+                    // Skip partitions (e.g. sda1) and loop/ram devices, keep whole disks only.
+                    if (deviceName.StartsWith("loop") || deviceName.StartsWith("ram")) continue;
+                    if (deviceName.Length > 0 && char.IsDigit(deviceName[^1])) continue;
+
+                    if (ulong.TryParse(fields[3], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var readsCompleted) &&
+                        ulong.TryParse(fields[7], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var writesCompleted))
+                    {
+                        currentTotalOps += readsCompleted + writesCompleted;
+                    }
+                }
+
+                var now = DateTime.UtcNow;
+                if (_lastDiskStatsTime.HasValue && currentTotalOps >= _lastTotalDiskOps)
+                {
+                    var elapsedSeconds = (now - _lastDiskStatsTime.Value).TotalSeconds;
+                    if (elapsedSeconds > 0)
+                    {
+                        resources.DiskIopsPerSecond = (long)((currentTotalOps - _lastTotalDiskOps) / elapsedSeconds);
+                    }
+                }
+
+                _lastTotalDiskOps = currentTotalOps;
+                _lastDiskStatsTime = now;
+            }
 
             _logger.LogDebug("System resource collection completed in {Duration}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
             return resources;
