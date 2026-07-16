@@ -101,6 +101,65 @@ ServiceInfo info = new ServiceInfo
 Console.WriteLine($"Service {info.UnitName} is configured with {info.Dependencies.Count} dependencies");
 ```
 
+## ServiceMonitorClient
+
+The `ServiceMonitorClient` class is a REST API client for interacting with the systemd-service-monitor API programmatically. It provides methods to query service information, control service state, retrieve logs, and monitor system resources without using the command-line interface.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using SystemdMonitorExamples;
+
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        // Create client instance
+        using var client = new ServiceMonitorClient("https://localhost:5001");
+        
+        // Check application health
+        var isHealthy = await client.IsHealthyAsync();
+        Console.WriteLine($"Application Health: {(isHealthy ? "✓ Healthy" : "✗ Unhealthy")}");
+        
+        // Get system resources
+        var resources = await client.GetSystemResourcesAsync();
+        Console.WriteLine($"CPU: {resources.CpuPercent}%");
+        Console.WriteLine($"Memory: {resources.MemoryUsedMb}/{resources.MemoryTotalMb} MB");
+        
+        // List all services
+        var services = await client.GetServicesAsync(pageSize: 20);
+        foreach (var service in services)
+        {
+            Console.WriteLine($"{service.Name} - {service.State} (Active: {service.IsActive})");
+        }
+        
+        // Get detailed service information
+        if (services.Count > 0)
+        {
+            var details = await client.GetServiceDetailsAsync(services[0].Name);
+            Console.WriteLine($"Service: {details.Name}");
+            Console.WriteLine($"State: {details.State}");
+            Console.WriteLine($"PID: {details.Pid}");
+            Console.WriteLine($"Uptime: {details.UptimeSeconds}s");
+        }
+        
+        // Control service state
+        await client.StartServiceAsync("nginx.service");
+        await client.RestartServiceAsync("postgresql.service");
+        await client.StopServiceAsync("test-service.service");
+        
+        // Get service logs
+        var logs = await client.GetServiceLogsAsync("nginx.service", lines: 20);
+        foreach (var log in logs)
+        {
+            Console.WriteLine($"[{log.Priority}] {log.Message}");
+        }
+    }
+}
+```
+
 ## AlertRule
 
 The `AlertRule` class defines monitoring policies that evaluate service status against configurable conditions to automatically open incidents when services exceed defined thresholds or enter problematic states. It supports both state-based conditions (service failed, inactive) and metric-based conditions (CPU, memory, uptime, restarts) with configurable severity levels, cooldown periods, and escalation policies.
