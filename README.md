@@ -298,6 +298,60 @@ Console.WriteLine($"Root node: {rootServiceNode.ServiceName} (IsRootNode={rootSe
 Console.WriteLine($"Leaf node: {leafServiceNode.ServiceName} (IsLeafNode={leafServiceNode.IsLeafNode})");
 ```
 
+## ServiceStatusUpdateWorker
+
+The `ServiceStatusUpdateWorker` class is a background service that periodically updates the status of all monitored systemd services. It runs at a configurable interval, fetches service information, caches the results, and maintains fresh status data for API access. The worker includes configurable options for update frequency, error handling, caching, and logging verbosity.
+
+
+
+### Usage Example
+
+```csharp
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SystemdServiceMonitor.BackgroundWorkers;
+
+// Configure the worker with custom options
+var services = new ServiceCollection();
+services.Configure<ServiceWorkerOptions>(options =>
+{
+    options.UpdateIntervalMs = 60000; // 1 minute
+    options.ErrorBackoffMs = 15000;   // 15 seconds on error
+    options.CacheTtl = TimeSpan.FromMinutes(10); // 10 minute cache
+    options.BatchSize = 50;             // Process 50 services per batch
+    options.VerboseLogging = true;        // Enable detailed logging
+});
+
+// Create a hosted service with the worker
+var serviceProvider = services.BuildServiceProvider();
+var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+var logger = loggerFactory.CreateLogger<ServiceStatusUpdateWorker>();
+
+var workerOptions = Options.Create(new ServiceWorkerOptions
+{
+    UpdateIntervalMs = 60000,
+    ErrorBackoffMs = 15000,
+    CacheTtl = TimeSpan.FromMinutes(10),
+    BatchSize = 50,
+    VerboseLogging = true
+});
+
+var worker = new ServiceStatusUpdateWorker(
+    logger,
+    serviceProvider,
+    workerOptions
+);
+
+Console.WriteLine($"ServiceStatusUpdateWorker configured with UpdateIntervalMs={worker.UpdateIntervalMs}ms, " +
+                $"ErrorBackoffMs={worker.ErrorBackoffMs}ms, " +
+                $"CacheTtl={worker.CacheTtl.TotalMinutes}min, " +
+                $"BatchSize={worker.BatchSize}, " +
+                $"VerboseLogging={worker.VerboseLogging}");
+```
+
 ## ServiceMetric
 
 The `ServiceMetric` class represents a single metric measurement for a systemd service at a point in time. It captures detailed performance data including CPU, memory, network, and disk metrics, along with statistical aggregations (min, max, average) and contextual tags for filtering and analysis. This class is used to track service health and performance trends over time.
