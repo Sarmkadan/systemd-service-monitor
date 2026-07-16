@@ -1,5 +1,43 @@
 // existing content ...
 
+## ServiceHealthCheck
+
+The `ServiceHealthCheck` class encapsulates the configuration and runtime state of a health check performed on a systemd service. It tracks critical parameters like check type, interval, thresholds, and HTTP configuration, while maintaining live metrics such as the current health status, last response time, and failure/success counters to provide a detailed view of service availability.
+
+### Usage Example
+
+```csharp
+using System;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums; // Assuming HealthStatus is in Enums
+
+var healthCheck = new ServiceHealthCheck
+{
+    Id = Guid.NewGuid(),
+    ServiceInfoId = Guid.NewGuid(),
+    Name = "HTTP Health Check",
+    CheckType = HealthCheckType.Http,
+    Description = "Verify web service responsiveness",
+    Endpoint = "http://localhost:8080/health",
+    HttpMethod = "GET",
+    ExpectedHttpStatus = 200,
+    TimeoutSeconds = 5,
+    IntervalSeconds = 60,
+    UnhealthyThreshold = 3,
+    HealthyThreshold = 2,
+    IsEnabled = true,
+    CurrentStatus = HealthStatus.Healthy,
+    LastCheckMessage = "Success",
+    LastCheckResponseMs = 150,
+    LastCheckTime = DateTime.UtcNow,
+    ConsecutiveFailures = 0,
+    ConsecutiveSuccesses = 10,
+    TotalChecks = 50
+};
+
+Console.WriteLine($"Check {healthCheck.Name} is currently {healthCheck.CurrentStatus}.");
+```
+
 ## ServiceStatus
 
 The `ServiceStatus` class captures a point-in-time snapshot of a service's operational state, including performance metrics and health status. It tracks key attributes like CPU/memory usage, process state, and health check results to provide a comprehensive view of service health.
