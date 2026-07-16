@@ -414,6 +414,71 @@ Console.WriteLine($"Cleared {clearedCount} old log entries from database");
 The `ServiceLogService` provides comprehensive logging capabilities by combining direct journald access with database storage and retrieval, enabling both real-time log analysis and historical log management.
 
 
+## MemoryCacheProvider
+
+The `MemoryCacheProvider` class provides an in-memory caching implementation with support for asynchronous operations. It supports typed values, automatic expiration, and pattern-based cache removal. The provider tracks access patterns and provides detailed cache statistics including creation time, last access time, expiration time, and access counts.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Caching;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<MemoryCacheProvider>();
+
+// Create cache provider instance (typically injected in production)
+var cacheProvider = new MemoryCacheProvider(logger);
+
+// Set a value in cache
+await cacheProvider.SetAsync("user:123:profile", new UserProfile
+{
+    UserId = 123,
+    Username = "john_doe",
+    Email = "john@example.com",
+    LastLogin = DateTime.UtcNow
+});
+
+// Get a value from cache
+var cachedProfile = await cacheProvider.GetAsync<UserProfile>("user:123:profile");
+if (cachedProfile != null)
+{
+    Console.WriteLine($"Retrieved user: {cachedProfile.Username}");
+}
+
+// Check if a key exists
+bool exists = await cacheProvider.ExistsAsync("user:123:profile");
+Console.WriteLine($"Cache key exists: {exists}");
+
+// Get TTL (time to live) for a key
+var ttl = await cacheProvider.GetTtlAsync("user:123:profile");
+Console.WriteLine($"TTL: {ttl} seconds");
+
+// Remove a specific key
+await cacheProvider.RemoveAsync("user:123:profile");
+
+// Remove keys by pattern (e.g., all user cache entries)
+await cacheProvider.RemoveByPatternAsync("user:*");
+
+// Clear the entire cache
+await cacheProvider.ClearAsync();
+
+// Get cache statistics
+var stats = new MemoryCacheProvider(logger);
+var value = new UserProfile { UserId = 1, Username = "test" };
+await stats.SetAsync("test:key", value);
+
+Console.WriteLine($"Value: {stats.Value}");
+Console.WriteLine($"ExpirationTime: {stats.ExpirationTime}");
+Console.WriteLine($"CreatedAt: {stats.CreatedAt}");
+Console.WriteLine($"LastAccessTime: {stats.LastAccessTime}");
+Console.WriteLine($"AccessCount: {stats.AccessCount}");
+Console.WriteLine($"IsExpired: {stats.IsExpired}");
+```
+
+The `MemoryCacheProvider` offers comprehensive caching capabilities with automatic expiration, pattern-based cache management, and detailed statistics tracking for monitoring and debugging purposes.
+
 ## ServiceRepository
 
 The `ServiceRepository` class provides an in-memory data access layer for managing service unit information. It implements the `IServiceRepository` interface and provides CRUD operations for service data, including filtering capabilities for active, failed, and user-specific services. The repository uses thread-safe operations with a semaphore lock to ensure data consistency in concurrent scenarios.
