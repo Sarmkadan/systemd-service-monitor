@@ -917,6 +917,66 @@ Console.WriteLine($"Async operation completed in {asyncTime}ms");
 
 The `PerformanceMonitor` provides detailed performance tracking capabilities with checkpoint recording, time measurements between operations, and automatic logging of performance warnings when thresholds are exceeded.
 
+## ServiceFactory
+
+The `ServiceFactory` utility class provides convenient factory methods for creating and initializing service-related objects with sensible defaults. It simplifies the construction of domain objects like `ServiceInfo`, `ServiceMetric`, `ServiceLog`, `ServiceStatus`, and `RestartPolicyConfig`, reducing boilerplate code and ensuring consistent initialization patterns throughout the application.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+
+// Create a basic service info
+var nginxService = ServiceFactory.CreateServiceInfo(
+    unitName: "nginx.service",
+    description: "Nginx web server and reverse proxy",
+    state: "Active"
+);
+Console.WriteLine($"Created service: {nginxService.UnitName} ({nginxService.Description})");
+
+// Create a service metric for monitoring
+var cpuMetric = ServiceFactory.CreateServiceMetric("nginx.service");
+cpuMetric.MetricType = MetricType.CpuUsage;
+cpuMetric.Value = 45.5m;
+Console.WriteLine($"Created metric: {cpuMetric.MetricType} = {cpuMetric.Value}%");
+
+// Create a service log entry
+var logEntry = ServiceFactory.CreateServiceLog(
+    unitName: "nginx.service",
+    message: "Service started successfully",
+    severity: "INFO"
+);
+Console.WriteLine($"Created log: [{logEntry.Level}] {logEntry.Message}");
+
+// Create a service status snapshot
+var serviceStatus = ServiceFactory.CreateServiceStatus(nginxService);
+Console.WriteLine($"Service status: {serviceStatus.State} (Running: {serviceStatus.IsRunning})");
+
+// Create a restart policy configuration
+var restartPolicy = ServiceFactory.CreateRestartPolicy(
+    policyName: "Always",
+    delaySec: 10,
+    maxAttempts: 5
+);
+Console.WriteLine($"Restart policy: {restartPolicy.PolicyType} (Delay: {restartPolicy.RestartDelaySec}s, Max: {restartPolicy.MaxRestarts})");
+
+// Convert service info to dictionary for API responses
+var serviceDict = ServiceFactory.ServiceInfoToDictionary(nginxService);
+Console.WriteLine($"Service info has {serviceDict.Count} properties");
+
+// Batch create service info objects from names
+var services = ServiceFactory.CreateServicesFromNames(
+    "nginx.service",
+    "postgresql.service",
+    "redis.service"
+);
+Console.WriteLine($"Created {services.Count} services from names");
+```
+
+The `ServiceFactory` provides a clean, consistent way to create service-related objects with proper initialization and sensible defaults, reducing repetitive code throughout the application.
+
 
 ## ServiceHealthChecker
 
