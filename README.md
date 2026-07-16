@@ -792,6 +792,68 @@ The `LogRepository` provides thread-safe data access for service log entries wit
 
 
 
+## LogContextEnricher
+
+The `LogContextEnricher` enriches Serilog log events with contextual information such as correlation IDs, request IDs, user information, HTTP method/path details, client IP addresses, and response status codes. This enricher automatically adds these properties to all log events, making it easier to trace requests across service boundaries and correlate logs with specific HTTP requests.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using Serilog;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup Serilog with the context enricher
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.WithContextEnricher()
+    .WriteTo.Console()
+    .CreateLogger();
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+
+// Add required services
+builder.Services.AddHttpContextAccessor();
+builder.Host.UseSerilog(); // Use Serilog for logging
+
+var app = builder.Build();
+
+// Add contextual properties to the logging scope
+using (LogContextEnricher.PushContext("CustomProperty", "Value"))
+{
+    Log.Information("This log will include the custom property");
+}
+
+// Push a correlation ID
+using (LogContextEnricher.PushCorrelationId(Guid.NewGuid().ToString()))
+{
+    Log.Information("This log will include a correlation ID");
+}
+
+// Push a request ID
+using (LogContextEnricher.PushRequestId("req-12345"))
+{
+    Log.Information("This log will include a request ID");
+}
+
+// Use the structured log context helper
+using (var context = new StructuredLogContext())
+{
+    context.AddProperty("SessionId", Guid.NewGuid().ToString());
+    context.AddProperty("UserId", "user123");
+    
+    Log.Information("User action performed");
+    // Properties are automatically removed when context is disposed
+}
+
+app.MapGet("/", () => "Hello, World!");
+app.Run();
+```
+
+The `LogContextEnricher` automatically enriches logs with HTTP context information when available, providing better observability and debugging capabilities for distributed systems.
+
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
