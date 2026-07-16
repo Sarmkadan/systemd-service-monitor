@@ -1720,6 +1720,62 @@ Console.WriteLine($"Port valid: {isValidPort}");
 Console.WriteLine($"URL valid: {isValidUrl}");
 ```
 
+## AlertRuleDto
+
+The `AlertRuleDto` record represents the data transfer object for alert rules configuration. It defines the structure for creating, updating, and managing alert rules that monitor systemd services for specific conditions such as CPU thresholds, memory usage, service state changes, and other health indicators. Alert rules are essential for proactive monitoring and automated incident detection.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Dtos;
+using SystemdServiceMonitor.Enums;
+
+// Create a new alert rule DTO for high CPU usage monitoring
+var cpuAlertRule = new AlertRuleDto
+{
+    Name = "High CPU Usage Alert",
+    Description = "Alert when CPU usage exceeds 90% for 3 consecutive evaluations",
+    ServicePattern = "nginx.service",
+    Condition = AlertCondition.CpuThresholdExceeded,
+    Threshold = 90,
+    Severity = AlertSeverity.Critical,
+    IsEnabled = true,
+    ConsecutiveEvaluationsRequired = 3,
+    CooldownMinutes = 60,
+    EscalationPolicyId = Guid.Parse("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+};
+
+Console.WriteLine($"Alert Rule: {cpuAlertRule.Name}");
+Console.WriteLine($"Condition: {cpuAlertRule.Condition}");
+Console.WriteLine($"Threshold: {cpuAlertRule.Threshold}%");
+Console.WriteLine($"Severity: {cpuAlertRule.Severity}");
+Console.WriteLine($"Enabled: {cpuAlertRule.IsEnabled}");
+
+// Create a memory alert rule
+var memoryAlertRule = new AlertRuleDto
+{
+    Name = "High Memory Usage Alert",
+    Description = "Alert when memory usage exceeds 2GB",
+    ServicePattern = "postgresql.service",
+    Condition = AlertCondition.MemoryThresholdExceeded,
+    Threshold = 2048, // 2GB in MB
+    Severity = AlertSeverity.Warning,
+    IsEnabled = true,
+    ConsecutiveEvaluationsRequired = 2,
+    CooldownMinutes = 30
+};
+
+// Update an existing alert rule
+var updatedRule = cpuAlertRule with
+{
+    Threshold = 85, // Lower threshold
+    Severity = AlertSeverity.Warning, // Change to warning
+    Description = "Alert when CPU usage exceeds 85% for 3 consecutive evaluations"
+};
+
+Console.WriteLine($"Updated threshold to: {updatedRule.Threshold}%");
+```
+
 ## AlertRulesEngine
 
 The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
