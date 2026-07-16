@@ -792,6 +792,67 @@ The `LogRepository` provides thread-safe data access for service log entries wit
 
 
 
+## PerformanceMonitor
+
+The `PerformanceMonitor` class provides a lightweight utility for measuring and analyzing the performance of operations. It tracks elapsed time, records checkpoints, and generates detailed performance summaries. This is useful for performance profiling, identifying bottlenecks, and monitoring operation durations in systemd service monitoring scenarios.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<PerformanceMonitor>();
+
+// Create a performance monitor for an operation
+using (var monitor = new PerformanceMonitor("Database Query", logger, warningThresholdMs: 500))
+{
+    // Perform some work
+    await Task.Delay(250);
+    
+    // Record checkpoints
+    monitor.RecordCheckpoint("Query Started");
+    await Task.Delay(100);
+    monitor.RecordCheckpoint("Query Executed");
+    await Task.Delay(150);
+    monitor.RecordCheckpoint("Results Processed");
+    
+    // Get checkpoint timings
+    var checkpoints = monitor.GetCheckpoints();
+    Console.WriteLine($"Checkpoint timings: {string.Join(", ", checkpoints.Select(kvp => $"{kvp.Key}={kvp.Value}ms"))}");
+    
+    // Calculate time between checkpoints
+    var queryDuration = monitor.GetElapsedBetween("Query Started", "Query Executed");
+    Console.WriteLine($"Query execution time: {queryDuration}ms");
+    
+    // Get formatted summary
+    var summary = monitor.GetSummary();
+    Console.WriteLine(summary);
+}
+
+// Alternative: Quick measurement without creating a monitor instance
+var operationName = "File Processing";
+var totalTime = PerformanceMonitor.MeasureAction(operationName, () =>
+{
+    Thread.Sleep(100);
+    return 42;
+});
+Console.WriteLine($"Operation completed in {totalTime}ms");
+
+// Async version
+var asyncTime = await PerformanceMonitor.MeasureActionAsync(operationName, async () =>
+{
+    await Task.Delay(150);
+    return "result";
+});
+Console.WriteLine($"Async operation completed in {asyncTime}ms");
+```
+
+The `PerformanceMonitor` provides detailed performance tracking capabilities with checkpoint recording, time measurements between operations, and automatic logging of performance warnings when thresholds are exceeded.
+
+
 ## LogContextEnricher
 
 The `LogContextEnricher` enriches Serilog log events with contextual information such as correlation IDs, request IDs, user information, HTTP method/path details, client IP addresses, and response status codes. This enricher automatically adds these properties to all log events, making it easier to trace requests across service boundaries and correlate logs with specific HTTP requests.
