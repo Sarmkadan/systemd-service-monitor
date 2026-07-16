@@ -918,6 +918,92 @@ Console.WriteLine($"Async operation completed in {asyncTime}ms");
 The `PerformanceMonitor` provides detailed performance tracking capabilities with checkpoint recording, time measurements between operations, and automatic logging of performance warnings when thresholds are exceeded.
 
 
+## ServiceHealthChecker
+
+The `ServiceHealthChecker` utility class provides comprehensive health assessment capabilities for systemd services. It evaluates service health status based on state, restart count, uptime, and other metrics, generating human-readable summaries and recommended actions for problematic services. This class is essential for proactive service monitoring and automated health checks.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ServiceHealthChecker>();
+
+// Create a sample service
+var nginxService = new ServiceInfo
+{
+    UnitName = "nginx.service",
+    Description = "Nginx web server",
+    State = ServiceState.Active,
+    RestartCount = 2,
+    UptimeSeconds = 3600, // 1 hour uptime
+    AutoStart = true,
+    RestartPolicy = RestartPolicy.Always
+};
+
+// Evaluate service health status
+var healthStatus = ServiceHealthChecker.GetHealthStatus(nginxService);
+Console.WriteLine($"Health Status: {healthStatus}"); // Output: Healthy
+
+// Get human-readable health summary
+var healthSummary = ServiceHealthChecker.GetHealthSummary(nginxService);
+Console.WriteLine(healthSummary);
+// Output: nginx.service: ✓ Healthy | Uptime: 1h 0m
+
+// Check if service is problematic
+bool isProblematic = ServiceHealthChecker.IsProblematic(nginxService);
+Console.WriteLine($"Is problematic: {isProblematic}"); // Output: False
+
+// Get recommended actions for problematic services
+var actions = ServiceHealthChecker.GetRecommendedActions(nginxService);
+if (actions.Any())
+{
+    Console.WriteLine("Recommended actions:");
+    foreach (var action in actions)
+    {
+        Console.WriteLine($"- {action}");
+    }
+}
+
+// Format uptime for display
+var formattedUptime = ServiceHealthChecker.FormatUptime(nginxService.UptimeSeconds);
+Console.WriteLine($"Uptime: {formattedUptime}"); // Output: 1h 0m
+
+// Calculate service reliability percentage
+var reliability = ServiceHealthChecker.CalculateReliability(nginxService);
+Console.WriteLine($"Reliability: {reliability}%"); // Output: 90%
+
+// Example with a problematic service
+var problematicService = new ServiceInfo
+{
+    UnitName = "crashy-service.service",
+    Description = "Service that crashes frequently",
+    State = ServiceState.Active,
+    RestartCount = 15, // High restart count
+    UptimeSeconds = 300, // Only 5 minutes uptime
+    AutoStart = true,
+    RestartPolicy = RestartPolicy.Always
+};
+
+var problemStatus = ServiceHealthChecker.GetHealthStatus(problematicService);
+Console.WriteLine($"Problem service status: {problemStatus}"); // Output: Critical
+
+var problemActions = ServiceHealthChecker.GetRecommendedActions(problematicService);
+Console.WriteLine("Recommended actions for problematic service:");
+foreach (var action in problemActions)
+{
+    Console.WriteLine($"- {action}");
+}
+```
+
+The `ServiceHealthChecker` provides comprehensive health evaluation capabilities with standardized status reporting, actionable recommendations, and reliability calculations for systemd service monitoring scenarios.
+
+
+
 ## LogContextEnricher
 
 The `LogContextEnricher` enriches Serilog log events with contextual information such as correlation IDs, request IDs, user information, HTTP method/path details, client IP addresses, and response status codes. This enricher automatically adds these properties to all log events, making it easier to trace requests across service boundaries and correlate logs with specific HTTP requests.
