@@ -2064,6 +2064,75 @@ var updatedRule = cpuAlertRule with
 Console.WriteLine($"Updated threshold to: {updatedRule.Threshold}%");
 ```
 
+## SystemController
+
+The `SystemController` class provides REST API endpoints for system-level monitoring and diagnostics. It exposes endpoints for checking system health, retrieving system information, monitoring system resources, and diagnosing service issues. The controller integrates with various monitoring services to provide comprehensive system status information and proactive diagnostics capabilities.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+
+// Register required services (typically done via dependency injection)
+builder.Services.AddScoped<ILogger<SystemController>, Logger<SystemController>>();
+
+var app = builder.Build();
+
+// Configure the system controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/system/health - Health check endpoint
+// GET /api/system/info - Get system information
+// GET /api/system/resources - Get system resource metrics
+// GET /api/system/summary - Get system summary
+// GET /api/system/failed-services - Get list of failed services
+// GET /api/system/problematic-services - Get list of problematic services
+// GET /api/system/version - Get application version
+// GET /api/system/diagnostics - Get system diagnostics
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Health check
+var healthResponse = await httpClient.GetAsync("/api/system/health");
+var healthStatus = await healthResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+// Get system information
+var infoResponse = await httpClient.GetAsync("/api/system/info");
+var systemInfo = await infoResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+// Get system resources
+var resourcesResponse = await httpClient.GetAsync("/api/system/resources");
+var systemResources = await resourcesResponse.Content.ReadFromJsonAsync<ApiResponse<SystemResource>>();
+
+// Get system summary
+var summaryResponse = await httpClient.GetAsync("/api/system/summary");
+var systemSummary = await summaryResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+// Get failed services
+var failedResponse = await httpClient.GetAsync("/api/system/failed-services");
+var failedServices = await failedResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceInfo>>>>();
+
+// Get problematic services
+var problematicResponse = await httpClient.GetAsync("/api/system/problematic-services");
+var problematicServices = await problematicResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceInfo>>>>();
+
+// Get version
+var versionResponse = await httpClient.GetAsync("/api/system/version");
+var versionInfo = await versionResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+// Get diagnostics
+var diagnosticsResponse = await httpClient.GetAsync("/api/system/diagnostics");
+var diagnostics = await diagnosticsResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+```
+
 ## ServicesController
 
 The `ServicesController` class is a REST API controller that provides endpoints for querying, controlling, and monitoring systemd services. It exposes HTTP endpoints for service management operations including retrieving service information, starting/stopping services, enabling/disabling services, and performing bulk operations across multiple services. The controller integrates with `IServiceMonitorService` for service information retrieval and `IServiceControlService` for service control operations, providing a complete RESTful interface for systemd service management.
