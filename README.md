@@ -621,6 +621,112 @@ The `MetricRepository` provides thread-safe data access for time-series metric d
 
 
 
+## LogRepository
+
+The `LogRepository` class provides an in-memory data access layer for managing service log entries. It implements the `ILogRepository` interface and provides CRUD operations for service logs, including filtering capabilities by service unit name, service ID, log level, time range, and process ID. The repository uses thread-safe operations with a semaphore lock to ensure data consistency in concurrent scenarios.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Data.Repositories;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<LogRepository>();
+
+// Create repository instance (typically injected in production)
+var logRepository = new LogRepository();
+
+// Create a new log entry
+var newLog = new ServiceLog
+{
+    Id = Guid.NewGuid(),
+    UnitName = "nginx.service",
+    ServiceInfoId = Guid.Parse("3fa85f64-5717-4562-b3fc-2c963f66afa6"), // Replace with actual service ID
+    Timestamp = DateTime.UtcNow,
+    Level = SyslogLevel.Info,
+    Message = "Service started successfully",
+    Priority = 6,
+    ProcessId = 1234,
+    Hostname = "web-server-01"
+};
+
+var createdLog = await logRepository.CreateAsync(newLog);
+Console.WriteLine($"Created log entry with ID: {createdLog.Id}");
+
+// Get a log by ID
+var retrievedLog = await logRepository.GetByIdAsync(createdLog.Id);
+if (retrievedLog != null)
+{
+    Console.WriteLine($"Retrieved log: [{retrievedLog.Timestamp}] [{retrievedLog.Level}] {retrievedLog.Message}");
+}
+
+// Get logs by unit name (service)
+var nginxLogs = await logRepository.GetByUnitNameAsync("nginx.service", limit: 50);
+Console.WriteLine($"Found {nginxLogs.Count()} logs for nginx.service");
+
+// Get logs by service ID
+var serviceLogs = await logRepository.GetByServiceIdAsync(newLog.ServiceInfoId, limit: 25);
+Console.WriteLine($"Found {serviceLogs.Count()} logs for service ID: {newLog.ServiceInfoId}");
+
+// Get logs by log level (severity)
+var errorLogs = await logRepository.GetByLevelAsync(SyslogLevel.Err);
+Console.WriteLine($"Found {errorLogs.Count()} error logs");
+
+// Get recent logs (last 24 hours)
+var recentLogs = await logRepository.GetRecentAsync(TimeSpan.FromHours(24));
+Console.WriteLine($"Found {recentLogs.Count()} logs in the last 24 hours");
+
+// Get logs by process ID
+var processLogs = await logRepository.GetByProcessIdAsync(1234);
+Console.WriteLine($"Found {processLogs.Count()} logs from process ID 1234");
+
+// Search logs for specific terms
+var searchResults = await logRepository.SearchAsync("connection failed");
+Console.WriteLine($"Found {searchResults.Count()} logs containing 'connection failed'");
+
+// Get total log count
+var totalCount = await logRepository.GetCountAsync();
+Console.WriteLine($"Total log entries: {totalCount}");
+
+// Create multiple logs in batch
+var batchLogs = new List<ServiceLog>();
+for (int i = 0; i < 10; i++)
+{
+    batchLogs.Add(new ServiceLog
+    {
+        Id = Guid.NewGuid(),
+        UnitName = "nginx.service",
+        ServiceInfoId = newLog.ServiceInfoId,
+        Timestamp = DateTime.UtcNow.AddMinutes(-i),
+        Level = i % 3 == 0 ? SyslogLevel.Error : (i % 3 == 1 ? SyslogLevel.Warning : SyslogLevel.Info),
+        Message = $"Sample log message {i}",
+        Priority = i % 3 == 0 ? 3 : (i % 3 == 1 ? 4 : 6),
+        ProcessId = 1234 + i,
+        Hostname = "web-server-01"
+    });
+}
+
+var batchCount = await logRepository.CreateBatchAsync(batchLogs);
+Console.WriteLine($"Created {batchCount} logs in batch");
+
+// Delete a log entry
+bool deleted = await logRepository.DeleteAsync(createdLog.Id);
+Console.WriteLine($"Log entry deleted: {deleted}");
+
+// Delete logs older than 30 days
+var deletedCount = await logRepository.DeleteOlderThanAsync(DateTime.UtcNow.AddDays(-30));
+Console.WriteLine($"Deleted {deletedCount} old log entries");
+```
+
+The `LogRepository` provides thread-safe data access for service log entries with comprehensive CRUD operations and filtering capabilities for monitoring scenarios.
+
+
+
+
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
