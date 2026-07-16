@@ -414,6 +414,102 @@ Console.WriteLine($"Cleared {clearedCount} old log entries from database");
 The `ServiceLogService` provides comprehensive logging capabilities by combining direct journald access with database storage and retrieval, enabling both real-time log analysis and historical log management.
 
 
+## ServiceRepository
+
+The `ServiceRepository` class provides an in-memory data access layer for managing service unit information. It implements the `IServiceRepository` interface and provides CRUD operations for service data, including filtering capabilities for active, failed, and user-specific services. The repository uses thread-safe operations with a semaphore lock to ensure data consistency in concurrent scenarios.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Data.Repositories;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ServiceRepository>();
+
+// Create repository instance (typically injected in production)
+var serviceRepository = new ServiceRepository();
+
+// Create a new service
+var newService = new ServiceInfo
+{
+    Id = Guid.NewGuid(),
+    UnitName = "nginx.service",
+    Description = "Nginx web server",
+    State = ServiceState.Active,
+    RunAsUser = "www-data",
+    ExecStart = "/usr/sbin/nginx -g 'daemon on;'",
+    ExecReload = "/usr/sbin/nginx -s reload",
+    ExecStop = "/usr/sbin/nginx -s stop",
+    WorkingDirectory = "/var/www/html",
+    Environment = new Dictionary<string, string>
+    {
+        ["NGINX_ENV"] = "production",
+        ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    }
+};
+
+var createdService = await serviceRepository.CreateAsync(newService);
+Console.WriteLine($"Created service: {createdService.UnitName} with ID: {createdService.Id}");
+
+// Get a service by ID
+var retrievedService = await serviceRepository.GetByIdAsync(createdService.Id);
+if (retrievedService != null)
+{
+    Console.WriteLine($"Retrieved: {retrievedService.UnitName} - {retrievedService.Description}");
+}
+
+// Get a service by unit name
+var nginxService = await serviceRepository.GetByUnitNameAsync("nginx.service");
+if (nginxService != null)
+{
+    Console.WriteLine($"Found service by name: {nginxService.State}");
+}
+
+// Get all services
+var allServices = await serviceRepository.GetAllAsync();
+Console.WriteLine($"Total services: {allServices.Count()}");
+
+// Get active services
+var activeServices = await serviceRepository.GetActiveServicesAsync();
+Console.WriteLine($"Active services: {activeServices.Count()}");
+
+// Get failed services
+var failedServices = await serviceRepository.GetFailedServicesAsync();
+Console.WriteLine($"Failed services: {failedServices.Count()}");
+
+// Get services by user
+var wwwServices = await serviceRepository.GetByUserAsync("www-data");
+Console.WriteLine($"Services for www-data: {wwwServices.Count()}");
+
+// Update a service
+retrievedService!.State = ServiceState.Inactive;
+var updatedService = await serviceRepository.UpdateAsync(retrievedService);
+Console.WriteLine($"Updated service state to: {updatedService.State}");
+
+// Search for services
+var searchResults = await serviceRepository.SearchAsync("nginx");
+Console.WriteLine($"Search results for 'nginx': {searchResults.Count()} services found");
+
+// Get total count
+var totalCount = await serviceRepository.GetTotalCountAsync();
+Console.WriteLine($"Total service count: {totalCount}");
+
+// Get paged results (page 1, 10 items per page)
+var pagedServices = await serviceRepository.GetPagedAsync(1, 10);
+Console.WriteLine($"Page 1 results: {pagedServices.Count()} services");
+
+// Delete a service
+bool deleted = await serviceRepository.DeleteAsync(createdService.Id);
+Console.WriteLine($"Service deleted: {deleted}");
+```
+
+The `ServiceRepository` provides thread-safe data access for service unit information with comprehensive CRUD operations and filtering capabilities for monitoring scenarios.
+
+
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
