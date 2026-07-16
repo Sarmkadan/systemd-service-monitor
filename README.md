@@ -1570,6 +1570,61 @@ Console.WriteLine($"Metric collection interval: {systemdOptions.Value.MetricColl
 Console.WriteLine($"Log retention: {systemdOptions.Value.LogRetentionDays} days");
 ```
 
+## ValidationHelper
+
+The `ValidationHelper` class provides utility methods for validating common input patterns such as service names, IP addresses, ports, URLs, time ranges, and pagination parameters. It includes both validation and sanitization methods to ensure data integrity when working with systemd service configurations and monitoring data.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+
+// Validate a service name
+var serviceNameResult = ValidationHelper.ValidateServiceName("nginx.service");
+if (serviceNameResult.IsValid)
+{
+    Console.WriteLine("Service name is valid");
+}
+else
+{
+    Console.WriteLine($"Validation error: {serviceNameResult.ErrorMessage}");
+}
+
+// Validate an IP address
+var ipResult = ValidationHelper.ValidateIpAddress("192.168.1.100");
+Console.WriteLine(ipResult.IsValid ? "Valid IP" : "Invalid IP");
+
+// Validate a port number
+var portResult = ValidationHelper.ValidatePort("8080");
+Console.WriteLine(portResult.IsValid ? "Valid port" : "Invalid port");
+
+// Validate a URL
+var urlResult = ValidationHelper.ValidateUrl("https://example.com/api/services");
+Console.WriteLine(urlResult.IsValid ? "Valid URL" : "Invalid URL");
+
+// Validate a time range (HH:mm-HH:mm format)
+var timeRangeResult = ValidationHelper.ValidateTimeRange("09:00-17:00");
+Console.WriteLine(timeRangeResult.IsValid ? "Valid time range" : "Invalid time range");
+
+// Validate pagination parameters
+var paginationResult = ValidationHelper.ValidatePagination(1, 25);
+Console.WriteLine(paginationResult.IsValid ? "Valid pagination" : "Invalid pagination");
+
+// Sanitize user input
+string userInput = "<script>alert('xss')</script>";
+string sanitized = ValidationHelper.SanitizeInput(userInput);
+Console.WriteLine($"Sanitized input: {sanitized}");
+
+// Quick validation checks
+bool isValidServiceName = ValidationHelper.ValidateServiceName("postgresql").IsValid;
+bool isValidPort = ValidationHelper.ValidatePort("80").IsValid;
+bool isValidUrl = ValidationHelper.ValidateUrl("http://localhost:5000").IsValid;
+
+Console.WriteLine($"Service name valid: {isValidServiceName}");
+Console.WriteLine($"Port valid: {isValidPort}");
+Console.WriteLine($"URL valid: {isValidUrl}");
+```
+
 ## AlertRulesEngine
 
 The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
