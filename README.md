@@ -1570,6 +1570,65 @@ Console.WriteLine($"Metric collection interval: {systemdOptions.Value.MetricColl
 Console.WriteLine($"Log retention: {systemdOptions.Value.LogRetentionDays} days");
 ```
 
+## PaginationHelper
+
+The `PaginationHelper` class provides utility methods for implementing consistent pagination across API endpoints and data access layers. It handles validation of pagination parameters, calculation of skip/take values, and generation of pagination metadata including page numbers, total pages, and navigation indicators.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+
+// Validate pagination parameters from user input
+var (pageNumber, pageSize) = PaginationHelper.ValidatePaginationParams(2, 25);
+Console.WriteLine($"Validated pagination: Page {pageNumber}, Size {pageSize}");
+
+// Calculate skip value for database queries
+int skip = PaginationHelper.CalculateSkip(pageNumber, pageSize);
+Console.WriteLine($"Skip value for database query: {skip}");
+
+// Calculate total pages based on total item count
+totalCount = 150; // Total items from your data source
+int totalPages = PaginationHelper.CalculateTotalPages(totalCount, pageSize);
+Console.WriteLine($"Total pages: {totalPages}");
+
+// Check if there are more pages
+bool hasNextPage = PaginationHelper.HasNextPage(pageNumber, totalPages);
+bool hasPreviousPage = PaginationHelper.HasPreviousPage(pageNumber);
+Console.WriteLine($"Has next page: {hasNextPage}, Has previous page: {hasPreviousPage}");
+
+// Get next/previous page numbers
+int nextPage = PaginationHelper.GetNextPageNumber(pageNumber);
+int previousPage = PaginationHelper.GetPreviousPageNumber(pageNumber);
+Console.WriteLine($"Next page: {nextPage}, Previous page: {previousPage}");
+
+// Paginate a list of items
+var allItems = Enumerable.Range(1, 150).ToList(); // Your data source
+var paginatedItems = PaginationHelper.Paginate(allItems, pageNumber, pageSize);
+Console.WriteLine($"Page {pageNumber} contains {paginatedItems.Count} items");
+
+// Get pagination metadata for API responses
+var metadata = PaginationHelper.GetMetadata(pageNumber, pageSize, totalCount);
+Console.WriteLine($"Metadata: Page {metadata.PageNumber}/{metadata.TotalPages}, Items {metadata.StartIndex}-{metadata.EndIndex} of {metadata.TotalCount}");
+
+// Get page numbers for display in UI (e.g., 1, 2, 3, ..., 10)
+var pageNumbers = PaginationHelper.GetPageNumbers(pageNumber, totalPages, maxVisiblePages: 5);
+Console.WriteLine($"Display page numbers: {string.Join(", ", pageNumbers)}");
+
+// Example with a service repository
+var serviceRepository = new ServiceRepository();
+var allServices = await serviceRepository.GetAllAsync();
+
+// Get page 3 with 10 items per page
+var servicePage = await serviceRepository.GetPagedAsync(3, 10);
+var serviceMetadata = PaginationHelper.GetMetadata(3, 10, allServices.Count());
+
+Console.WriteLine($"Services page 3: {servicePage.Count} items");
+Console.WriteLine($"Total pages: {serviceMetadata.TotalPages}");
+Console.WriteLine($"Has next: {PaginationHelper.HasNextPage(3, serviceMetadata.TotalPages)}");
+Console.WriteLine($"Has previous: {PaginationHelper.HasPreviousPage(3)}");
+```
+
 ## ValidationHelper
 
 The `ValidationHelper` class provides utility methods for validating common input patterns such as service names, IP addresses, ports, URLs, time ranges, and pagination parameters. It includes both validation and sanitization methods to ensure data integrity when working with systemd service configurations and monitoring data.
