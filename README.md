@@ -1245,6 +1245,126 @@ app.Run();
 
 The `LogContextEnricher` automatically enriches logs with HTTP context information when available, providing better observability and debugging capabilities for distributed systems.
 
+
+
+## MetricsController
+
+The `MetricsController` provides REST API endpoints for querying system-wide and service-specific resource metrics. It exposes endpoints for retrieving CPU usage, memory consumption, disk I/O, network I/O, and other system metrics. The controller integrates with `IResourceMonitorService` to collect real-time metrics and return them as standardized API responses with proper error handling and logging.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+
+// Register required services (typically done via dependency injection)
+builder.Services.AddScoped<IResourceMonitorService, ResourceMonitorService>();
+builder.Services.AddScoped<ILogger<MetricsController>, Logger<MetricsController>>();
+
+var app = builder.Build();
+
+// Configure the metrics controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/metrics/system - Get system-wide resource metrics
+// GET /api/metrics/service/nginx.service - Get metrics for a specific service
+// GET /api/metrics/services - Get metrics for all services
+// GET /api/metrics/memory/top?limit=5 - Get top 5 memory-consuming services
+// GET /api/metrics/cpu/top?limit=10 - Get top 10 CPU-consuming services
+// GET /api/metrics/disk/nginx.service - Get disk I/O metrics for nginx.service
+// GET /api/metrics/network/nginx.service - Get network I/O metrics for nginx.service
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Get system-wide resource metrics
+var systemMetricsResponse = await httpClient.GetAsync("/api/metrics/system");
+var systemMetrics = await systemMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<SystemResource>>();
+
+// Get metrics for a specific service
+var serviceMetricsResponse = await httpClient.GetAsync("/api/metrics/service/nginx.service");
+var serviceMetrics = await serviceMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<ServiceMetric>>();
+
+// Get metrics for all services
+var allServicesMetricsResponse = await httpClient.GetAsync("/api/metrics/services?sortBy=cpu&descending=true");
+var allServicesMetrics = await allServicesMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceMetric>>>();
+
+// Get top memory-consuming services
+var topMemoryResponse = await httpClient.GetAsync("/api/metrics/memory/top?limit=5");
+var topMemoryServices = await topMemoryResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceMetric>>>();
+
+// Get top CPU-consuming services
+var topCpuResponse = await httpClient.GetAsync("/api/metrics/cpu/top?limit=10");
+var topCpuServices = await topCpuResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceMetric>>>();
+
+// Get disk metrics for a service
+var diskMetricsResponse = await httpClient.GetAsync("/api/metrics/disk/nginx.service");
+var diskMetrics = await diskMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+// Get network metrics for a service
+var networkMetricsResponse = await httpClient.GetAsync("/api/metrics/network/nginx.service");
+var networkMetrics = await networkMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+```
+
+The `MetricsController` provides a comprehensive RESTful interface for accessing real-time system and service metrics with proper error handling, logging, and flexible query parameters for filtering and sorting.
+
+builder.Services.AddScoped<ILogger<MetricsController>, Logger<MetricsController>>();
+
+var app = builder.Build();
+
+// Configure the metrics controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/metrics/system - Get system-wide resource metrics
+// GET /api/metrics/service/nginx.service - Get metrics for a specific service
+// GET /api/metrics/services - Get metrics for all services
+// GET /api/metrics/memory/top?limit=5 - Get top 5 memory-consuming services
+// GET /api/metrics/cpu/top?limit=10 - Get top 10 CPU-consuming services
+// GET /api/metrics/disk/nginx.service - Get disk I/O metrics for nginx.service
+// GET /api/metrics/network/nginx.service - Get network I/O metrics for nginx.service
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Get system-wide resource metrics
+var systemMetricsResponse = await httpClient.GetAsync("/api/metrics/system");
+var systemMetrics = await systemMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<SystemResource>>();
+
+// Get metrics for a specific service
+var serviceMetricsResponse = await httpClient.GetAsync("/api/metrics/service/nginx.service");
+var serviceMetrics = await serviceMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<ServiceMetric>>();
+
+// Get metrics for all services
+var allServicesMetricsResponse = await httpClient.GetAsync("/api/metrics/services?sortBy=cpu&descending=true");
+var allServicesMetrics = await allServicesMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceMetric>>>();
+
+// Get top memory-consuming services
+var topMemoryResponse = await httpClient.GetAsync("/api/metrics/memory/top?limit=5");
+var topMemoryServices = await topMemoryResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceMetric>>>();
+
+// Get top CPU-consuming services
+var topCpuResponse = await httpClient.GetAsync("/api/metrics/cpu/top?limit=10");
+var topCpuServices = await topCpuResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceMetric>>>();
+
+// Get disk metrics for a service
+var diskMetricsResponse = await httpClient.GetAsync("/api/metrics/disk/nginx.service");
+var diskMetrics = await diskMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+// Get network metrics for a service
+var networkMetricsResponse = await httpClient.GetAsync("/api/metrics/network/nginx.service");
+var networkMetrics = await networkMetricsResponse.Content.ReadFromJsonAsync<ApiResponse<object>>();
+```
+
+The `MetricsController` provides a comprehensive RESTful interface for accessing real-time system and service metrics with proper error handling, logging, and flexible query parameters for filtering and sorting.
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
