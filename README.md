@@ -151,3 +151,108 @@ Console.WriteLine($"Status: {serviceStatus.State}");
 ```
 
 The `IServiceMonitorService` interface provides a standardized way to interact with systemd services and retrieve monitoring statistics. Implementations of this interface can be used to create custom service monitors that integrate with the systemd D-Bus interface.
+
+
+## AlertRulesEngine
+
+The `AlertRulesEngine` class is a thread-safe, in-memory implementation of the `IAlertRulesEngine` interface that provides comprehensive alert management for systemd services. It evaluates alert rules against service status snapshots, manages the complete lifecycle of alert incidents, and drives multi-level escalation policies with on-call rotation support. Rules and incidents are stored in memory, making it ideal for development and testing environments, while the architecture supports easy extension to persistent storage for production deployments.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<AlertRulesEngine>();
+
+// Create dependencies
+var onCallService = new InMemoryOnCallScheduleService(logger);
+var httpClientFactory = new TestHttpClientFactory(); // or real HttpClientFactory
+var alertOptions = Options.Create(new AlertOptions { Enabled = true });
+
+// Create alert rules engine instance
+var alertEngine = new AlertRulesEngine(
+    logger,
+    onCallService,
+    alertOptions,
+    httpClientFactory
+);
+
+// Create and add an alert rule for high CPU usage
+var cpuRule = new AlertRule
+{
+    Name = "High CPU Usage",
+    Description = "Alert when CPU usage exceeds 90% for 3 consecutive evaluations",
+    ServicePattern = "nginx.service",
+    Condition = AlertCondition.CpuThresholdExceeded,
+    Threshold = 90,
+    Severity = AlertSeverity.Warning,
+    IsEnabled = true,
+    ConsecutiveEvaluationsRequired = 3,
+    CooldownMinutes = 60
+};
+
+await alertEngine.AddRuleAsync(cpuRule);
+
+// Evaluate a service status (would typically be called periodically)
+var serviceStatus = new ServiceStatus
+{
+    UnitName = "nginx.service",
+    State = ServiceState.Running,
+    CpuUsagePercent = 95.5m,
+    MemoryUsageMb = 512,
+    IsRunning = true
+};
+
+await alertEngine.EvaluateServiceAsync(serviceStatus);
+
+// Get active incidents
+var activeIncidents = await alertEngine.GetActiveIncidentsAsync();
+Console.WriteLine($"Active incidents: {activeIncidents.Count()}");
+
+// Get summary statistics
+var summary = await alertEngine.GetSummaryAsync();
+Console.WriteLine($"Total rules: {summary.TotalRules}, Open incidents: {summary.OpenIncidents}");
+
+// Manage incidents
+var incidents = await alertEngine.GetActiveIncidentsAsync();
+foreach (var incident in incidents)
+{
+    // Acknowledge the incident
+    await alertEngine.AcknowledgeIncidentAsync(incident.Id, "admin@example.com");
+    
+    // Or resolve it
+    await alertEngine.ResolveIncidentAsync(incident.Id, "admin@example.com", "Issue resolved");
+    
+    // Or escalate it
+    await alertEngine.EscalateIncidentAsync(incident.Id);
+}
+
+// Manage on-call schedules
+var schedules = await onCallService.GetSchedulesAsync();
+if (!schedules.Any())
+{
+    var schedule = new OnCallSchedule
+    {
+        Name = "Production Team",
+        Entries = new List<OnCallEntry>
+        {
+            new OnCallEntry
+            {
+                ResponderName = "Alice",
+                ResponderContact = "alice@example.com",
+                ShiftStart = DateTime.UtcNow,
+                ShiftEnd = DateTime.UtcNow.AddHours(8)
+            }
+        }
+    };
+    await onCallService.CreateScheduleAsync(schedule);
+}
+```
+
+The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
