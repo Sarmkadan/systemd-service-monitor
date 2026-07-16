@@ -1722,6 +1722,76 @@ if (!schedules.Any())
 }
 ```
 
+## AlertsController
+
+The `AlertsController` provides REST API endpoints for managing systemd service alert rules and incidents. It enables proactive monitoring by allowing the creation, reading, updating, and deletion of alert rules that monitor services for specific conditions such as CPU thresholds, memory usage, service state changes, and other health indicators. The controller also manages alert incidents, including acknowledgment and resolution workflows, providing a complete RESTful interface for alert management and incident response.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+
+// Register required services (typically done via dependency injection)
+builder.Services.AddScoped<IAlertRulesEngine, AlertRulesEngine>();
+builder.Services.AddScoped<ILogger<AlertsController>, Logger<AlertsController>>();
+
+var app = builder.Build();
+
+// Configure the alerts controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/alerts/rules - Get all alert rules
+// GET /api/alerts/rules/{id} - Get a specific alert rule
+// POST /api/alerts/rules - Create a new alert rule
+// PUT /api/alerts/rules/{id} - Update an alert rule
+// DELETE /api/alerts/rules/{id} - Delete an alert rule
+// GET /api/alerts/incidents - Get all active incidents
+// GET /api/alerts/incidents/{id} - Get a specific incident
+// POST /api/alerts/incidents/{id}/acknowledge - Acknowledge an incident
+// POST /api/alerts/incidents/{id}/resolve - Resolve an incident
+// GET /api/alerts/summary - Get alert summary statistics
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Create a high CPU usage alert rule
+var cpuAlertRule = new CreateAlertRuleDto
+{
+    Name = "High CPU Usage Alert",
+    Description = "Alert when CPU usage exceeds 90% for 3 consecutive evaluations",
+    ServicePattern = "nginx.service",
+    Condition = AlertCondition.CpuThresholdExceeded,
+    Threshold = 90,
+    Severity = AlertSeverity.Critical,
+    IsEnabled = true,
+    ConsecutiveEvaluationsRequired = 3,
+    CooldownMinutes = 60
+};
+
+var createResponse = await httpClient.PostAsJsonAsync("/api/alerts/rules", cpuAlertRule);
+var createdRule = await createResponse.Content.ReadFromJsonAsync<ApiResponse<AlertRuleDto>>();
+
+// Get all alert rules
+var rulesResponse = await httpClient.GetAsync("/api/alerts/rules");
+var allRules = await rulesResponse.Content.ReadFromJsonAsync<ApiResponse<List<AlertRuleDto>>>();
+
+// Get alert summary
+var summaryResponse = await httpClient.GetAsync("/api/alerts/summary");
+var summary = await summaryResponse.Content.ReadFromJsonAsync<ApiResponse<AlertSummaryDto>>();
+
+Console.WriteLine($"Total alert rules: {allRules.Data?.Count}");
+Console.WriteLine($"Total incidents: {summary.Data?.OpenIncidents}");
+Console.WriteLine($"Total rules: {summary.Data?.TotalRules}");
+```
+
 ## AlertOptions
 
 The `AlertOptions` class defines configuration settings for service monitoring alerts, including thresholds, intervals, escalation policies, and notification preferences. It controls how alerts are triggered, escalated, and resolved based on service conditions and resource usage.
