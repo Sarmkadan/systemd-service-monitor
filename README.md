@@ -1819,6 +1819,68 @@ var updatedRule = cpuAlertRule with
 Console.WriteLine($"Updated threshold to: {updatedRule.Threshold}%");
 ```
 
+## ServicesController
+
+The `ServicesController` class is a REST API controller that provides endpoints for querying, controlling, and monitoring systemd services. It exposes HTTP endpoints for service management operations including retrieving service information, starting/stopping services, enabling/disabling services, and performing bulk operations across multiple services. The controller integrates with `IServiceMonitorService` for service information retrieval and `IServiceControlService` for service control operations, providing a complete RESTful interface for systemd service management.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
+
+// Register required services (typically done via dependency injection)
+builder.Services.AddScoped<IServiceMonitorService, ServiceMonitorService>();
+builder.Services.AddScoped<IServiceControlService, ServiceControlService>();
+
+var app = builder.Build();
+
+// Configure the services controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/services - Get all services
+// GET /api/services/nginx.service - Get service details
+// POST /api/services/nginx.service/start - Start a service
+// POST /api/services/nginx.service/stop - Stop a service
+// POST /api/services/nginx.service/restart - Restart a service
+// POST /api/services/nginx.service/reload - Reload a service configuration
+// POST /api/services/nginx.service/enable - Enable auto-start
+// POST /api/services/nginx.service/disable - Disable auto-start
+// POST /api/services/bulk-restart - Bulk restart multiple services
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Get all services
+var allServicesResponse = await httpClient.GetAsync("/api/services");
+var allServices = await allServicesResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceInfo>>>();
+
+// Get specific service details
+var serviceDetailsResponse = await httpClient.GetAsync("/api/services/nginx.service");
+var serviceDetails = await serviceDetailsResponse.Content.ReadFromJsonAsync<ApiResponse<ServiceInfo>>>();
+
+// Start a service
+var startResponse = await httpClient.PostAsync("/api/services/nginx.service/start", null);
+var startResult = await startResponse.Content.ReadFromJsonAsync<ApiResponse<bool>>>();
+
+// Bulk restart multiple services
+var bulkRestartResponse = await httpClient.PostAsJsonAsync("/api/services/bulk-restart", new
+{
+    ServiceNames = new[] { "nginx.service", "postgresql.service", "redis.service" },
+    MaxConcurrency = 5
+});
+var bulkResult = await bulkRestartResponse.Content.ReadFromJsonAsync<ApiResponse<BulkOperationResult>>>();
+```
+
+The `ServicesController` provides a complete RESTful interface for systemd service management with proper error handling, logging, and pagination support for service listings.
+
 ## AlertRulesEngine
 
 The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
