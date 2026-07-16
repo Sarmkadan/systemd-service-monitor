@@ -273,6 +273,75 @@ if (node != null)
 }
 ```
 
+## IServiceLogService
+
+The `IServiceLogService` interface provides methods for retrieving, storing, and analyzing service logs from systemd journald. It offers comprehensive log querying capabilities including filtering by service, time range, severity level, and search terms. The interface also includes statistics tracking and log management features such as clearing old logs and batch storage operations.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ServiceLogService>();
+
+// Create service instance (dependencies would typically be injected in production)
+var logService = new ServiceLogService(
+    logger,
+    new ServiceRepository()
+);
+
+// Get log statistics for a service
+var stats = await logService.GetLogStatisticsAsync("nginx.service");
+Console.WriteLine($"Service: {stats.UnitName}");
+Console.WriteLine($"Total logs: {stats.TotalLogEntries}");
+Console.WriteLine($"Errors: {stats.ErrorCount}, Warnings: {stats.WarningCount}, Info: {stats.InfoCount}");
+Console.WriteLine($"Time range: {stats.OldestLogTime} to {stats.LatestLogTime}");
+
+// Get recent logs for a service
+var recentLogs = await logService.GetServiceLogsAsync("nginx.service", limit: 50);
+foreach (var log in recentLogs.Take(5))
+{
+    Console.WriteLine($"[{log.Timestamp}] [{log.Level}] {log.Message}");
+}
+
+// Get logs by severity level
+var errorLogs = await logService.GetLogsByLevelAsync("nginx.service", SyslogLevel.Err);
+Console.WriteLine($"Found {errorLogs.Count()} error logs");
+
+// Get logs within a specific time range
+var from = DateTime.UtcNow.AddHours(-1);
+var to = DateTime.UtcNow;
+var timeRangeLogs = await logService.GetLogsInTimeRangeAsync("nginx.service", from, to);
+Console.WriteLine($"Found {timeRangeLogs.Count()} logs in the last hour");
+
+// Search logs for specific terms
+var searchResults = await logService.SearchLogsAsync("nginx.service", "connection failed");
+Console.WriteLine($"Found {searchResults.Count()} logs containing 'connection failed'");
+
+// Store a log entry
+var newLog = new ServiceLog
+{
+    UnitName = "nginx.service",
+    Timestamp = DateTime.UtcNow,
+    Level = SyslogLevel.Info,
+    Message = "Service started successfully",
+    Priority = 6
+};
+var storedLog = await logService.StoreLogAsync(newLog);
+Console.WriteLine($"Stored log with ID: {storedLog.Id}");
+
+// Clear old logs (older than 30 days)
+var logsCleared = await logService.ClearOldLogsAsync(30);
+Console.WriteLine($"Cleared {logsCleared} old log entries");
+```
+
+The `IServiceLogService` interface provides comprehensive logging capabilities for systemd services, enabling efficient log retrieval, analysis, and management.
+
+
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
