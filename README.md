@@ -341,6 +341,78 @@ Console.WriteLine($"Cleared {logsCleared} old log entries");
 
 The `IServiceLogService` interface provides comprehensive logging capabilities for systemd services, enabling efficient log retrieval, analysis, and management.
 
+## ServiceLogService
+
+The `ServiceLogService` class provides concrete implementation for service log management from systemd journald. It implements `IServiceLogService` and provides methods for retrieving logs from the systemd journal, storing logs in the database, and performing log analysis and management operations.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Configuration;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ServiceLogService>();
+
+// Create service instance with all required dependencies
+var logService = new ServiceLogService(
+    logger,
+    new ServiceRepository(),
+    new SystemdOptions(),
+    new SystemdConnectionService()
+);
+
+// Get logs directly from journald for a service
+var journaldLogs = await logService.FetchLatestFromJournalAsync("nginx.service", count: 100);
+foreach (var log in journaldLogs.Take(5))
+{
+    Console.WriteLine($"[{log.Timestamp}] [{log.Level}] {log.Message}");
+}
+
+// Get logs filtered by minimum priority level
+var warningAndAbove = await logService.FetchFromJournalByPriorityAsync(
+    "nginx.service", 
+    SyslogLevel.Warning, 
+    count: 50
+);
+Console.WriteLine($"Found {warningAndAbove.Count()} warning and higher priority logs");
+
+// Get recent logs from database
+var recentDatabaseLogs = await logService.GetRecentLogsAsync(limit: 25);
+Console.WriteLine($"Found {recentDatabaseLogs.Count()} recent logs in database");
+
+// Store a batch of logs
+var batchLogs = new List<ServiceLog>();
+for (int i = 0; i < 10; i++)
+{
+    batchLogs.Add(new ServiceLog
+    {
+        UnitName = "nginx.service",
+        Timestamp = DateTime.UtcNow.AddMinutes(-i),
+        Level = i % 3 == 0 ? SyslogLevel.Error : (i % 3 == 1 ? SyslogLevel.Warning : SyslogLevel.Info),
+        Message = $"Sample log message {i}",
+        Priority = i % 3 == 0 ? 3 : (i % 3 == 1 ? 4 : 6)
+    });
+}
+var storedCount = await logService.StoreLogsAsync(batchLogs);
+Console.WriteLine($"Stored {storedCount} logs in batch");
+
+// Get statistics for a specific service
+var serviceStats = await logService.GetLogStatisticsAsync("nginx.service");
+Console.WriteLine($"Service: {serviceStats.UnitName}");
+Console.WriteLine($"Total logs: {serviceStats.TotalLogEntries}");
+Console.WriteLine($"Errors: {serviceStats.ErrorCount}, Warnings: {serviceStats.WarningCount}");
+
+// Clear old logs from database
+var clearedCount = await logService.ClearOldLogsAsync(retentionDays: 30);
+Console.WriteLine($"Cleared {clearedCount} old log entries from database");
+```
+
+The `ServiceLogService` provides comprehensive logging capabilities by combining direct journald access with database storage and retrieval, enabling both real-time log analysis and historical log management.
+
 
 ## SystemdConnectionService
 
