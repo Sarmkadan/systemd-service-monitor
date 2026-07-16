@@ -194,3 +194,70 @@ var resource = new SystemResource
 
 Console.WriteLine(resource);
 ```
+
+## ServiceMetric
+
+The `ServiceMetric` class represents a single metric measurement for a systemd service at a point in time. It captures detailed performance data including CPU, memory, network, and disk metrics, along with statistical aggregations (min, max, average) and contextual tags for filtering and analysis. This class is used to track service health and performance trends over time.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Collections.Generic;
+using SystemdServiceMonitor.Models;
+
+// Create a CPU usage metric for nginx service
+var cpuMetric = new ServiceMetric
+{
+    ServiceInfoId = Guid.NewGuid(),
+    UnitName = "nginx.service",
+    MetricType = MetricType.CpuUsage,
+    Value = 45.5m,
+    Unit = "%",
+    MinValue = 42.1m,
+    MaxValue = 48.7m,
+    AvgValue = 45.3m,
+    ProcessId = 1234,
+    SampleCount = 60,
+    Tags = new Dictionary<string, string>
+    {
+        { "environment", "production" },
+        { "tier", "web" },
+        { "region", "us-east-1" }
+    },
+    Timestamp = DateTime.UtcNow,
+    ServiceName = "nginx",
+    CpuPercentage = 45.5,
+    MemoryUsageMb = 256.8,
+    NetworkBytesIn = 12345678,
+    NetworkBytesOut = 98765432,
+    DiskReadBytesPerSec = 5432100,
+    DiskWriteBytesPerSec = 3210987,
+    DurationSeconds = 60
+};
+
+Console.WriteLine($"Service {cpuMetric.UnitName} CPU: {cpuMetric.Value}{cpuMetric.Unit}");
+
+// Create a memory usage metric with statistical aggregation
+var memoryMetric = new ServiceMetric
+{
+    ServiceInfoId = Guid.NewGuid(),
+    UnitName = "postgresql.service",
+    MetricType = MetricType.MemoryUsage,
+    Value = 1024,
+    Unit = "MB",
+    MinValue = 950.5m,
+    MaxValue = 1100.2m,
+    AvgValue = 1024.8m,
+    ProcessId = 5678,
+    SampleCount = 120,
+    Tags = new Dictionary<string, string>
+    {
+        { "database", "postgresql" },
+        { "environment", "production" }
+    },
+    Timestamp = DateTime.UtcNow.AddMinutes(-5)
+};
+
+Console.WriteLine($"Service {memoryMetric.UnitName} Memory: {memoryMetric.Value}{memoryMetric.Unit}");
+```
