@@ -993,6 +993,87 @@ string progressBar = OutputFormatter.CreateProgressBar(75.5); // 75.5%
 Console.WriteLine(progressBar);
 ```
 
+## DependencyGraphController
+
+The `DependencyGraphController` provides REST API endpoints for querying and analyzing service dependency relationships within the systemd service ecosystem. It enables visualization and traversal of service dependency graphs, allowing you to identify root services (services with no dependents), leaf services (services with no dependencies), and dependency chains between services. This controller is essential for understanding service relationships, diagnosing startup issues, and analyzing system architecture dependencies.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+
+// Register required services (typically done via dependency injection)
+builder.Services.AddScoped<IServiceDependencyGraphService, ServiceDependencyGraphService>();
+builder.Services.AddScoped<ILogger<DependencyGraphController>, Logger<DependencyGraphController>>();
+
+var app = builder.Build();
+
+// Configure the dependency graph controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/dependency-graph - Get the complete dependency graph
+// GET /api/dependency-graph/roots - Get root services (services with no dependents)
+// GET /api/dependency-graph/leaves - Get leaf services (services with no dependencies)
+// GET /api/dependency-graph/path?from=postgresql.service&to=nginx.service - Get dependency path between services
+// GET /api/dependency-graph/nginx.service?depth=2 - Get dependency subgraph for a specific service
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Get the complete dependency graph
+var graphResponse = await httpClient.GetAsync("/api/dependency-graph");
+var dependencyGraph = await graphResponse.Content.ReadFromJsonAsync<ApiResponse<ServiceDependencyGraph>>();
+Console.WriteLine($"Total services in graph: {dependencyGraph.Data?.TotalNodes}");
+Console.WriteLine($"Total dependencies: {dependencyGraph.Data?.TotalEdges}");
+
+// Get root services (services with no dependents)
+var rootsResponse = await httpClient.GetAsync("/api/dependency-graph/roots");
+var rootServices = await rootsResponse.Content.ReadFromJsonAsync<ApiResponse<List<DependencyNode>>>();
+Console.WriteLine($"Root services count: {rootServices.Data?.Count}");
+
+// Get leaf services (services with no dependencies)
+var leavesResponse = await httpClient.GetAsync("/api/dependency-graph/leaves");
+var leafServices = await leavesResponse.Content.ReadFromJsonAsync<ApiResponse<List<DependencyNode>>>();
+Console.WriteLine($"Leaf services count: {leafServices.Data?.Count}");
+
+// Get dependency path between two services
+var pathResponse = await httpClient.GetAsync("/api/dependency-graph/path?from=postgresql.service&to=nginx.service");
+var dependencyPath = await pathResponse.Content.ReadFromJsonAsync<ApiResponse<List<string>>>();
+if (dependencyPath.Data != null && dependencyPath.Data.Any())
+{
+    Console.WriteLine("Dependency chain: " + string.Join(" -> ", dependencyPath.Data));
+}
+
+// Get dependency subgraph for a specific service with depth limit
+var subgraphResponse = await httpClient.GetAsync("/api/dependency-graph/nginx.service?depth=3");
+var subgraph = await subgraphResponse.Content.ReadFromJsonAsync<ApiResponse<ServiceDependencyGraph>>>();
+Console.WriteLine($"Nginx subgraph contains {subgraph.Data?.TotalNodes} services");
+
+// Access service information from a node in the graph
+if (subgraph.Data?.Nodes != null)
+{
+    var nginxNode = subgraph.Data.Nodes.FirstOrDefault(n => n.ServiceName == "nginx.service");
+    if (nginxNode != null)
+    {
+        Console.WriteLine($"Service: {nginxNode.ServiceName}");
+        Console.WriteLine($"Description: {nginxNode.Description}");
+        Console.WriteLine($"State: {nginxNode.State}");
+        Console.WriteLine($"Dependencies: {string.Join(", ", nginxNode.Dependencies)}");
+        Console.WriteLine($"Dependents: {string.Join(", ", nginxNode.Dependents)}");
+        Console.WriteLine($"Is root: {nginxNode.IsRootNode}");
+        Console.WriteLine($"Is leaf: {nginxNode.IsLeafNode}");
+    }
+}
+```
+
 ## ServiceFactory
 
 The `ServiceFactory` utility class provides convenient factory methods for creating and initializing service-related objects with sensible defaults. It simplifies the construction of domain objects like `ServiceInfo`, `ServiceMetric`, `ServiceLog`, `ServiceStatus`, and `RestartPolicyConfig`, reducing boilerplate code and ensuring consistent initialization patterns throughout the application.
