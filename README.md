@@ -1247,6 +1247,61 @@ The `LogContextEnricher` automatically enriches logs with HTTP context informati
 
 
 
+## LogsController
+
+The `LogsController` provides REST API endpoints for retrieving, filtering, and exporting systemd service logs. It offers comprehensive logging capabilities including pagination, severity filtering, time-based queries, and multiple export formats (JSON, CSV, XML). The controller integrates with `IServiceLogService` to fetch logs from the systemd journal and database, providing a standardized API interface for service monitoring and troubleshooting.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
+// In your ASP.NET Core application startup:
+var builder = WebApplication.CreateBuilder(args);
+
+// Register required services (typically done via dependency injection)
+builder.Services.AddScoped<IServiceLogService, ServiceLogService>();
+builder.Services.AddScoped<ILogger<LogsController>, Logger<LogsController>>();
+
+var app = builder.Build();
+
+// Configure the logs controller
+app.MapControllers();
+
+// Example API calls:
+// GET /api/logs/nginx.service - Get paginated logs for nginx.service
+// GET /api/logs/nginx.service/errors - Get error/warning logs for nginx.service
+// GET /api/logs/nginx.service/by-priority?priority=3 - Get logs with priority ≤ error
+// GET /api/logs/recent/all?minutes=60 - Get recent logs from the last hour
+// GET /api/logs/postgresql.service/export?format=csv - Export logs as CSV
+
+// Example: Make HTTP requests to the controller
+using var httpClient = new HttpClient();
+httpClient.BaseAddress = new Uri("http://localhost:5000");
+
+// Get paginated logs for a service
+var logsResponse = await httpClient.GetAsync("/api/logs/nginx.service?lines=100&pageNumber=1&pageSize=50");
+var logs = await logsResponse.Content.ReadFromJsonAsync<PaginatedResponse<ServiceLog>>();
+
+// Get error logs for a service
+var errorLogsResponse = await httpClient.GetAsync("/api/logs/nginx.service/errors?maxResults=50");
+var errorLogs = await errorLogsResponse.Content.ReadFromJsonAsync<PaginatedResponse<ServiceLog>>();
+
+// Get recent logs from all services (last 30 minutes)
+var recentLogsResponse = await httpClient.GetAsync("/api/logs/recent/all?minutes=30&maxEntries=1000");
+var recentLogs = await recentLogsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ServiceLog>>>();
+
+// Export logs as CSV
+var exportResponse = await httpClient.GetAsync("/api/logs/nginx.service/export?format=csv&lines=500");
+var csvContent = await exportResponse.Content.ReadAsByteArrayAsync();
+File.WriteAllBytes("nginx-logs.csv", csvContent);
+```
+
+The `LogsController` provides a comprehensive RESTful interface for systemd service log management with proper error handling, logging, and flexible query parameters for filtering and exporting log data.
+
 ## MetricsController
 
 The `MetricsController` provides REST API endpoints for querying system-wide and service-specific resource metrics. It exposes endpoints for retrieving CPU usage, memory consumption, disk I/O, network I/O, and other system metrics. The controller integrates with `IResourceMonitorService` to collect real-time metrics and return them as standardized API responses with proper error handling and logging.
