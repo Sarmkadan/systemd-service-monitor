@@ -273,9 +273,90 @@ if (node != null)
 }
 ```
 
-## AlertRulesEngine
+## ServiceControlService
 
-The `AlertRulesEngine` class is a thread-safe, in-memory implementation of the `IAlertRulesEngine` interface that provides comprehensive alert management for systemd services. It evaluates alert rules against service status snapshots, manages the complete lifecycle of alert incidents, and drives multi-level escalation policies with on-call rotation support. Rules and incidents are stored in memory, making it ideal for development and testing environments, while the architecture supports easy extension to persistent storage for production deployments.
+The `ServiceControlService` class provides comprehensive control operations for systemd services. It allows you to start, stop, restart, reload, enable, and disable services through the systemd D-Bus interface. The service also supports advanced operations like graceful shutdowns, restart strategies, and bulk operations for managing multiple services efficiently.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ServiceControlService>();
+
+// Create service instance (dependencies would typically be injected in production)
+var serviceControl = new ServiceControlService(
+    logger,
+    new SystemdConnectionService(),
+    new SystemdOptions()
+);
+
+// Start a service
+bool startResult = await serviceControl.StartServiceAsync("nginx.service");
+Console.WriteLine($"Start result: {startResult}");
+
+// Stop a service
+bool stopResult = await serviceControl.StopServiceAsync("nginx.service");
+Console.WriteLine($"Stop result: {stopResult}");
+
+// Restart a service
+bool restartResult = await serviceControl.RestartServiceAsync("nginx.service");
+Console.WriteLine($"Restart result: {restartResult}");
+
+// Reload a service (useful for services that support configuration reload)
+bool reloadResult = await serviceControl.ReloadServiceAsync("nginx.service");
+Console.WriteLine($"Reload result: {reloadResult}");
+
+// Enable a service to start on boot
+bool enableResult = await serviceControl.EnableServiceAsync("nginx.service");
+Console.WriteLine($"Enable result: {enableResult}");
+
+// Disable a service from starting on boot
+bool disableResult = await serviceControl.DisableServiceAsync("nginx.service");
+Console.WriteLine($"Disable result: {disableResult}");
+
+// Restart with different strategies
+bool immediateRestart = await serviceControl.RestartWithStrategyAsync(
+    "nginx.service",
+    RestartStrategy.Immediate
+);
+
+bool gracefulRestart = await serviceControl.RestartWithStrategyAsync(
+    "nginx.service",
+    RestartStrategy.Graceful
+);
+
+// Gracefully shutdown a service with timeout
+bool gracefulShutdown = await serviceControl.GracefulShutdownAsync(
+    "nginx.service",
+    timeoutSeconds: 30
+);
+
+// Get the status of the last operation on a service
+var lastOperation = await serviceControl.GetLastOperationStatusAsync("nginx.service");
+if (lastOperation != null)
+{
+    Console.WriteLine($"Last operation: {lastOperation.Operation} - Success: {lastOperation.Success}");
+    Console.WriteLine($"Duration: {lastOperation.DurationMs}ms");
+}
+
+// Bulk restart multiple services with controlled concurrency
+var bulkResult = await serviceControl.BulkRestartAsync(
+    new[] { "nginx.service", "postgresql.service", "redis.service" },
+    maxConcurrency: 5
+);
+
+foreach (var result in bulkResult.Results)
+{
+    Console.WriteLine($"{result.UnitName}: {(result.Success ? "SUCCESS" : "FAILED")} - {result.Message}");
+}
+```
+
+The `ServiceControlService` provides a comprehensive API for managing systemd services with built-in error handling, logging, and operation tracking capabilities.
 
 ### Usage Example
 
