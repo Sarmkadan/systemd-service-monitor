@@ -917,6 +917,46 @@ Console.WriteLine($"Async operation completed in {asyncTime}ms");
 
 The `PerformanceMonitor` provides detailed performance tracking capabilities with checkpoint recording, time measurements between operations, and automatic logging of performance warnings when thresholds are exceeded.
 
+
+## OutputFormatter
+
+The `OutputFormatter` class provides utility methods for formatting data in various formats including JSON, CSV, and console-friendly tables. It's designed for CLI tools and export functionality, offering consistent formatting across different output types.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+
+// Format services as JSON
+var services = new List<ServiceInfo> { /* your services */ };
+string jsonOutput = OutputFormatter.FormatAsJson(services);
+Console.WriteLine(jsonOutput);
+
+// Format services as CSV
+string csvOutput = OutputFormatter.FormatAsCsv(services);
+Console.WriteLine(csvOutput);
+
+// Format services as a formatted table
+string tableOutput = OutputFormatter.FormatAsTable(services);
+Console.WriteLine(tableOutput);
+
+// Format system metrics as a table
+var metrics = new SystemResource { /* your metrics */ };
+string metricsTable = OutputFormatter.FormatMetricsAsTable(metrics);
+Console.WriteLine(metricsTable);
+
+// Format detailed service information
+var service = new ServiceInfo { UnitName = "nginx.service", /* other properties */ };
+string serviceDetails = OutputFormatter.FormatServiceDetails(service);
+Console.WriteLine(serviceDetails);
+
+// Create a progress bar
+string progressBar = OutputFormatter.CreateProgressBar(75.5); // 75.5%
+Console.WriteLine(progressBar);
+```
+
 ## ServiceFactory
 
 The `ServiceFactory` utility class provides convenient factory methods for creating and initializing service-related objects with sensible defaults. It simplifies the construction of domain objects like `ServiceInfo`, `ServiceMetric`, `ServiceLog`, `ServiceStatus`, and `RestartPolicyConfig`, reducing boilerplate code and ensuring consistent initialization patterns throughout the application.
