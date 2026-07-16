@@ -1074,6 +1074,45 @@ if (subgraph.Data?.Nodes != null)
 }
 ```
 
+## JsonSerializerConfiguration
+
+The `JsonSerializerConfiguration` class provides centralized JSON serialization configuration for the entire application. It offers standardized JSON serializer options with different formatting levels (default, compact, verbose) and includes custom JSON converters for handling special types like `DateTime` and `TimeSpan`. This configuration ensures consistent JSON formatting across API responses, logging, and data exchange operations.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Formatters;
+using System.Text.Json;
+
+// Serialize an object using default formatting (indented, camelCase)
+var serviceInfo = new ServiceInfo { UnitName = "nginx.service", Description = "Nginx web server" };
+string jsonOutput = JsonSerializerConfiguration.Serialize(serviceInfo);
+Console.WriteLine(jsonOutput);
+
+// Serialize with compact formatting (no indentation)
+var compactOptions = JsonSerializerConfiguration.GetCompactOptions();
+string compactJson = JsonSerializerConfiguration.Serialize(serviceInfo, compactOptions);
+Console.WriteLine(compactJson);
+
+// Serialize with verbose formatting (includes null values)
+var verboseOptions = JsonSerializerConfiguration.GetVerboseOptions();
+string verboseJson = JsonSerializerConfiguration.Serialize(serviceInfo, verboseOptions);
+Console.WriteLine(verboseJson);
+
+// Deserialize JSON back to an object
+string jsonInput = "{\"unitName\":\"postgresql.service\",\"description\":\"PostgreSQL database\"}";
+var deserializedService = JsonSerializerConfiguration.Deserialize<ServiceInfo>(jsonInput);
+if (deserializedService != null)
+{
+    Console.WriteLine($"Deserialized: {deserializedService.UnitName}");
+}
+
+// Use with custom converters
+var optionsWithConverters = JsonSerializerConfiguration.GetDefaultOptions()
+    .WithCustomConverters();
+string jsonWithConverters = JsonSerializerConfiguration.Serialize(serviceInfo, optionsWithConverters);
+```
+
 ## ServiceFactory
 
 The `ServiceFactory` utility class provides convenient factory methods for creating and initializing service-related objects with sensible defaults. It simplifies the construction of domain objects like `ServiceInfo`, `ServiceMetric`, `ServiceLog`, `ServiceStatus`, and `RestartPolicyConfig`, reducing boilerplate code and ensuring consistent initialization patterns throughout the application.
