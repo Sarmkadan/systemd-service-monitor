@@ -1054,6 +1054,49 @@ Console.WriteLine($"Created {services.Count} services from names");
 The `ServiceFactory` provides a clean, consistent way to create service-related objects with proper initialization and sensible defaults, reducing repetitive code throughout the application.
 
 
+## ServiceDetailsDto
+
+The `ServiceDetailsDto` class is a data transfer object that provides detailed information about systemd services in a structured format suitable for API responses and UI displays. It contains comprehensive service metadata including identification, state, configuration, dependencies, and health information that enables comprehensive service monitoring and management capabilities.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Dtos;
+using System;
+
+// Create a ServiceDetailsDto instance representing an nginx service
+var nginxDetails = new ServiceDetailsDto
+{
+    Id = Guid.NewGuid(),
+    UnitName = "nginx.service",
+    Description = "Nginx web server and reverse proxy",
+    State = "Active",
+    SubState = "running",
+    MainProcessId = 1234,
+    Result = "success",
+    RestartPolicy = "always",
+    AutoStart = true,
+    Restart = true,
+    Dependencies = new List<string> { "network.target", "syslog.target" },
+    Dependents = new List<string> { "web-server.target" },
+    LastStartTime = DateTime.UtcNow.AddMinutes(-5),
+    LastStopTime = null,
+    UptimeSeconds = 300,
+    RestartCount = 2,
+    RunAsUser = "www-data",
+    RunAsGroup = "www-data",
+    StatusSummary = "Running normally with 2 restarts",
+    HealthStatus = "Healthy"
+};
+
+Console.WriteLine($"Service: {nginxDetails.UnitName}");
+Console.WriteLine($"State: {nginxDetails.State} ({nginxDetails.SubState})");
+Console.WriteLine($"Uptime: {TimeSpan.FromSeconds(nginxDetails.UptimeSeconds).ToString()}");
+Console.WriteLine($"Process ID: {nginxDetails.MainProcessId}");
+Console.WriteLine($"Health: {nginxDetails.HealthStatus}");
+Console.WriteLine($"Dependencies: {string.Join(", ", nginxDetails.Dependencies)}");
+```
+
 ## ServiceHealthChecker
 
 The `ServiceHealthChecker` utility class provides comprehensive health assessment capabilities for systemd services. It evaluates service health status based on state, restart count, uptime, and other metrics, generating human-readable summaries and recommended actions for problematic services. This class is essential for proactive service monitoring and automated health checks.
