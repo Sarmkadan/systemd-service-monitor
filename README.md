@@ -273,6 +273,60 @@ if (node != null)
 }
 ```
 
+## SystemdConnectionService
+
+The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+
+// Create a connection service instance
+var connectionService = new SystemdConnectionService();
+
+// Connect to systemd D-Bus interface
+bool isConnected = await connectionService.ConnectAsync();
+if (isConnected)
+{
+    Console.WriteLine("Successfully connected to systemd D-Bus interface");
+}
+
+// Verify the connection is active
+bool isVerified = await connectionService.VerifyConnectionAsync();
+Console.WriteLine($"Connection verified: {isVerified}");
+
+// Get systemd version
+string version = await connectionService.GetSystemdVersionAsync();
+Console.WriteLine($"systemd version: {version}");
+
+// Call a method on systemd (generic method call)
+var result = await connectionService.CallMethodAsync<bool>(
+    "org.freedesktop.systemd1",
+    "/org/freedesktop/systemd1",
+    "org.freedesktop.DBus.Properties",
+    "Get",
+    "s",
+    "org.freedesktop.systemd1.Manager",
+    "string",
+    "DefaultTimeoutStartUSec"
+);
+
+Console.WriteLine($"Method call result: {result}");
+
+// Subscribe to systemd signals
+await connectionService.SubscribeToSignalsAsync();
+Console.WriteLine("Subscribed to systemd D-Bus signals");
+
+// Disconnect when done
+await connectionService.DisconnectAsync();
+Console.WriteLine("Disconnected from systemd D-Bus interface");
+```
+
+The `SystemdConnectionService` provides the essential connection management capabilities required for all systemd interactions in the application.
+
+
 ## ServiceControlService
 
 The `ServiceControlService` class provides comprehensive control operations for systemd services. It allows you to start, stop, restart, reload, enable, and disable services through the systemd D-Bus interface. The service also supports advanced operations like graceful shutdowns, restart strategies, and bulk operations for managing multiple services efficiently.
