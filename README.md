@@ -1102,6 +1102,35 @@ Console.WriteLine($"Alerts enabled: {alertOptions.Value.Enabled}");
 Console.WriteLine($"Evaluation interval: {alertOptions.Value.ServiceEvaluationIntervalSeconds} seconds");
 ```
 
+## SystemdOptions
+
+The `SystemdOptions` class provides configuration settings for systemd D-Bus integration and service monitoring operations. It controls various aspects of systemd service monitoring including connection settings, monitoring behavior, and operational parameters.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Configuration;
+using Microsoft.Extensions.Options;
+
+// Create systemd options with custom configuration
+var systemdOptions = Options.Create(new SystemdOptions
+{
+    EnableMonitoring = true,
+    MetricCollectionIntervalMs = 10000, // 10 seconds
+    LogRetentionDays = 60, // Keep logs for 60 days
+    MaxLogEntriesPerRequest = 5000, // Max 5000 logs per API request
+    EnableRemoteOperations = true, // Allow remote operations
+    OperationTimeoutMs = 60000, // 60 second timeout
+    ConnectionRetryCount = 10, // Retry up to 10 times
+    ConnectionRetryDelayMs = 1000, // 1 second between retries
+    EnableHealthChecks = true // Enable health check endpoints
+});
+
+Console.WriteLine($"Monitoring enabled: {systemdOptions.Value.EnableMonitoring}");
+Console.WriteLine($"Metric collection interval: {systemdOptions.Value.MetricCollectionIntervalMs}ms");
+Console.WriteLine($"Log retention: {systemdOptions.Value.LogRetentionDays} days");
+```
+
 ## AlertRulesEngine
 
 The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
