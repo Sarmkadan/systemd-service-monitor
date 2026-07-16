@@ -120,3 +120,34 @@ await serviceMonitor.StopMonitoringAsync("nginx.service");
 ```
 
 The `ServiceMonitorService` provides real-time monitoring capabilities and comprehensive service information retrieval for systemd services.
+
+## IServiceMonitorService
+
+The `IServiceMonitorService` interface defines a contract for monitoring systemd services. It provides methods for retrieving service information, monitoring service health, and tracking resource usage. Implementations of this interface can be used to create custom service monitors that integrate with the systemd D-Bus interface.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+
+// Create a service monitor instance
+var serviceMonitor = new ServiceMonitorService(
+    new SystemdConnectionService(),
+    new ServiceRepository()
+);
+
+// Get monitoring statistics
+var stats = await serviceMonitor.GetStatisticsAsync();
+Console.WriteLine($"Active: {stats.ActiveServices}, Failed: {stats.FailedServices}, Avg CPU: {stats.AverageCpuUsage}%");
+
+// Get service statistics
+var serviceStats = await serviceMonitor.GetServiceStatisticsAsync("nginx.service");
+Console.WriteLine($"Service: {serviceStats.UnitName}, CPU: {serviceStats.CpuUsagePercent}%, Memory: {serviceStats.MemoryUsageMb}MB");
+
+// Get service status
+var serviceStatus = await serviceMonitor.GetServiceStatusAsync("nginx.service");
+Console.WriteLine($"Status: {serviceStatus.State}");
+```
+
+The `IServiceMonitorService` interface provides a standardized way to interact with systemd services and retrieve monitoring statistics. Implementations of this interface can be used to create custom service monitors that integrate with the systemd D-Bus interface.
