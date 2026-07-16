@@ -1029,4 +1029,79 @@ if (!schedules.Any())
 }
 ```
 
+## AlertOptions
+
+The `AlertOptions` class defines configuration settings for service monitoring alerts, including thresholds, intervals, escalation policies, and notification preferences. It controls how alerts are triggered, escalated, and resolved based on service conditions and resource usage.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Configuration;
+using Microsoft.Extensions.Options;
+
+// Create alert options with custom configuration
+var alertOptions = Options.Create(new AlertOptions
+{
+    Enabled = true,
+    AutoResolveOnConditionCleared = true,
+    MaxIncidentHistorySize = 1000,
+    EscalationCheckIntervalSeconds = 300,
+    ServiceEvaluationIntervalSeconds = 60,
+    StartupDelaySeconds = 30,
+    TimeoutSeconds = 300,
+    MaxRetries = 3,
+    RetryDelayMs = 1000,
+    InitialEscalationDelayMinutes = 15,
+    SubsequentEscalationDelayMinutes = 30,
+    MaxEscalationLevels = 5,
+    DefaultCooldownMinutes = 120,
+    
+    // Webhook notification configuration
+    Webhook = new WebhookNotificationOptions
+    {
+        Enabled = true,
+        Url = "https://hooks.example.com/alerts",
+        Method = "POST",
+        Headers = new Dictionary<string, string>
+        {
+            ["Authorization"] = "Bearer token123",
+            ["X-API-Key"] = "api-key-456"
+        },
+        PayloadTemplate = "{ \"service\": \"{UnitName}\", \"state\": \"{State}\", \"cpu\": {CpuUsagePercent} }"
+    },
+    
+    // Escalation defaults
+    EscalationDefaults = new EscalationDefaults
+    {
+        Levels = new List<EscalationLevel>
+        {
+            new EscalationLevel
+            {
+                Level = 1,
+                Recipients = new List<string> { "team-lead@example.com" },
+                MessageTemplate = "Level 1 alert for {UnitName}"
+            },
+            new EscalationLevel
+            {
+                Level = 2,
+                Recipients = new List<string> { "oncall@example.com", "manager@example.com" },
+                MessageTemplate = "Level 2 escalation for {UnitName}"
+            }
+        }
+    },
+    
+    // Default headers for all HTTP requests
+    DefaultHeaders = new Dictionary<string, string>
+    {
+        ["User-Agent"] = "SystemdServiceMonitor/1.0",
+        ["Accept"] = "application/json"
+    }
+});
+
+Console.WriteLine($"Alerts enabled: {alertOptions.Value.Enabled}");
+Console.WriteLine($"Evaluation interval: {alertOptions.Value.ServiceEvaluationIntervalSeconds} seconds");
+```
+
+## AlertRulesEngine
+
 The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
