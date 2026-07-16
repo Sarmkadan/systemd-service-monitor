@@ -510,6 +510,117 @@ Console.WriteLine($"Service deleted: {deleted}");
 The `ServiceRepository` provides thread-safe data access for service unit information with comprehensive CRUD operations and filtering capabilities for monitoring scenarios.
 
 
+## MetricRepository
+
+The `MetricRepository` class provides an in-memory data access layer for managing time-series metric data collected from systemd services. It implements the `IMetricRepository` interface and provides CRUD operations for service metrics, including time-series queries, filtering by service ID, metric type, and time ranges. The repository uses thread-safe operations with a semaphore lock to ensure data consistency in concurrent scenarios.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Data.Repositories;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<MetricRepository>();
+
+// Create repository instance (typically injected in production)
+var metricRepository = new MetricRepository();
+
+// Create a CPU usage metric for nginx service
+var cpuMetric = new ServiceMetric
+{
+  Id = Guid.NewGuid(),
+  ServiceInfoId = Guid.Parse("3fa85f64-5717-4562-b3fc-2c963f66afa6"), // Replace with actual service ID
+  MetricType = MetricType.CpuUsage,
+  Value = 45.5m, // 45.5% CPU usage
+  Timestamp = DateTime.UtcNow,
+  UnitName = "nginx.service",
+  Description = "CPU usage percentage"
+};
+
+var createdMetric = await metricRepository.CreateAsync(cpuMetric);
+Console.WriteLine($"Created metric: {createdMetric.MetricType} = {createdMetric.Value}% at {createdMetric.Timestamp}");
+
+// Get a metric by ID
+var retrievedMetric = await metricRepository.GetByIdAsync(createdMetric.Id);
+if (retrievedMetric != null)
+{
+  Console.WriteLine($"Retrieved metric: {retrievedMetric.MetricType} = {retrievedMetric.Value}");
+}
+
+// Get all metrics for a specific service
+var serviceMetrics = await metricRepository.GetByServiceIdAsync(cpuMetric.ServiceInfoId);
+Console.WriteLine($"Found {serviceMetrics.Count()} metrics for service");
+
+// Get all CPU usage metrics
+var cpuMetrics = await metricRepository.GetByMetricTypeAsync(MetricType.CpuUsage);
+Console.WriteLine($"Found {cpuMetrics.Count()} CPU metrics");
+
+// Get time-series data for a service (last 24 hours)
+var timeSeries = await metricRepository.GetTimeSeriesAsync(
+  cpuMetric.ServiceInfoId,
+  MetricType.CpuUsage,
+  TimeSpan.FromHours(24)
+);
+Console.WriteLine($"Time-series data points: {timeSeries.Count()}");
+
+// Get recent metrics (last 6 hours, max 500)
+var recentMetrics = await metricRepository.GetRecentAsync(6, 500);
+Console.WriteLine($"Found {recentMetrics.Count()} recent metrics");
+
+// Get the latest metric for a service and type
+var latestMetric = await metricRepository.GetLatestAsync(
+  cpuMetric.ServiceInfoId,
+  MetricType.CpuUsage
+);
+if (latestMetric != null)
+{
+  Console.WriteLine($"Latest CPU metric: {latestMetric.Value}% at {latestMetric.Timestamp}");
+}
+
+// Calculate average CPU usage over last hour
+var averageCpu = await metricRepository.GetAverageAsync(
+  cpuMetric.ServiceInfoId,
+  MetricType.CpuUsage,
+  TimeSpan.FromHours(1)
+);
+Console.WriteLine($"Average CPU usage (last hour): {averageCpu}%");
+
+// Create multiple metrics in batch
+var batchMetrics = new List<ServiceMetric>();
+for (int i = 0; i < 10; i++)
+{
+  batchMetrics.Add(new ServiceMetric
+  {
+    Id = Guid.NewGuid(),
+    ServiceInfoId = cpuMetric.ServiceInfoId,
+    MetricType = MetricType.CpuUsage,
+    Value = 30m + i,
+    Timestamp = DateTime.UtcNow.AddMinutes(-i),
+    UnitName = "nginx.service",
+    Description = $"Sample metric {i}"
+  });
+}
+
+var batchCount = await metricRepository.CreateBatchAsync(batchMetrics);
+Console.WriteLine($"Created {batchCount} metrics in batch");
+
+// Delete a metric
+bool deleted = await metricRepository.DeleteAsync(createdMetric.Id);
+Console.WriteLine($"Metric deleted: {deleted}");
+
+// Delete metrics older than 30 days
+var deletedCount = await metricRepository.DeleteOlderThanAsync(DateTime.UtcNow.AddDays(-30));
+Console.WriteLine($"Deleted {deletedCount} old metrics");
+```
+
+The `MetricRepository` provides thread-safe data access for time-series metric data with comprehensive CRUD operations, time-series queries, and statistical calculations for monitoring scenarios.
+
+
+
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
