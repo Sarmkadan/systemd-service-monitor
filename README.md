@@ -195,6 +195,71 @@ var resource = new SystemResource
 Console.WriteLine(resource);
 ```
 
+## DependencyNode
+
+The `DependencyNode` class represents a node in the service dependency graph, capturing information about a systemd service and its relationships with other services. Each node tracks the service's name, description, current state, and its dependencies/dependents, enabling visualization and analysis of service relationships across the system.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Collections.Generic;
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Enums;
+
+// Create a dependency node for a web service
+var webServiceNode = new DependencyNode
+{
+    ServiceName = "nginx.service",
+    Description = "High-performance HTTP server and reverse proxy",
+    State = ServiceState.Active,
+    Dependencies = new List<string> { "network.target", "syslog.socket" },
+    Dependents = new List<string> { "website.target", "monitoring-agent.service" },
+    IsRootNode = false,
+    IsLeafNode = false
+};
+
+// Create a dependency node for a database service
+var dbServiceNode = new DependencyNode
+{
+    ServiceName = "postgresql.service",
+    Description = "PostgreSQL database server",
+    State = ServiceState.Active,
+    Dependencies = new List<string> { "postgresql@.service", "network.target" },
+    Dependents = new List<string> { "webapp.service", "backup.service" },
+    IsRootNode = false,
+    IsLeafNode = false
+};
+
+// Create a root-level dependency node (no dependencies)
+var rootServiceNode = new DependencyNode
+{
+    ServiceName = "docker.service",
+    Description = "Docker container runtime",
+    State = ServiceState.Active,
+    Dependencies = new List<string>(),
+    Dependents = new List<string> { "containerd.service", "docker.socket" },
+    IsRootNode = true,
+    IsLeafNode = false
+};
+
+// Create a leaf dependency node (no dependents)
+var leafServiceNode = new DependencyNode
+{
+    ServiceName = "cron.service",
+    Description = "Periodic task scheduler",
+    State = ServiceState.Active,
+    Dependencies = new List<string> { "time-sync.target" },
+    Dependents = new List<string>(),
+    IsRootNode = false,
+    IsLeafNode = true
+};
+
+Console.WriteLine($"Service {webServiceNode.ServiceName} has {webServiceNode.Dependencies.Count} dependencies and {webServiceNode.Dependents.Count} dependents");
+Console.WriteLine($"Root node: {rootServiceNode.ServiceName} (IsRootNode={rootServiceNode.IsRootNode})");
+Console.WriteLine($"Leaf node: {leafServiceNode.ServiceName} (IsLeafNode={leafServiceNode.IsLeafNode})");
+```
+
 ## ServiceMetric
 
 The `ServiceMetric` class represents a single metric measurement for a systemd service at a point in time. It captures detailed performance data including CPU, memory, network, and disk metrics, along with statistical aggregations (min, max, average) and contextual tags for filtering and analysis. This class is used to track service health and performance trends over time.
