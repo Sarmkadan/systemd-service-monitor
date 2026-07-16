@@ -158,3 +158,39 @@ var restartConfig = new RestartPolicyConfig
 Console.WriteLine($"Configured restart policy: {restartConfig.PolicyType} with {restartConfig.MaxRestarts} max restarts");
 ```
 
+## SystemResource
+
+The `SystemResource` class captures a snapshot of overall host metrics such as memory, CPU, disk, network, and process counts. It is useful for monitoring system health and correlating resource usage with service performance.
+
+### Usage Example
+
+```csharp
+using System;
+using SystemdServiceMonitor.Models;
+
+var resource = new SystemResource
+{
+    Id = Guid.NewGuid(),
+    TotalMemoryMb = 16384,
+    AvailableMemoryMb = 8192,
+    UsedMemoryMb = 8192,
+    CachedMemoryMb = 1024,
+    CpuCoreCount = 8,
+    CpuLoad1Min = 0.75m,
+    CpuLoad5Min = 0.60m,
+    CpuLoad15Min = 0.55m,
+    CpuUsagePercent = 45.3m,
+    TotalDiskGb = 500,
+    UsedDiskGb = 200,
+    AvailableDiskGb = 300,
+    DiskIopsPerSecond = 1500,
+    NetworkBytesIn = 123456789,
+    NetworkBytesOut = 987654321,
+    RunningProcesses = 124,
+    SystemUptimeSeconds = 86400,
+    LoadAveragePercent = 30.5m,
+    MemoryUsagePercent = 50.0m
+};
+
+Console.WriteLine(resource);
+```
