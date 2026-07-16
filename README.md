@@ -1,3 +1,68 @@
+## PathResolver
+
+The `PathResolver` class provides utility methods for resolving and normalizing systemd service unit file paths. It handles both system-wide and user-specific unit directories, validates service paths, and provides utilities for working with service names and their corresponding unit files. This class is essential for locating service unit files and determining service scope.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Utilities;
+using SystemdServiceMonitor.Enums;
+
+// Get all system unit paths where service files are typically located
+var systemUnitPaths = PathResolver.GetSystemUnitPaths();
+Console.WriteLine("System unit paths:");
+foreach (var path in systemUnitPaths)
+{
+    Console.WriteLine($"  {path}");
+}
+
+// Get the default system unit directory
+string defaultSystemUnitDir = PathResolver.GetDefaultSystemUnitDirectory();
+Console.WriteLine($"Default system unit directory: {defaultSystemUnitDir}");
+
+// Get the default user unit directory
+string defaultUserUnitDir = PathResolver.GetDefaultUserUnitDirectory();
+Console.WriteLine($"Default user unit directory: {defaultUserUnitDir}");
+
+// Normalize a service name (adds .service extension if missing)
+string normalizedName = PathResolver.NormalizeServiceName("nginx");
+Console.WriteLine($"Normalized service name: {normalizedName}");
+
+// Remove service extension from a service name
+string withoutExtension = PathResolver.RemoveServiceExtension("nginx.service");
+Console.WriteLine($"Service name without extension: {withoutExtension}");
+
+// Find a service unit file by name
+string? serviceFile = PathResolver.FindServiceUnitFile("nginx.service");
+if (serviceFile != null)
+{
+    Console.WriteLine($"Found service file: {serviceFile}");
+}
+
+// Check if a path is a valid systemd service path
+bool isValid = PathResolver.IsValidServicePath("/etc/systemd/system/nginx.service");
+Console.WriteLine($"Is valid service path: {isValid}");
+
+// Get the directory containing a service unit file
+string? serviceDirectory = PathResolver.GetServiceDirectory("nginx.service");
+if (serviceDirectory != null)
+{
+    Console.WriteLine($"Service directory: {serviceDirectory}");
+}
+
+// Determine the scope of a service (system or user)
+ServiceScope scope = PathResolver.GetServiceScope("nginx.service");
+Console.WriteLine($"Service scope: {scope}");
+
+// Get all services related to a specific service (dependencies and dependents)
+var relatedServices = PathResolver.GetRelatedServices("postgresql.service");
+Console.WriteLine($"Related services count: {relatedServices.Count}");
+foreach (var service in relatedServices)
+{
+    Console.WriteLine($"  {service}");
+}
+```
+
 ## ApiResponse
 
 The `ApiResponse` class provides a standardized way to return data and errors from API endpoints. It wraps the actual data being returned, along with additional metadata such as success status, human-readable messages, and error details.
