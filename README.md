@@ -918,6 +918,42 @@ Console.WriteLine($"Async operation completed in {asyncTime}ms");
 The `PerformanceMonitor` provides detailed performance tracking capabilities with checkpoint recording, time measurements between operations, and automatic logging of performance warnings when thresholds are exceeded.
 
 
+## LogStreamFilter
+
+The `LogStreamFilter` class defines criteria for filtering real-time systemd service log streams. It controls which log entries are included based on service name, search term, minimum severity level, and buffer settings. This filter is used by the real-time log streaming endpoints to provide targeted log monitoring capabilities.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Dtos;
+using SystemdServiceMonitor.Enums;
+
+// Create a filter for nginx service logs with specific criteria
+var filter = new LogStreamFilter
+{
+    ServiceName = "nginx.service",
+    SearchTerm = "connection failed",
+    MinLevel = SyslogLevel.Warning,
+    BufferSize = 100,
+    PollingIntervalMs = 1000
+};
+
+Console.WriteLine($"Filtering logs for: {filter.ServiceName}");
+Console.WriteLine($"Search term: {filter.SearchTerm}");
+Console.WriteLine($"Minimum level: {filter.MinLevel}");
+Console.WriteLine($"Buffer size: {filter.BufferSize}");
+Console.WriteLine($"Polling interval: {filter.PollingIntervalMs}ms");
+
+// Example with default values
+var defaultFilter = new LogStreamFilter
+{
+    ServiceName = "postgresql.service"
+};
+
+Console.WriteLine($"Default buffer size: {defaultFilter.BufferSize}");
+Console.WriteLine($"Default polling interval: {defaultFilter.PollingIntervalMs}ms");
+```
+
 ## OutputFormatter
 
 The `OutputFormatter` class provides utility methods for formatting data in various formats including JSON, CSV, and console-friendly tables. It's designed for CLI tools and export functionality, offering consistent formatting across different output types.
