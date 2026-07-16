@@ -153,6 +153,64 @@ Console.WriteLine($"Status: {serviceStatus.State}");
 The `IServiceMonitorService` interface provides a standardized way to interact with systemd services and retrieve monitoring statistics. Implementations of this interface can be used to create custom service monitors that integrate with the systemd D-Bus interface.
 
 
+## ServiceDependencyGraphService
+
+The `ServiceDependencyGraphService` class builds and analyzes dependency graphs for systemd services. It constructs a complete graph of service dependencies and dependents, enabling analysis of service relationships, identification of root and leaf services, and traversal of dependency chains between services. This service is particularly useful for understanding service hierarchies, diagnosing startup issues, and analyzing the impact of service failures.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ServiceDependencyGraphService>();
+
+// Create service instance (dependencies would typically be injected in production)
+var graphService = new ServiceDependencyGraphService(
+    new ServiceRepository()
+);
+
+// Build complete dependency graph for all services
+var fullGraph = await graphService.BuildGraphAsync();
+Console.WriteLine($"Total services: {fullGraph.TotalNodes}");
+Console.WriteLine($"Total dependencies: {fullGraph.TotalEdges}");
+
+// Build dependency graph for a specific service with depth limit
+var nginxGraph = await graphService.BuildGraphForServiceAsync("nginx.service", depth: 2);
+Console.WriteLine($"Nginx service graph: {nginxGraph.TotalNodes} nodes");
+
+// Get dependency chain between two services
+var chain = await graphService.GetDependencyChainAsync("postgresql.service", "nginx.service");
+if (chain.Any())
+{
+    Console.WriteLine("Dependency chain: " + string.Join(" -> ", chain));
+}
+
+// Get root services (services with no dependents)
+var rootServices = await graphService.GetRootServicesAsync();
+Console.WriteLine($"Root services: {rootServices.Count()}");
+
+// Get leaf services (services with no dependencies)
+var leafServices = await graphService.GetLeafServicesAsync();
+Console.WriteLine($"Leaf services: {leafServices.Count()}");
+
+// Access service information from a node
+var node = nginxGraph.Nodes.FirstOrDefault(n => n.ServiceName == "nginx.service");
+if (node != null)
+{
+    Console.WriteLine($"Service: {node.ServiceName}");
+    Console.WriteLine($"Description: {node.Description}");
+    Console.WriteLine($"State: {node.State}");
+    Console.WriteLine($"Dependencies: {string.Join(", ", node.Dependencies)}");
+    Console.WriteLine($"Dependents: {string.Join(", ", node.Dependents)}");
+    Console.WriteLine($"Is root: {node.IsRootNode}");
+    Console.WriteLine($"Is leaf: {node.IsLeafNode}");
+}
+```
+
 ## AlertRulesEngine
 
 The `AlertRulesEngine` class is a thread-safe, in-memory implementation of the `IAlertRulesEngine` interface that provides comprehensive alert management for systemd services. It evaluates alert rules against service status snapshots, manages the complete lifecycle of alert incidents, and drives multi-level escalation policies with on-call rotation support. Rules and incidents are stored in memory, making it ideal for development and testing environments, while the architecture supports easy extension to persistent storage for production deployments.
