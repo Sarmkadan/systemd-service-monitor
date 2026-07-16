@@ -153,9 +153,71 @@ Console.WriteLine($"Status: {serviceStatus.State}");
 The `IServiceMonitorService` interface provides a standardized way to interact with systemd services and retrieve monitoring statistics. Implementations of this interface can be used to create custom service monitors that integrate with the systemd D-Bus interface.
 
 
-## ServiceDependencyGraphService
+## ResourceMonitorService
 
-The `ServiceDependencyGraphService` class builds and analyzes dependency graphs for systemd services. It constructs a complete graph of service dependencies and dependents, enabling analysis of service relationships, identification of root and leaf services, and traversal of dependency chains between services. This service is particularly useful for understanding service hierarchies, diagnosing startup issues, and analyzing the impact of service failures.
+The `ResourceMonitorService` class provides comprehensive monitoring of system and service resource usage. It collects metrics such as CPU, memory, disk usage, and process information from system files like `/proc/stat`, `/proc/meminfo`, and cgroup directories. The service supports both one-time measurements and continuous monitoring with alerting capabilities for resource thresholds.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
+
+// Setup dependency injection
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ResourceMonitorService>();
+
+// Create service instance (dependencies would typically be injected in production)
+var resourceMonitor = new ResourceMonitorService(
+    logger,
+    new SystemdOptions(),
+    new SystemdConnectionService(),
+    new ServiceMonitorService(logger, new SystemdConnectionService(), new ServiceRepository())
+);
+
+// Get system-wide resource metrics
+var systemResources = await resourceMonitor.GetSystemResourcesAsync();
+Console.WriteLine($"CPU Usage: {systemResources.CpuUsagePercent}%");
+Console.WriteLine($"Memory Usage: {systemResources.UsedMemoryMb}MB / {systemResources.TotalMemoryMb}MB ({systemResources.MemoryUsagePercent}%)");
+Console.WriteLine($"Disk Usage: {systemResources.UsedDiskGb}GB / {systemResources.TotalDiskGb}GB ({systemResources.DiskUsagePercent}%)");
+
+// Get resource metrics for a specific service
+var serviceMetrics = await resourceMonitor.GetServiceResourceMetricsAsync("nginx.service");
+Console.WriteLine($"Service CPU: {serviceMetrics.CpuUsagePercent}%");
+Console.WriteLine($"Service Memory: {serviceMetrics.MemoryUsageMb}MB");
+Console.WriteLine($"Service Threads: {serviceMetrics.ThreadCount}");
+
+// Get CPU usage for a service
+var cpuUsage = await resourceMonitor.GetServiceCpuUsageAsync("nginx.service");
+Console.WriteLine($"CPU Usage: {cpuUsage}%");
+
+// Get memory usage for a service
+var memoryUsage = await resourceMonitor.GetServiceMemoryUsageAsync("nginx.service");
+Console.WriteLine($"Memory Usage: {memoryUsage}MB");
+
+// Collect metrics for all services
+var allMetrics = await resourceMonitor.CollectAllMetricsAsync();
+foreach (var metric in allMetrics)
+{
+    Console.WriteLine($"{metric.UnitName}: CPU={metric.CpuUsagePercent}%, Memory={metric.MemoryUsageMb}MB");
+}
+
+// Start continuous monitoring with alerts (checks every 5 seconds)
+await resourceMonitor.StartContinuousMonitoringAsync(intervalMs: 5000);
+
+// Get current resource alerts
+var alerts = await resourceMonitor.GetResourceAlertsAsync();
+foreach (var alert in alerts)
+{
+    Console.WriteLine($"ALERT: {alert.UnitName} - {alert.Message} (Current: {alert.CurrentValue}, Threshold: {alert.Threshold})");
+}
+
+// Stop continuous monitoring when done
+await resourceMonitor.StopContinuousMonitoringAsync();
+```
+
+The `ResourceMonitorService` provides real-time resource monitoring capabilities with alerting for systemd services and system-wide resources.
 
 ### Usage Example
 
