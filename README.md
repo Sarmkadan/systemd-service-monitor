@@ -331,6 +331,71 @@ The `SystemdConnectionService` provides the essential connection management capa
 
 The `ServiceControlService` class provides comprehensive control operations for systemd services. It allows you to start, stop, restart, reload, enable, and disable services through the systemd D-Bus interface. The service also supports advanced operations like graceful shutdowns, restart strategies, and bulk operations for managing multiple services efficiently.
 
+## IResourceMonitorService
+
+The `IResourceMonitorService` interface defines a contract for monitoring system and service resource usage. It provides properties for tracking CPU usage, memory consumption, thread counts, file descriptors, network I/O, disk I/O, and alert information for systemd services. Implementations of this interface can be used to create custom resource monitors that collect and report detailed performance metrics.
+
+### Usage Example
+
+```csharp
+using SystemdServiceMonitor.Services;
+using SystemdServiceMonitor.Models;
+using Microsoft.Extensions.Logging;
+
+// Create a resource monitor instance (dependencies would typically be injected in production)
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ResourceMonitorService>();
+
+var resourceMonitor = new ResourceMonitorService(
+    logger,
+    new SystemdOptions(),
+    new SystemdConnectionService(),
+    new ServiceMonitorService(logger, new SystemdConnectionService(), new ServiceRepository())
+);
+
+// Get current resource metrics for the system
+var systemMetrics = await resourceMonitor.GetSystemResourcesAsync();
+Console.WriteLine($"System CPU Usage: {systemMetrics.CpuUsagePercent}%");
+Console.WriteLine($"System Memory: {systemMetrics.UsedMemoryMb}MB / {systemMetrics.TotalMemoryMb}MB");
+Console.WriteLine($"System Threads: {systemMetrics.ThreadCount}");
+Console.WriteLine($"File Descriptors: {systemMetrics.FileDescriptorCount}");
+Console.WriteLine($"Network In: {systemMetrics.NetworkBytesIn} bytes");
+Console.WriteLine($"Network Out: {systemMetrics.NetworkBytesOut} bytes");
+Console.WriteLine($"Disk Read: {systemMetrics.DiskBytesRead} bytes");
+Console.WriteLine($"Disk Write: {systemMetrics.DiskBytesWritten} bytes");
+
+// Get resource metrics for a specific service
+var serviceMetrics = await resourceMonitor.GetServiceResourceMetricsAsync("nginx.service");
+Console.WriteLine($"Service: {serviceMetrics.UnitName}");
+Console.WriteLine($"CPU Usage: {serviceMetrics.CpuUsagePercent}%");
+Console.WriteLine($"Memory Usage: {serviceMetrics.MemoryUsageMb}MB");
+Console.WriteLine($"Thread Count: {serviceMetrics.ThreadCount}");
+Console.WriteLine($"File Descriptor Count: {serviceMetrics.FileDescriptorCount}");
+Console.WriteLine($"Network In: {serviceMetrics.NetworkBytesIn} bytes");
+Console.WriteLine($"Network Out: {serviceMetrics.NetworkBytesOut} bytes");
+Console.WriteLine($"Disk Read: {serviceMetrics.DiskBytesRead} bytes");
+Console.WriteLine($"Disk Write: {serviceMetrics.DiskBytesWritten} bytes");
+
+// Check for resource alerts
+var alerts = await resourceMonitor.GetResourceAlertsAsync();
+foreach (var alert in alerts)
+{
+    Console.WriteLine($"ALERT [{alert.AlertTime}] {alert.UnitName}: {alert.Message}");
+    Console.WriteLine($"  Type: {alert.AlertType}, Current: {alert.CurrentValue}, Threshold: {alert.Threshold}");
+}
+
+// Get individual metric values
+var cpuUsage = await resourceMonitor.GetServiceCpuUsageAsync("nginx.service");
+var memoryUsage = await resourceMonitor.GetServiceMemoryUsageAsync("nginx.service");
+var threadCount = await resourceMonitor.GetServiceThreadCountAsync("nginx.service");
+
+Console.WriteLine($"Nginx CPU: {cpuUsage}%");
+Console.WriteLine($"Nginx Memory: {memoryUsage}MB");
+Console.WriteLine($"Nginx Threads: {threadCount}");
+```
+
+The `IResourceMonitorService` interface provides standardized access to comprehensive resource monitoring data for both system-wide and service-specific metrics.
+
 ### Usage Example
 
 ```csharp
