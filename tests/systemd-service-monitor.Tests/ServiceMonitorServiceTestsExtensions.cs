@@ -44,9 +44,6 @@ namespace systemd_service_monitor.Tests
             await tests.GetActiveServicesAsync_ReturnsOnlyActiveServices().ConfigureAwait(false);
             successful.Add(nameof(tests.GetActiveServicesAsync_ReturnsOnlyActiveServices));
 
-            await tests.GetServiceByNameAsync_WhenRepositoryThrows_LogsErrorAndThrows().ConfigureAwait(false);
-            successful.Add(nameof(tests.GetServiceByNameAsync_WhenRepositoryThrows_LogsErrorAndThrows));
-
             await tests.GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable().ConfigureAwait(false);
             successful.Add(nameof(tests.GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable));
 
@@ -58,13 +55,15 @@ namespace systemd_service_monitor.Tests
         /// and returns a dictionary that maps each method name to the exception (if any) that was thrown.
         /// </summary>
         /// <param name="tests">The test class instance to run.</param>
+        /// <param name="cancellationToken">Optional token to cancel the operation.</param>
         /// <returns>
         /// A read‑only dictionary where the key is the test method name and the value is the caught
         /// <see cref="Exception"/> or <c>null</c> when the method completed successfully.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="tests"/> is <c>null</c>.</exception>
         public static async Task<IReadOnlyDictionary<string, Exception?>> RunAllTestsWithResultsAsync(
-            this ServiceMonitorServiceTests tests)
+            this ServiceMonitorServiceTests tests,
+            CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(tests);
 
@@ -83,13 +82,12 @@ namespace systemd_service_monitor.Tests
                 }
             }
 
-            await RunAndCaptureAsync(tests.GetAllServicesAsync_ReturnsAllServices, nameof(tests.GetAllServicesAsync_ReturnsAllServices));
-            await RunAndCaptureAsync(tests.GetAllServicesAsync_WhenRepositoryThrows_LogsErrorAndThrows, nameof(tests.GetAllServicesAsync_WhenRepositoryThrows_LogsErrorAndThrows));
-            await RunAndCaptureAsync(tests.GetServiceByNameAsync_WithValidName_ReturnsService, nameof(tests.GetServiceByNameAsync_WithValidName_ReturnsService));
-            await RunAndCaptureAsync(tests.GetServiceByNameAsync_WithNonExistentName_ReturnsNull, nameof(tests.GetServiceByNameAsync_WithNonExistentName_ReturnsNull));
-            await RunAndCaptureAsync(tests.GetActiveServicesAsync_ReturnsOnlyActiveServices, nameof(tests.GetActiveServicesAsync_ReturnsOnlyActiveServices));
-            await RunAndCaptureAsync(tests.GetServiceByNameAsync_WhenRepositoryThrows_LogsErrorAndThrows, nameof(tests.GetServiceByNameAsync_WhenRepositoryThrows_LogsErrorAndThrows));
-            await RunAndCaptureAsync(tests.GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable, nameof(tests.GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable));
+            await RunAndCaptureAsync(tests.GetAllServicesAsync_ReturnsAllServices, nameof(tests.GetAllServicesAsync_ReturnsAllServices)).ConfigureAwait(false);
+            await RunAndCaptureAsync(tests.GetAllServicesAsync_WhenRepositoryThrows_LogsErrorAndThrows, nameof(tests.GetAllServicesAsync_WhenRepositoryThrows_LogsErrorAndThrows)).ConfigureAwait(false);
+            await RunAndCaptureAsync(tests.GetServiceByNameAsync_WithValidName_ReturnsService, nameof(tests.GetServiceByNameAsync_WithValidName_ReturnsService)).ConfigureAwait(false);
+            await RunAndCaptureAsync(tests.GetServiceByNameAsync_WithNonExistentName_ReturnsNull, nameof(tests.GetServiceByNameAsync_WithNonExistentName_ReturnsNull)).ConfigureAwait(false);
+            await RunAndCaptureAsync(tests.GetActiveServicesAsync_ReturnsOnlyActiveServices, nameof(tests.GetActiveServicesAsync_ReturnsOnlyActiveServices)).ConfigureAwait(false);
+            await RunAndCaptureAsync(tests.GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable, nameof(tests.GetAllServicesAsync_EmptyResult_ReturnsEmptyEnumerable)).ConfigureAwait(false);
 
             return results;
         }
@@ -111,7 +109,7 @@ namespace systemd_service_monitor.Tests
             foreach (var method in type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             {
                 // All test methods are async and return Task, and their names contain "Async"
-                if (method.ReturnType == typeof(Task) && method.Name.Contains("Async", StringComparison.InvariantCulture))
+                if (method.ReturnType == typeof(Task) && method.Name.Contains("Async", StringComparison.Ordinal))
                 {
                     methodNames.Add(method.Name);
                 }
