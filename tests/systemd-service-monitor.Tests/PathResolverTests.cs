@@ -4,8 +4,14 @@ using FluentAssertions;
 using SystemdServiceMonitor.Utilities;
 using Xunit;
 
+/// <summary>
+/// Tests for the PathResolver class.
+/// </summary>
 public class PathResolverTests
 {
+    /// <summary>
+    /// Tests the NormalizeServiceName method.
+    /// </summary>
     [Theory]
     [InlineData("myservice", "myservice.service")]
     [InlineData("myservice.service", "myservice.service")]
@@ -18,6 +24,9 @@ public class PathResolverTests
         result.Should().Be(expected);
     }
 
+    /// <summary>
+    /// Tests the RemoveServiceExtension method.
+    /// </summary>
     [Theory]
     [InlineData("myservice.service", "myservice")]
     [InlineData("myservice", "myservice")]
@@ -29,6 +38,9 @@ public class PathResolverTests
         result.Should().Be(expected);
     }
 
+    /// <summary>
+    /// Tests the IsValidServicePath method with an invalid path.
+    /// </summary>
     [Fact]
     public void IsValidServicePath_ShouldReturnFalseForInvalidPath()
     {
