@@ -5,11 +5,11 @@ using System.Text.Json.Serialization.Metadata;
 namespace SystemdServiceMonitor.Models;
 
 /// <summary>
-/// Provides JSON serialization and deserialization helpers for RestartPolicyConfig.
+/// Provides JSON serialization and deserialization helpers for <see cref="RestartPolicyConfig"/>.
 /// </summary>
 public static class RestartPolicyConfigJsonExtensions
 {
-    private static readonly JsonSerializerOptions Options = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
@@ -18,28 +18,20 @@ public static class RestartPolicyConfigJsonExtensions
     };
 
     /// <summary>
-    /// Serializes a RestartPolicyConfig to a JSON string.
+    /// Serializes a <see cref="RestartPolicyConfig"/> to a JSON string.
     /// </summary>
-    /// <param name="value">The RestartPolicyConfig instance to serialize.</param>
+    /// <param name="value">The <see cref="RestartPolicyConfig"/> instance to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
-    /// <returns>A JSON string representation of the RestartPolicyConfig.</returns>
+    /// <returns>A JSON string representation of the <see cref="RestartPolicyConfig"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    public static string ToJson(this RestartPolicyConfig value, bool indented = false)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(Options) { WriteIndented = true }
-            : Options;
-
-        return JsonSerializer.Serialize(value, options);
-    }
+    public static string ToJson(this RestartPolicyConfig value, bool indented = false) =>
+        JsonSerializer.Serialize(value, indented ? new JsonSerializerOptions(Options) { WriteIndented = true } : Options);
 
     /// <summary>
-    /// Deserializes a JSON string to a RestartPolicyConfig instance.
+    /// Deserializes a JSON string to a <see cref="RestartPolicyConfig"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>A RestartPolicyConfig instance, or null if the JSON is invalid.</returns>
+    /// <returns>A <see cref="RestartPolicyConfig"/> instance, or null if the JSON is invalid.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
     public static RestartPolicyConfig? FromJson(string json)
     {
@@ -56,14 +48,16 @@ public static class RestartPolicyConfigJsonExtensions
     }
 
     /// <summary>
-    /// Attempts to deserialize a JSON string to a RestartPolicyConfig instance.
+    /// Attempts to deserialize a JSON string to a <see cref="RestartPolicyConfig"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized RestartPolicyConfig instance if successful.</param>
+    /// <param name="value">Receives the deserialized <see cref="RestartPolicyConfig"/> instance if successful.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty.</exception>
     public static bool TryFromJson(string json, out RestartPolicyConfig? value)
     {
+        ArgumentNullException.ThrowIfNull(json);
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         try
