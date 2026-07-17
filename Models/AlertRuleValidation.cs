@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace SystemdServiceMonitor.Models;
 
@@ -30,6 +31,10 @@ public static class AlertRuleValidation
         if (string.IsNullOrWhiteSpace(value.ServicePattern))
         {
             errors.Add("ServicePattern is required and cannot be empty or whitespace.");
+        }
+        else if (value.ServicePattern.Any(c => char.IsWhiteSpace(c) && c != '*'))
+        {
+            errors.Add("ServicePattern cannot contain whitespace except for the wildcard character '*'.");
         }
 
         if (value.Condition == default)
@@ -62,11 +67,19 @@ public static class AlertRuleValidation
         {
             errors.Add("CooldownMinutes cannot be negative.");
         }
+        else if (value.CooldownMinutes > 1440) // More than 24 hours is likely a mistake
+        {
+            errors.Add("CooldownMinutes cannot exceed 1440 (24 hours).");
+        }
 
-        // Validate consecutive evaluations required (should be positive)
+        // Validate consecutive evaluations required (should be positive and reasonable)
         if (value.ConsecutiveEvaluationsRequired < 1)
         {
             errors.Add("ConsecutiveEvaluationsRequired must be at least 1.");
+        }
+        else if (value.ConsecutiveEvaluationsRequired > 100) // More than 100 is excessive
+        {
+            errors.Add("ConsecutiveEvaluationsRequired cannot exceed 100.");
         }
 
         // Validate tags collection
@@ -105,10 +118,7 @@ public static class AlertRuleValidation
     /// </summary>
     /// <param name="value">The rule to check.</param>
     /// <returns><c>true</c> if the rule is valid; otherwise, <c>false</c>.</returns>
-    public static bool IsValid(this AlertRule value)
-    {
-        return value.Validate().Count == 0;
-    }
+    public static bool IsValid(this AlertRule value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that an <see cref="AlertRule"/> is valid, throwing an <see cref="ArgumentException"/>
