@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Text.Json;
 
 namespace SystemdServiceMonitor.Extensions;
@@ -11,7 +12,7 @@ namespace SystemdServiceMonitor.Extensions;
 /// </summary>
 public static class ServiceExtensionsJsonExtensions
 {
-    private static readonly JsonSerializerOptions _options = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
@@ -30,8 +31,8 @@ public static class ServiceExtensionsJsonExtensions
         ArgumentNullException.ThrowIfNull(value);
 
         var options = indented
-            ? new JsonSerializerOptions(_options) { WriteIndented = true }
-            : _options;
+            ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true }
+            : _jsonOptions;
 
         return JsonSerializer.Serialize(value, options);
     }
@@ -40,40 +41,37 @@ public static class ServiceExtensionsJsonExtensions
     /// Deserializes a JSON string to a dictionary with string keys.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>A dictionary, or null if JSON is null or empty.</returns>
-    /// <exception cref="JsonException">Thrown when JSON is invalid.</exception>
+    /// <returns>A dictionary, or null if the JSON is null or empty.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or whitespace.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is invalid.</exception>
     public static System.Collections.Generic.Dictionary<string, object?>? FromJson(string json)
     {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
+        ArgumentNullException.ThrowIfNull(json);
+        ArgumentException.ThrowIfNullOrEmpty(json);
 
-        return JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object?>>(json, _options);
+        return JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object?>>(json, _jsonOptions);
     }
 
     /// <summary>
     /// Attempts to deserialize a JSON string to a dictionary.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized value if successful.</param>
+    /// <param name="value">Receives the deserialized value if successful; otherwise null.</param>
     /// <returns>True if deserialization succeeds; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     public static bool TryFromJson(string json, out System.Collections.Generic.Dictionary<string, object?>? value)
     {
-        value = null;
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return true;
-        }
+        ArgumentNullException.ThrowIfNull(json);
 
         try
         {
-            value = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object?>>(json, _options);
+            value = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object?>>(json, _jsonOptions);
             return true;
         }
         catch (JsonException)
         {
+            value = null;
             return false;
         }
     }
