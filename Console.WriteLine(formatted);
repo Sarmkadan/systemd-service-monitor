@@ -1,0 +1,9 @@
+
+## Notes
+
+* **Null and empty inputs** – All `Validate` overloads accept `null` or empty collections and return an empty error list, indicating that the input is considered valid in those cases.  
+* **Thread safety** – The class contains only static methods that perform read‑only operations; no shared mutable state is accessed, so the methods are safe to call concurrently from multiple threads.  
+* **Performance** – Validation is performed lazily; the returned `IReadOnlyList<string>` is typically a `List<string>` that is constructed only when errors are detected.  
+* **Extensibility** – The generic `Validate<T>` overload allows future extensions to support additional types without modifying the API surface.  
+* **Exception semantics** – `EnsureValid` throws a `ValidationException` that aggregates all error messages; callers should catch this exception if they wish to handle validation failures programmatically.  
+
