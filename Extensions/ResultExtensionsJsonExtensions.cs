@@ -47,15 +47,7 @@ public static class ResultExtensionsJsonExtensions
     /// <returns>A JSON string representation of the paginated response.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static string ToJson<T>(this PaginatedResponse<T> value, bool indented = false) where T : class
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true }
-            : _jsonOptions;
-
-        return JsonSerializer.Serialize(value, options);
-    }
+        => JsonSerializer.Serialize(value, indented ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true } : _jsonOptions);
 
     /// <summary>
     /// Deserializes a JSON string to an <see cref="ApiResponse{T}"/> instance.
@@ -82,14 +74,7 @@ public static class ResultExtensionsJsonExtensions
     /// <returns>The deserialized paginated response instance, or null if the JSON is null or empty.</returns>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static PaginatedResponse<T>? FromJsonPaginated<T>(string json) where T : class
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<PaginatedResponse<T>>(json, _jsonOptions);
-    }
+        => string.IsNullOrEmpty(json) ? null : JsonSerializer.Deserialize<PaginatedResponse<T>>(json, _jsonOptions);
 
     /// <summary>
     /// Attempts to deserialize a JSON string to an <see cref="ApiResponse{T}"/> instance.
@@ -126,22 +111,5 @@ public static class ResultExtensionsJsonExtensions
     /// <param name="value">Receives the deserialized paginated response instance if successful.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
     public static bool TryFromJsonPaginated<T>(string json, out PaginatedResponse<T>? value) where T : class
-    {
-        value = null;
-
-        if (string.IsNullOrEmpty(json))
-        {
-            return true;
-        }
-
-        try
-        {
-            value = JsonSerializer.Deserialize<PaginatedResponse<T>>(json, _jsonOptions);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
+        => (value = string.IsNullOrEmpty(json) ? null : JsonSerializer.Deserialize<PaginatedResponse<T>>(json, _jsonOptions)) is not null;
 }
