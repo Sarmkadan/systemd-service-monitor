@@ -31,6 +31,7 @@ public static class ServiceMetricExtensions
     /// <param name="serviceName">The service name to filter by.</param>
     /// <returns>An enumerable containing only metrics for the specified service.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="metrics"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="serviceName"/> is null or empty.</exception>
     public static IEnumerable<ServiceMetric> WhereServiceName(this IEnumerable<ServiceMetric> metrics, string serviceName)
     {
         ArgumentNullException.ThrowIfNull(metrics);
@@ -55,13 +56,13 @@ public static class ServiceMetricExtensions
                 MetricType = g.Key,
                 Count = g.Count(),
                 AvgValue = g.Average(m => (double)m.Value),
-                MinValue = g.Min(m => m.MinValue.HasValue ? (double)m.MinValue.Value : (double)m.Value),
-                MaxValue = g.Max(m => m.MaxValue.HasValue ? (double)m.MaxValue.Value : (double)m.Value),
+                MinValue = g.Min(m => m.MinValue is { } minValue ? (double)minValue : (double)m.Value),
+                MaxValue = g.Max(m => m.MaxValue is { } maxValue ? (double)maxValue : (double)m.Value),
                 TotalValue = g.Sum(m => (double)m.Value)
             })
             .ToDictionary(
-                x => x.MetricType,
-                x => new MetricStatistics(
+                static x => x.MetricType,
+                static x => new MetricStatistics(
                     x.Count,
                     (decimal)x.AvgValue,
                     (decimal)x.MinValue,
@@ -172,19 +173,17 @@ public static class ServiceMetricExtensions
     /// <summary>
     /// Helper method to escape CSV field values.
     /// </summary>
+    /// <param name="field">The field value to escape.</param>
+    /// <returns>The escaped CSV field.</returns>
     private static string EscapeCsvField(string? field)
     {
-        if (field is null)
+        return field switch
         {
-            return "";
-        }
-
-        if (field.Contains('"') || field.Contains(',') || field.Contains('\n') || field.Contains('\r'))
-        {
-            return '"' + field.Replace("\"", "\"\"") + '"';
-        }
-
-        return field;
+            null => "",
+            _ when field.Contains('"') || field.Contains(',') || field.Contains('\n') || field.Contains('\r')
+                => '"' + field.Replace("\"", "\"\"") + '"',
+            _ => field
+        };
     }
 }
 
