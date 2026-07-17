@@ -20,17 +20,8 @@ public static class ApiResponseValidation
 
         var problems = new List<string>();
 
-        // Validate Success
-        if (!value.Success)
-        {
-            problems.Add("Response indicates failure (Success = false) but no error details provided.");
-        }
-
         // Validate Message
-        if (string.IsNullOrWhiteSpace(value.Message))
-        {
-            problems.Add("Message is null, empty, or whitespace.");
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(value.Message, nameof(value.Message));
 
         // Validate ErrorDetails
         if (value.Success && !string.IsNullOrEmpty(value.ErrorDetails))
@@ -50,11 +41,9 @@ public static class ApiResponseValidation
         }
 
         // Validate TraceId
-        if (string.IsNullOrWhiteSpace(value.TraceId))
-        {
-            problems.Add("TraceId is null, empty, or whitespace.");
-        }
-        else if (value.TraceId.Length < 32)
+        ArgumentException.ThrowIfNullOrWhiteSpace(value.TraceId, nameof(value.TraceId));
+
+        if (value.TraceId.Length < 32)
         {
             problems.Add("TraceId is suspiciously short (less than 32 characters).");
         }
@@ -74,10 +63,7 @@ public static class ApiResponseValidation
     /// <typeparam name="T">The type of data in the response.</typeparam>
     /// <param name="value">The response to check.</param>
     /// <returns>True if the response is valid; otherwise, false.</returns>
-    public static bool IsValid<T>(this ApiResponse<T> value)
-    {
-        return value.Validate().Count == 0;
-    }
+    public static bool IsValid<T>(this ApiResponse<T> value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that an <see cref="ApiResponse{T}"/> instance is valid, throwing an <see cref="ArgumentException"/>
