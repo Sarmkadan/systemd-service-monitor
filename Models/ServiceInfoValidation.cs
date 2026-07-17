@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using SystemdServiceMonitor.Enums;
 
 namespace SystemdServiceMonitor.Models;
@@ -36,7 +35,7 @@ public static class ServiceInfoValidation
         }
 
         // Validate CpuUsagePercent
-        if (value.CpuUsagePercent < 0 || value.CpuUsagePercent > 100)
+        if (value.CpuUsagePercent is < 0 or > 100)
         {
             problems.Add($"CpuUsagePercent must be between 0 and 100 (inclusive), but was {value.CpuUsagePercent.ToString(CultureInfo.InvariantCulture)}.");
         }
@@ -58,7 +57,11 @@ public static class ServiceInfoValidation
         }
 
         // Validate Description
-        if (value.Description.Length > 1024)
+        if (value.Description is null)
+        {
+            problems.Add("Description must not be null.");
+        }
+        else if (value.Description.Length > 1024)
         {
             problems.Add($"Description must not exceed 1024 characters, but was {value.Description.Length}.");
         }
@@ -92,16 +95,14 @@ public static class ServiceInfoValidation
         }
 
         // Validate Result
-        if (value.Result.Length > 128)
+        if (value.Result is null)
+        {
+            problems.Add("Result must not be null.");
+        }
+        else if (value.Result.Length > 128)
         {
             problems.Add($"Result must not exceed 128 characters, but was {value.Result.Length}.");
         }
-
-        // Validate RestartPolicy
-        // RestartPolicy.No is valid as a default
-
-        // Validate AutoStart and Restart (boolean flags)
-        // No specific validation needed beyond being boolean
 
         // Validate Dependencies
         if (value.Dependencies is null)
@@ -110,13 +111,10 @@ public static class ServiceInfoValidation
         }
         else
         {
-            foreach (var dependency in value.Dependencies)
+            var invalidDependency = value.Dependencies.FirstOrDefault(d => string.IsNullOrWhiteSpace(d));
+            if (invalidDependency is not null)
             {
-                if (string.IsNullOrWhiteSpace(dependency))
-                {
-                    problems.Add("Dependencies must not contain null or whitespace entries.");
-                    break;
-                }
+                problems.Add("Dependencies must not contain null or whitespace entries.");
             }
         }
 
@@ -127,13 +125,10 @@ public static class ServiceInfoValidation
         }
         else
         {
-            foreach (var dependent in value.Dependents)
+            var invalidDependent = value.Dependents.FirstOrDefault(d => string.IsNullOrWhiteSpace(d));
+            if (invalidDependent is not null)
             {
-                if (string.IsNullOrWhiteSpace(dependent))
-                {
-                    problems.Add("Dependents must not contain null or whitespace entries.");
-                    break;
-                }
+                problems.Add("Dependents must not contain null or whitespace entries.");
             }
         }
 
@@ -173,21 +168,28 @@ public static class ServiceInfoValidation
         }
 
         // Validate WorkingDirectory
-        if (!string.IsNullOrEmpty(value.WorkingDirectory) &&
-            !value.WorkingDirectory.StartsWith('/') &&
-            !value.WorkingDirectory.StartsWith("@"))
+        if (value.WorkingDirectory is not null &&
+            !value.WorkingDirectory.StartsWith('/') && !value.WorkingDirectory.StartsWith("@"))
         {
             problems.Add("WorkingDirectory must be an absolute path (start with '/') or a template path (start with '@') when specified.");
         }
 
         // Validate RunAsUser
-        if (value.RunAsUser.Length > 64)
+        if (value.RunAsUser is null)
+        {
+            problems.Add("RunAsUser must not be null.");
+        }
+        else if (value.RunAsUser.Length > 64)
         {
             problems.Add($"RunAsUser must not exceed 64 characters, but was {value.RunAsUser.Length}.");
         }
 
         // Validate RunAsGroup
-        if (value.RunAsGroup.Length > 64)
+        if (value.RunAsGroup is null)
+        {
+            problems.Add("RunAsGroup must not be null.");
+        }
+        else if (value.RunAsGroup.Length > 64)
         {
             problems.Add($"RunAsGroup must not exceed 64 characters, but was {value.RunAsGroup.Length}.");
         }
@@ -218,6 +220,7 @@ public static class ServiceInfoValidation
     /// </summary>
     /// <param name="value">The service information to check.</param>
     /// <returns><see langword="true"/> if the instance is valid; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static bool IsValid(this ServiceInfo value)
     {
         return value.Validate().Count == 0;
