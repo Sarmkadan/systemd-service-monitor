@@ -1,0 +1,9 @@
+
+## Notes
+
+- All extension methods are **thread‑safe** for read‑only operations on the source sequence; however, the source collection itself must not be modified concurrently.
+- Methods that return dictionaries (`GroupByMetricType`, `GetLatestPerService`) produce read‑only views; the underlying data is not copied, so changes to the original sequence after enumeration may affect the returned dictionary.
+- `CalculateResourceUsage` aggregates across all metrics in the sequence; if the sequence is empty, the returned `ResourceUsageSummary` will contain zeroed values.
+- `ToCsv` writes values in the order defined by the `ServiceMetric` type; if new properties are added to `ServiceMetric`, the CSV format will automatically include them.
+- `WhereTimestampBetween` treats the `start` and `end` parameters as inclusive bounds; passing `start > end` results in an `ArgumentException`.
+- The `MetricStatistics` and `ResourceUsageSummary` records are immutable; their properties are read‑only and cannot be modified after construction.
