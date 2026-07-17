@@ -16,23 +16,23 @@ public static class DBusConnectionManagerValidation
     /// <summary>
     /// Validates the specified <see cref="ConnectionStatusInfo"/> instance.
     /// </summary>
-    /// <param name="value">The ConnectionStatusInfo to validate.</param>
+    /// <param name="value">The <see cref="ConnectionStatusInfo"/> to validate.</param>
     /// <returns>A list of validation problems; empty if the instance is valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    public static IReadOnlyList<string> Validate(this ConnectionStatusInfo value)
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
+    public static IReadOnlyList<string> Validate(this ConnectionStatusInfo? value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         var problems = new List<string>();
 
         // Validate State
-        if (value.State is { Length: 0 })
+        if (string.IsNullOrEmpty(value.State))
         {
-            problems.Add("State cannot be an empty string.");
+            problems.Add("State cannot be null or empty.");
         }
 
         // Validate ErrorMessage (should be null when no error)
-        if (value.ErrorMessage is { Length: > 0 })
+        if (value.ErrorMessage is not null && value.ErrorMessage.Length > 0)
         {
             problems.Add("ErrorMessage should be null when there is no error.");
         }
@@ -70,20 +70,17 @@ public static class DBusConnectionManagerValidation
     /// <summary>
     /// Determines whether the specified <see cref="ConnectionStatusInfo"/> instance is valid.
     /// </summary>
-    /// <param name="value">The ConnectionStatusInfo to check.</param>
+    /// <param name="value">The <see cref="ConnectionStatusInfo"/> to check.</param>
     /// <returns><see langword="true"/> if the instance is valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this ConnectionStatusInfo value)
-    {
-        return value.Validate().Count == 0;
-    }
+    public static bool IsValid(this ConnectionStatusInfo? value) => value?.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="ConnectionStatusInfo"/> instance is valid.
     /// </summary>
-    /// <param name="value">The ConnectionStatusInfo to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <param name="value">The <see cref="ConnectionStatusInfo"/> to validate.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown if the instance is invalid, containing a list of problems.</exception>
-    public static void EnsureValid(this ConnectionStatusInfo value)
+    public static void EnsureValid(this ConnectionStatusInfo? value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
@@ -99,6 +96,8 @@ public static class DBusConnectionManagerValidation
                     $"\n- ",
                     problems
                 )
-            }");
+            }",
+            nameof(value)
+        );
     }
 }
