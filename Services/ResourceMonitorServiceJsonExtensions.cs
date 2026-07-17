@@ -38,11 +38,14 @@ public static class ResourceMonitorServiceJsonExtensions
     /// <summary>
     /// Deserializes a JSON string to a <see cref="ResourceMonitorService"/> instance.
     /// </summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>A deserialized <see cref="ResourceMonitorService"/> instance, or null if the JSON is invalid.</returns>
-    public static ResourceMonitorService? FromJson(string json)
+    /// <param name="json">The JSON string to deserialize. Null or whitespace returns null.</param>
+    /// <returns>A deserialized <see cref="ResourceMonitorService"/> instance, or null if the JSON is null, empty, whitespace, or invalid.</returns>
+    public static ResourceMonitorService? FromJson(string? json)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        if (string.IsNullOrWhiteSpace(json) || json == "null")
+        {
+            return null;
+        }
 
         try
         {
@@ -60,6 +63,7 @@ public static class ResourceMonitorServiceJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized instance if successful, otherwise null.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     public static bool TryFromJson(string json, out ResourceMonitorService? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
