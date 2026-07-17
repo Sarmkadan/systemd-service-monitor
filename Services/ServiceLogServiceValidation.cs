@@ -16,6 +16,7 @@ public static class ServiceLogServiceValidation
     /// </summary>
     /// <param name="log">The log entry to validate.</param>
     /// <returns>A list of validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="log"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this ServiceLog? log)
     {
         ArgumentNullException.ThrowIfNull(log);
@@ -99,10 +100,7 @@ public static class ServiceLogServiceValidation
     /// </summary>
     /// <param name="log">The log entry to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this ServiceLog? log)
-    {
-        return Validate(log).Count == 0;
-    }
+    public static bool IsValid(this ServiceLog? log) => Validate(log).Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="ServiceLog"/> instance is valid, throwing an exception if not.
@@ -124,6 +122,7 @@ public static class ServiceLogServiceValidation
     /// </summary>
     /// <param name="stats">The log statistics to validate.</param>
     /// <returns>A list of validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="stats"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this LogStatistics? stats)
     {
         ArgumentNullException.ThrowIfNull(stats);
@@ -176,10 +175,7 @@ public static class ServiceLogServiceValidation
     /// </summary>
     /// <param name="stats">The log statistics to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this LogStatistics? stats)
-    {
-        return Validate(stats).Count == 0;
-    }
+    public static bool IsValid(this LogStatistics? stats) => Validate(stats).Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="LogStatistics"/> instance is valid, throwing an exception if not.
@@ -202,6 +198,7 @@ public static class ServiceLogServiceValidation
     /// <param name="unitName">The service unit name to validate.</param>
     /// <param name="limit">The maximum number of entries to retrieve.</param>
     /// <returns>A list of validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="unitName"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(string? unitName, int limit = 100)
     {
         ArgumentNullException.ThrowIfNull(unitName);
@@ -227,6 +224,7 @@ public static class ServiceLogServiceValidation
     /// <param name="from">The start of the time range.</param>
     /// <param name="to">The end of the time range.</param>
     /// <returns>A list of validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="unitName"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(string? unitName, DateTime from, DateTime to)
     {
         ArgumentNullException.ThrowIfNull(unitName);
@@ -261,6 +259,7 @@ public static class ServiceLogServiceValidation
     /// <param name="searchTerm">The search term to validate.</param>
     /// <param name="limit">The maximum number of entries to retrieve.</param>
     /// <returns>A list of validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="searchTerm"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> ValidateSearch(string? searchTerm, int limit = 100)
     {
         ArgumentNullException.ThrowIfNull(searchTerm);
@@ -286,6 +285,7 @@ public static class ServiceLogServiceValidation
     /// <param name="minimumPriority">The minimum syslog priority level.</param>
     /// <param name="count">The maximum number of entries to retrieve.</param>
     /// <returns>A list of validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="unitName"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(string? unitName, SyslogLevel minimumPriority, int count = 50)
     {
         ArgumentNullException.ThrowIfNull(unitName);
@@ -331,10 +331,7 @@ public static class ServiceLogServiceValidation
     /// </summary>
     /// <param name="problems">The list of validation problems.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this IReadOnlyList<string> problems)
-    {
-        return problems.Count == 0;
-    }
+    public static bool IsValid(this IReadOnlyList<string> problems) => problems.Count == 0;
 
     /// <summary>
     /// Ensures that the specified validation results indicate a valid state, throwing an exception if not.
