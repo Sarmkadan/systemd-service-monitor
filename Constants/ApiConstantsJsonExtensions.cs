@@ -30,13 +30,13 @@ public static class ApiConstantsJsonExtensions
 
         var constants = new
         {
-            ApiConstants.ApiVersion,
-            ApiConstants.DefaultPageSize,
-            ApiConstants.MaxPageSize,
-            ApiConstants.DefaultRateLimit,
-            ApiConstants.DefaultCacheTtlSeconds,
-            ApiConstants.MaxLogLines,
-            ApiConstants.DefaultLogLines
+            ApiVersion,
+            DefaultPageSize,
+            MaxPageSize,
+            DefaultRateLimit,
+            DefaultCacheTtlSeconds,
+            MaxLogLines,
+            DefaultLogLines
         };
         return JsonSerializer.Serialize(constants, options);
     }
@@ -89,4 +89,12 @@ public static class ApiConstantsJsonExtensions
         public int MaxLogLines { get; set; }
         public int DefaultLogLines { get; set; }
     }
+
+    public static string ApiVersion => "1.0";
+    public static int DefaultPageSize => 10;
+    public static int MaxPageSize => 100;
+    public static int DefaultRateLimit => 10;
+    public static int DefaultCacheTtlSeconds => 60;
+    public static int MaxLogLines => 1000;
+    public static int DefaultLogLines => 100;
 }
