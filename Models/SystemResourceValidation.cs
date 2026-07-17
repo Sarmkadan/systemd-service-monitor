@@ -6,8 +6,7 @@ namespace SystemdServiceMonitor.Models;
 /// Provides validation helpers for <see cref="SystemResource"/> instances.
 /// </summary>
 public static class SystemResourceValidation
-{
-    /// <summary>
+{    /// <summary>
     /// Validates a <see cref="SystemResource"/> instance and returns a list of human-readable validation problems.
     /// </summary>
     /// <param name="value">The system resource to validate.</param>
@@ -81,7 +80,7 @@ public static class SystemResourceValidation
             nameof(value));
     }
 
-    private static void ValidateMemoryMetrics(SystemResource resource, List<string> errors)
+        private static void ValidateMemoryMetrics(SystemResource resource, List<string> errors)
     {
         // Memory values should be non-negative
         if (resource.TotalMemoryMb < 0)
@@ -118,6 +117,12 @@ public static class SystemResourceValidation
         if (resource.CachedMemoryMb > resource.TotalMemoryMb)
         {
             errors.Add("CachedMemoryMb cannot exceed TotalMemoryMb.");
+        }
+
+        // Validate memory usage percentage
+        if (resource.MemoryUsagePercent < 0 || resource.MemoryUsagePercent > 100)
+        {
+            errors.Add("MemoryUsagePercent must be between 0 and 100 inclusive.");
         }
 
         // Calculate derived memory usage percentage if not set
@@ -202,6 +207,12 @@ public static class SystemResourceValidation
             errors.Add("UsedDiskGb cannot exceed TotalDiskGb.");
         }
 
+        // Validate disk usage percentage
+        if (resource.DiskUsagePercent < 0 || resource.DiskUsagePercent > 100)
+        {
+            errors.Add("DiskUsagePercent must be between 0 and 100 inclusive.");
+        }
+
         // Calculate derived disk usage percentage if not set
         if (resource.DiskUsagePercent == 0 && resource.TotalDiskGb > 0)
         {
@@ -260,6 +271,8 @@ public static class SystemResourceValidation
 
     private static void ValidateRecordedAt(SystemResource resource, List<string> errors)
     {
+        ArgumentNullException.ThrowIfNull(resource);
+
         // RecordedAt should not be in the future or default DateTime
         if (resource.RecordedAt == default)
         {
