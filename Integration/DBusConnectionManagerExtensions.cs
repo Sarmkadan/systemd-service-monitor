@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
@@ -12,6 +11,9 @@ namespace SystemdServiceMonitor.Integration;
 /// Extension methods for <see cref="DBusConnectionManager"/> that provide additional functionality
 /// for connection management, monitoring, and batch operations.
 /// </summary>
+/// <remarks>
+/// All extension methods validate arguments and throw appropriate exceptions for invalid inputs.
+/// </remarks>
 public static class DBusConnectionManagerExtensions
 {
     /// <summary>
@@ -20,6 +22,7 @@ public static class DBusConnectionManagerExtensions
     /// <param name="manager">The connection manager instance.</param>
     /// <returns>The current connection state.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="manager"/> is null.</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown if the connection status cannot be retrieved.</exception>
     public static async Task<ConnectionState> GetConnectionStateAsync(this DBusConnectionManager manager)
     {
         ArgumentNullException.ThrowIfNull(manager);
@@ -36,6 +39,7 @@ public static class DBusConnectionManagerExtensions
     /// <param name="manager">The connection manager instance.</param>
     /// <returns>A connection status info object with additional computed properties.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="manager"/> is null.</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown if the connection status cannot be retrieved.</exception>
     public static async Task<ExtendedConnectionStatusInfo> GetExtendedStatusAsync(this DBusConnectionManager manager)
     {
         ArgumentNullException.ThrowIfNull(manager);
@@ -49,10 +53,12 @@ public static class DBusConnectionManagerExtensions
             LastStatusCheck = status.LastStatusCheck,
             ErrorMessage = status.ErrorMessage,
             ReconnectAttempts = status.ReconnectAttempts,
-            Uptime = status.IsConnected
+            Uptime = status.IsConnected && status.LastStatusCheck != default
                 ? TimeSpan.FromTicks(DateTime.UtcNow.Ticks - status.LastStatusCheck.Ticks)
                 : null,
-            StatusAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - status.LastStatusCheck.Ticks)
+            StatusAge = status.LastStatusCheck != default
+                ? TimeSpan.FromTicks(DateTime.UtcNow.Ticks - status.LastStatusCheck.Ticks)
+                : TimeSpan.Zero
         };
     }
 
