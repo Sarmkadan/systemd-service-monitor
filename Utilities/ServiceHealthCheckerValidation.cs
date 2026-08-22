@@ -80,8 +80,9 @@ public static class ServiceHealthCheckerValidation
             problems.Add("CreatedAt cannot be after UpdatedAt");
 
         // Validate default dates (within reasonable bounds)
-        var minReasonableDate = DateTime.UtcNow.AddYears(-1);
-        var maxReasonableDate = DateTime.UtcNow.AddYears(1);
+        var now = DateTime.UtcNow;
+        var minReasonableDate = now.AddYears(-1);
+        var maxReasonableDate = now.AddYears(1);
 
         if (value.CreatedAt < minReasonableDate || value.CreatedAt > maxReasonableDate)
             problems.Add("CreatedAt appears to be an unreasonable date value");
