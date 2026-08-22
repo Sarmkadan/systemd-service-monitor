@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using SystemdServiceMonitor.Models;
 
 namespace SystemdServiceMonitor.Utilities;
@@ -13,24 +12,25 @@ namespace SystemdServiceMonitor.Utilities;
 public static class OutputFormatterValidation
 {
     /// <summary>
-    /// Validates formatting parameters.
+    /// Validates the global output-formatting settings.
     /// </summary>
+    /// <remarks>
+    /// <see cref="OutputFormatter"/> currently exposes no configurable formatting options,
+    /// so this method always reports no errors.
+    /// </remarks>
     /// <returns>A list of validation errors; empty if valid.</returns>
-    public static IReadOnlyList<string> Validate() => new List<string>();
-    {
-        return Array.Empty<string>();
-    }
+    public static IReadOnlyList<string> Validate() => Array.Empty<string>();
 
     /// <summary>
-    /// Checks whether formatting parameters are valid.
+    /// Checks whether the global output-formatting settings are valid.
     /// </summary>
     /// <returns>True if valid; otherwise false.</returns>
     public static bool IsValid() => Validate().Count == 0;
 
     /// <summary>
-    /// Ensures that formatting parameters are valid, throwing an exception if not.
+    /// Ensures that the global output-formatting settings are valid, throwing an exception if not.
     /// </summary>
-    /// <exception cref="ArgumentException">Thrown if parameters contain validation errors.</exception>
+    /// <exception cref="ArgumentException">Thrown if the settings contain validation errors.</exception>
     public static void EnsureValid()
     {
         var errors = Validate();
@@ -46,14 +46,29 @@ public static class OutputFormatterValidation
     /// </summary>
     /// <typeparam name="T">The type of items in the collection.</typeparam>
     /// <param name="items">The collection to validate.</param>
-    /// <param name="indent">Whether to indent the JSON output.</param>
+    /// <param name="indent">Whether to indent the JSON output; every value is acceptable.</param>
     /// <returns>A list of validation errors; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="items"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate<T>(
         this IEnumerable<T>? items, bool indent = true) where T : class
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        return new List<string>();
+        var errors = new List<string>();
+
+        var index = 0;
+        foreach (var item in items)
+        {
+            if (item is null)
+            {
+                errors.Add(FormattableString.Invariant(
+                    $"Collection contains a null item at index {index}"));
+            }
+
+            index++;
+        }
+
+        return errors.AsReadOnly();
     }
 
     /// <summary>
@@ -61,34 +76,42 @@ public static class OutputFormatterValidation
     /// </summary>
     /// <param name="services">The services collection to validate.</param>
     /// <returns>A list of validation errors; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this IEnumerable<ServiceInfo>? services)
     {
-        var errors = new List<string>();
-
         ArgumentNullException.ThrowIfNull(services);
+
+        var errors = new List<string>();
 
         foreach (var service in services)
         {
-            ArgumentNullException.ThrowIfNull(service);
+            if (service is null)
+            {
+                errors.Add("Services collection contains a null service");
+                continue;
+            }
 
             if (string.IsNullOrWhiteSpace(service.UnitName))
             {
                 errors.Add($"Service has null or empty UnitName: {service.Id}");
             }
 
-            if (service.MainProcessId < 0)
+            if (service.MainProcessId is < 0)
             {
-                errors.Add($"Service '{service.UnitName}' has negative MainProcessId: {service.MainProcessId}");
+                errors.Add(FormattableString.Invariant(
+                    $"Service '{service.UnitName}' has negative MainProcessId: {service.MainProcessId}"));
             }
 
-            if (service.RestartCount < 0)
+            if (service.RestartCount is < 0)
             {
-                errors.Add($"Service '{service.UnitName}' has negative RestartCount: {service.RestartCount}");
+                errors.Add(FormattableString.Invariant(
+                    $"Service '{service.UnitName}' has negative RestartCount: {service.RestartCount}"));
             }
 
-            if (service.UptimeSeconds < 0)
+            if (service.UptimeSeconds is < 0)
             {
-                errors.Add($"Service '{service.UnitName}' has negative UptimeSeconds: {service.UptimeSeconds}");
+                errors.Add(FormattableString.Invariant(
+                    $"Service '{service.UnitName}' has negative UptimeSeconds: {service.UptimeSeconds}"));
             }
         }
 
@@ -100,40 +123,43 @@ public static class OutputFormatterValidation
     /// </summary>
     /// <param name="services">The services collection to validate.</param>
     /// <returns>A list of validation errors; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> ValidateTable(this IEnumerable<ServiceInfo>? services)
-    {
-        return Validate(services);
-    }
+        => services.Validate();
 
     /// <summary>
     /// Validates parameters for <see cref="OutputFormatter.FormatServiceDetails"/>.
     /// </summary>
     /// <param name="service">The service to validate.</param>
     /// <returns>A list of validation errors; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this ServiceInfo? service)
     {
-        var errors = new List<string>();
-
         ArgumentNullException.ThrowIfNull(service);
+
+        var errors = new List<string>();
 
         if (string.IsNullOrWhiteSpace(service.UnitName))
         {
             errors.Add("Service UnitName cannot be null or whitespace");
         }
 
-        if (service.MainProcessId < 0)
+        if (service.MainProcessId is < 0)
         {
-            errors.Add($"Service '{service.UnitName}' has negative MainProcessId: {service.MainProcessId}");
+            errors.Add(FormattableString.Invariant(
+                $"Service '{service.UnitName}' has negative MainProcessId: {service.MainProcessId}"));
         }
 
-        if (service.RestartCount < 0)
+        if (service.RestartCount is < 0)
         {
-            errors.Add($"Service '{service.UnitName}' has negative RestartCount: {service.RestartCount}");
+            errors.Add(FormattableString.Invariant(
+                $"Service '{service.UnitName}' has negative RestartCount: {service.RestartCount}"));
         }
 
-        if (service.UptimeSeconds < 0)
+        if (service.UptimeSeconds is < 0)
         {
-            errors.Add($"Service '{service.UnitName}' has negative UptimeSeconds: {service.UptimeSeconds}");
+            errors.Add(FormattableString.Invariant(
+                $"Service '{service.UnitName}' has negative UptimeSeconds: {service.UptimeSeconds}"));
         }
 
         if (service.CreatedAt == default)
@@ -154,105 +180,131 @@ public static class OutputFormatterValidation
     /// </summary>
     /// <param name="metrics">The system metrics to validate.</param>
     /// <returns>A list of validation errors; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="metrics"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this SystemResource? metrics)
     {
-        var errors = new List<string>();
-
         ArgumentNullException.ThrowIfNull(metrics);
 
-        if (metrics.TotalMemoryMb < 0)
+        var errors = new List<string>();
+
+        if (metrics.TotalMemoryMb is < 0)
         {
-            errors.Add($"SystemResource has negative TotalMemoryMb: {metrics.TotalMemoryMb}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative TotalMemoryMb: {metrics.TotalMemoryMb}"));
         }
 
-        if (metrics.AvailableMemoryMb < 0)
+        if (metrics.AvailableMemoryMb is < 0)
         {
-            errors.Add($"SystemResource has negative AvailableMemoryMb: {metrics.AvailableMemoryMb}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative AvailableMemoryMb: {metrics.AvailableMemoryMb}"));
         }
 
-        if (metrics.UsedMemoryMb < 0)
+        if (metrics.UsedMemoryMb is < 0)
         {
-            errors.Add($"SystemResource has negative UsedMemoryMb: {metrics.UsedMemoryMb}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative UsedMemoryMb: {metrics.UsedMemoryMb}"));
         }
 
-        if (metrics.CpuCoreCount < 0)
+        if (metrics.CachedMemoryMb is < 0)
         {
-            errors.Add($"SystemResource has negative CpuCoreCount: {metrics.CpuCoreCount}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative CachedMemoryMb: {metrics.CachedMemoryMb}"));
         }
 
-        if (metrics.CpuLoad1Min < 0)
+        if (metrics.CpuCoreCount is < 0)
         {
-            errors.Add($"SystemResource has negative CpuLoad1Min: {metrics.CpuLoad1Min}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative CpuCoreCount: {metrics.CpuCoreCount}"));
         }
 
-        if (metrics.CpuLoad5Min < 0)
+        if (metrics.CpuLoad1Min is < 0)
         {
-            errors.Add($"SystemResource has negative CpuLoad5Min: {metrics.CpuLoad5Min}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative CpuLoad1Min: {metrics.CpuLoad1Min}"));
         }
 
-        if (metrics.CpuLoad15Min < 0)
+        if (metrics.CpuLoad5Min is < 0)
         {
-            errors.Add($"SystemResource has negative CpuLoad15Min: {metrics.CpuLoad15Min}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative CpuLoad5Min: {metrics.CpuLoad5Min}"));
         }
 
-        if (metrics.CpuUsagePercent < 0 || metrics.CpuUsagePercent > 100)
+        if (metrics.CpuLoad15Min is < 0)
         {
-            errors.Add($"SystemResource has invalid CpuUsagePercent (must be 0-100): {metrics.CpuUsagePercent}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative CpuLoad15Min: {metrics.CpuLoad15Min}"));
         }
 
-        if (metrics.TotalDiskGb < 0)
+        if (metrics.CpuUsagePercent is < 0 or > 100)
         {
-            errors.Add($"SystemResource has negative TotalDiskGb: {metrics.TotalDiskGb}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has invalid CpuUsagePercent (must be 0-100): {metrics.CpuUsagePercent}"));
         }
 
-        if (metrics.UsedDiskGb < 0)
+        if (metrics.TotalDiskGb is < 0)
         {
-            errors.Add($"SystemResource has negative UsedDiskGb: {metrics.UsedDiskGb}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative TotalDiskGb: {metrics.TotalDiskGb}"));
         }
 
-        if (metrics.AvailableDiskGb < 0)
+        if (metrics.UsedDiskGb is < 0)
         {
-            errors.Add($"SystemResource has negative AvailableDiskGb: {metrics.AvailableDiskGb}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative UsedDiskGb: {metrics.UsedDiskGb}"));
         }
 
-        if (metrics.DiskIopsPerSecond < 0)
+        if (metrics.AvailableDiskGb is < 0)
         {
-            errors.Add($"SystemResource has negative DiskIopsPerSecond: {metrics.DiskIopsPerSecond}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative AvailableDiskGb: {metrics.AvailableDiskGb}"));
         }
 
-        if (metrics.NetworkBytesIn < 0)
+        if (metrics.DiskIopsPerSecond is < 0)
         {
-            errors.Add($"SystemResource has negative NetworkBytesIn: {metrics.NetworkBytesIn}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative DiskIopsPerSecond: {metrics.DiskIopsPerSecond}"));
         }
 
-        if (metrics.NetworkBytesOut < 0)
+        if (metrics.NetworkBytesIn is < 0)
         {
-            errors.Add($"SystemResource has negative NetworkBytesOut: {metrics.NetworkBytesOut}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative NetworkBytesIn: {metrics.NetworkBytesIn}"));
         }
 
-        if (metrics.RunningProcesses < 0)
+        if (metrics.NetworkBytesOut is < 0)
         {
-            errors.Add($"SystemResource has negative RunningProcesses: {metrics.RunningProcesses}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative NetworkBytesOut: {metrics.NetworkBytesOut}"));
         }
 
-        if (metrics.SystemUptimeSeconds < 0)
+        if (metrics.RunningProcesses is < 0)
         {
-            errors.Add($"SystemResource has negative SystemUptimeSeconds: {metrics.SystemUptimeSeconds}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative RunningProcesses: {metrics.RunningProcesses}"));
         }
 
-        if (metrics.LoadAveragePercent < 0 || metrics.LoadAveragePercent > 100)
+        if (metrics.SystemUptimeSeconds is < 0)
         {
-            errors.Add($"SystemResource has invalid LoadAveragePercent (must be 0-100): {metrics.LoadAveragePercent}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has negative SystemUptimeSeconds: {metrics.SystemUptimeSeconds}"));
         }
 
-        if (metrics.MemoryUsagePercent < 0 || metrics.MemoryUsagePercent > 100)
+        if (metrics.LoadAveragePercent is < 0 or > 100)
         {
-            errors.Add($"SystemResource has invalid MemoryUsagePercent (must be 0-100): {metrics.MemoryUsagePercent}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has invalid LoadAveragePercent (must be 0-100): {metrics.LoadAveragePercent}"));
         }
 
-        if (metrics.DiskUsagePercent < 0 || metrics.DiskUsagePercent > 100)
+        if (metrics.MemoryUsagePercent is < 0 or > 100)
         {
-            errors.Add($"SystemResource has invalid DiskUsagePercent (must be 0-100): {metrics.DiskUsagePercent}");
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has invalid MemoryUsagePercent (must be 0-100): {metrics.MemoryUsagePercent}"));
+        }
+
+        if (metrics.DiskUsagePercent is < 0 or > 100)
+        {
+            errors.Add(FormattableString.Invariant(
+                $"SystemResource has invalid DiskUsagePercent (must be 0-100): {metrics.DiskUsagePercent}"));
         }
 
         if (metrics.RecordedAt == default)
@@ -269,28 +321,31 @@ public static class OutputFormatterValidation
     /// <param name="percentage">The percentage value to validate (0-100).</param>
     /// <param name="width">The width of the progress bar in characters.</param>
     /// <returns>A list of validation errors; empty if valid.</returns>
-    public static IReadOnlyList<string> Validate(
-        this double percentage, int width = 20)
+    public static IReadOnlyList<string> Validate(this double percentage, int width = 20)
     {
         var errors = new List<string>();
 
-        if (double.IsNaN(percentage) || double.IsInfinity(percentage))
+        if (!double.IsFinite(percentage))
         {
-            errors.Add($"Progress percentage is not a valid number: {percentage}");
+            errors.Add(FormattableString.Invariant(
+                $"Progress percentage is not a valid number: {percentage}"));
         }
 
-        if (percentage < 0 || percentage > 100)
+        if (percentage is < 0 or > 100)
         {
-            errors.Add($"Progress percentage must be between 0 and 100: {percentage}");
+            errors.Add(FormattableString.Invariant(
+                $"Progress percentage must be between 0 and 100: {percentage}"));
         }
 
-        if (width <= 0)
+        if (width is <= 0)
         {
-            errors.Add($"Progress bar width must be positive: {width}");
+            errors.Add(FormattableString.Invariant(
+                $"Progress bar width must be positive: {width}"));
         }
         else if (width > 1000)
         {
-            errors.Add($"Progress bar width is excessive (>1000): {width}");
+            errors.Add(FormattableString.Invariant(
+                $"Progress bar width is excessive (>1000): {width}"));
         }
 
         return errors.AsReadOnly();
