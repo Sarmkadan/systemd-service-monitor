@@ -5,6 +5,7 @@ namespace SystemdServiceMonitor.Utilities;
 
 /// <summary>
 /// Provides System.Text.Json serialization and deserialization extensions for <see cref="PaginationMetadata"/>.
+/// <remarks>Uses camelCase naming policy and supports both compact and indented JSON formats.</remarks>
 /// </summary>
 public static class PaginationHelperJsonExtensions
 {
