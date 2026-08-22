@@ -16,7 +16,7 @@ public static class OutputFormatterValidation
     /// Validates formatting parameters.
     /// </summary>
     /// <returns>A list of validation errors; empty if valid.</returns>
-    public static IReadOnlyList<string> Validate()
+    public static IReadOnlyList<string> Validate() => new List<string>();
     {
         return Array.Empty<string>();
     }
@@ -25,10 +25,7 @@ public static class OutputFormatterValidation
     /// Checks whether formatting parameters are valid.
     /// </summary>
     /// <returns>True if valid; otherwise false.</returns>
-    public static bool IsValid()
-    {
-        return Validate().Count == 0;
-    }
+    public static bool IsValid() => Validate().Count == 0;
 
     /// <summary>
     /// Ensures that formatting parameters are valid, throwing an exception if not.
@@ -54,11 +51,9 @@ public static class OutputFormatterValidation
     public static IReadOnlyList<string> Validate<T>(
         this IEnumerable<T>? items, bool indent = true) where T : class
     {
-        var errors = new List<string>();
-
         ArgumentNullException.ThrowIfNull(items);
 
-        return errors.AsReadOnly();
+        return new List<string>();
     }
 
     /// <summary>
