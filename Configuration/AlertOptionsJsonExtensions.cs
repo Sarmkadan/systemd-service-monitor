@@ -24,7 +24,7 @@ public static class AlertOptionsJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the options.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
-    public static string ToJson(this AlertOptions value, bool indented = false)
+    public static string ToJson(this AlertOptions value, bool indented = false, bool serializeAll = false)
     {
         ArgumentNullException.ThrowIfNull(value);
 
