@@ -249,7 +249,7 @@ public static class ServiceControlServiceValidation
         if (errors.Count > 0)
         {
             throw new ArgumentException(
-                $"ReloadServiceAsync parameters are valid:\n- {string.Join("\n- ", errors)}");
+                $"ReloadServiceAsync parameters are invalid:\n- {string.Join("\n- ", errors)}");
         }
     }
 
