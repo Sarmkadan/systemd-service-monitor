@@ -21,7 +21,8 @@ public static class ServicesControllerJsonExtensions
     /// Serializes the <see cref="ServicesController"/> instance to a JSON string.
     /// </summary>
     /// <param name="value">The controller instance to serialize.</param>
-    /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
+    /// <param name="indented">When true, formats JSON with indentation for human readability.
+/// When false (default), produces compact JSON without extra whitespace.</param>
     /// <returns>A JSON string representation of the controller.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static string ToJson(this ServicesController value, bool indented = false)
