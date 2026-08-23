@@ -68,10 +68,8 @@ public static class ServicesControllerValidation
     /// </summary>
     /// <param name="value">The controller instance to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this ServicesController value)
-    {
-        return value.Validate().Count == 0;
-    }
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    public static bool IsValid(this ServicesController value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="ServicesController"/> instance is valid.
