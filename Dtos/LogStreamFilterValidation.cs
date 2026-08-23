@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Globalization;
 
 namespace SystemdServiceMonitor.Dtos;
@@ -42,7 +43,7 @@ public static class LogStreamFilterValidation
         if (value.MinLevel.HasValue)
         {
             var level = value.MinLevel.Value;
-            if (!Enum.IsDefined(level))
+            if (!Enum.IsDefined(typeof(LogLevel), level))
             {
                 errors.Add(
                     $"MinLevel has invalid value {(int)level}: {level}.");
