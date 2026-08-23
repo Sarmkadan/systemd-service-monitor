@@ -19,6 +19,7 @@ public static class LogStreamFilterJsonExtensions
     /// <param name="indented">If true, the output JSON will be indented.</param>
     /// <returns>A JSON representation of <paramref name="value"/>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is null.</exception>
+    /// <exception cref="JsonException">An error occurred during serialization.</exception>
     public static string ToJson(this LogStreamFilter value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -37,6 +38,7 @@ public static class LogStreamFilterJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>A <see cref="LogStreamFilter"/> instance, or null if the JSON represents null.</returns>
     /// <exception cref="ArgumentException"><paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="JsonException">The JSON is invalid.</exception>
     public static LogStreamFilter? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
@@ -49,11 +51,14 @@ public static class LogStreamFilterJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">When this method returns, contains the deserialized value if successful; otherwise null.</param>
-    /// <returns>True if deserialization succeeded; otherwise false.</returns>
-    /// <exception cref="ArgumentException"><paramref name="json"/> is null or empty.</exception>
+    /// <returns>True if deserialization succeeded; otherwise false. Returns false if <paramref name="json"/> is null or empty.</returns>
     public static bool TryFromJson(string json, out LogStreamFilter? value)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        if (string.IsNullOrEmpty(json))
+        {
+            value = null;
+            return false;
+        }
 
         try
         {
