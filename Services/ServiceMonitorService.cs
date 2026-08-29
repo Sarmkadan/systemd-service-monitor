@@ -31,12 +31,26 @@ public class ServiceMonitorService : IServiceMonitorService
         _serviceRepository = serviceRepository;
     }
 
+    private async Task<IReadOnlyList<ServiceInfo>> FetchAsync(string operationName, Func<CancellationToken, Task<IEnumerable<ServiceInfo>>> fetch, CancellationToken ct)
+    {
+        _logger.LogDebug("Entering {OperationName}", operationName);
+        try
+        {
+            var result = await fetch(ct);
+            var list = result.ToList();
+            _logger.LogInformation("Retrieved {Count} {OperationName}", list.Count, operationName);
+            return list;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve {OperationName}", operationName);
+            throw;
+        }
+    }
+
     public async Task<IEnumerable<ServiceInfo>> GetAllServicesAsync(CancellationToken ct = default)
     {
-        _logger.LogDebug("Entering GetAllServicesAsync");
-        var result = await _serviceRepository.GetAllAsync(ct);
-        _logger.LogInformation("Retrieved {Count} services", result.Count());
-        return result;
+        return await FetchAsync(nameof(GetAllServicesAsync), ct => _serviceRepository.GetAllAsync(ct), ct);
     }
 
     public async Task<ServiceInfo?> GetServiceByNameAsync(string unitName, CancellationToken ct = default)
@@ -64,18 +78,12 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task<IEnumerable<ServiceInfo>> GetActiveServicesAsync(CancellationToken ct = default)
     {
-        _logger.LogDebug("Entering GetActiveServicesAsync");
-        var result = await _serviceRepository.GetActiveServicesAsync(ct);
-        _logger.LogInformation("Retrieved {Count} active services", result.Count());
-        return result;
+        return await FetchAsync(nameof(GetActiveServicesAsync), ct => _serviceRepository.GetActiveServicesAsync(ct), ct);
     }
 
     public async Task<IEnumerable<ServiceInfo>> GetFailedServicesAsync(CancellationToken ct = default)
     {
-        _logger.LogDebug("Entering GetFailedServicesAsync");
-        var result = await _serviceRepository.GetFailedServicesAsync(ct);
-        _logger.LogInformation("Retrieved {Count} failed services", result.Count());
-        return result;
+        return await FetchAsync(nameof(GetFailedServicesAsync), ct => _serviceRepository.GetFailedServicesAsync(ct), ct);
     }
 
     public async Task RefreshServiceListAsync(CancellationToken ct = default)
