@@ -48,6 +48,7 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task<bool> ConnectAsync(CancellationToken ct = default)
     {
+        using var scope = _logger.BeginScope("D-Bus service {ServiceName}", SystemdService);
         _logger.LogDebug("Attempting to connect to systemd D-Bus via DBusConnectionManager");
 
         if (_isConnected)
@@ -61,12 +62,12 @@ public class SystemdConnectionService : ISystemdConnectionService
             await _dbusConnectionManager.GetConnectionAsync();
             _isConnected = true;
             _connectedSince = DateTime.UtcNow;
-            _logger.LogInformation("Successfully connected to systemd D-Bus via DBusConnectionManager at {ConnectedSince}", _connectedSince);
+            _logger.LogInformation("Connection state changed to connected at {ConnectedSince}", _connectedSince);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to connect to systemd D-Bus via DBusConnectionManager");
+            _logger.LogError(ex, "Failed to connect to D-Bus service {ServiceName}", SystemdService);
             throw new DBusConnectionException("Failed to establish D-Bus connection to systemd", ex);
         }
     }
@@ -86,9 +87,11 @@ public class SystemdConnectionService : ISystemdConnectionService
             // Verify connection status with the manager
             if (!await _dbusConnectionManager.IsConnectedAsync())
             {
+                var connectedSince = _connectedSince;
                 _isConnected = false;
                 _connectedSince = null;
                 _logger.LogWarning("Underlying DBusConnectionManager reports disconnected");
+                _logger.LogInformation("Connection state changed to disconnected; connection had been established at {ConnectedSince}", connectedSince);
                 return false;
             }
 
@@ -100,9 +103,11 @@ public class SystemdConnectionService : ISystemdConnectionService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "D-Bus connection verification failed. Reconnecting...");
+            _logger.LogError(ex, "Connection verification failed for D-Bus service {ServiceName}; reconnecting", SystemdService);
+            var connectedSince = _connectedSince;
             _isConnected = false;
             _connectedSince = null;
+            _logger.LogInformation("Connection state changed to disconnected; connection had been established at {ConnectedSince}", connectedSince);
             await _dbusConnectionManager.ReconnectAsync(); // Attempt reconnection
             return false;
         }
@@ -118,9 +123,10 @@ public class SystemdConnectionService : ISystemdConnectionService
             return;
         }
 
-        _logger.LogInformation("SystemdConnectionService state set to disconnected.");
+        var connectedSince = _connectedSince;
         _isConnected = false;
         _connectedSince = null;
+        _logger.LogInformation("Connection state changed to disconnected; connection had been established at {ConnectedSince}", connectedSince);
         await Task.CompletedTask; // The DBusConnectionManager handles actual D-Bus connection disposal.
     }
 
@@ -159,7 +165,7 @@ public class SystemdConnectionService : ISystemdConnectionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve systemd version via D-Bus");
+            _logger.LogError(ex, "Failed to retrieve systemd version from D-Bus service {ServiceName}", SystemdService);
             throw new ServiceMonitorException("Failed to retrieve systemd version", ex);
         }
     }
