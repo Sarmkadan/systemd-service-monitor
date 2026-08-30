@@ -91,6 +91,41 @@ public static class PaginationHelper
     }
 
     /// <summary>
+    /// Applies pagination to a sequence of items.
+    /// </summary>
+    public static IEnumerable<T> ApplyPagination<T>(
+        IEnumerable<T> source,
+        int pageNumber,
+        int pageSize)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        var (validPageNumber, validPageSize) = ValidatePaginationParams(pageNumber, pageSize);
+        var skip = CalculateSkip(validPageNumber, validPageSize);
+
+        return source.Skip(skip).Take(validPageSize);
+    }
+
+    /// <summary>
+    /// Paginates a sequence of items and returns its pagination details.
+    /// </summary>
+    public static (IReadOnlyList<T> Items, int TotalCount, int TotalPages) Paginate<T>(
+        IEnumerable<T> source,
+        int? pageNumber,
+        int? pageSize)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        var (validPageNumber, validPageSize) = ValidatePaginationParams(pageNumber, pageSize);
+        var allItems = source.ToList();
+        var totalCount = allItems.Count;
+        var totalPages = CalculateTotalPages(totalCount, validPageSize);
+        var items = ApplyPagination(allItems, validPageNumber, validPageSize).ToList();
+
+        return (items, totalCount, totalPages);
+    }
+
+    /// <summary>
     /// Paginates a collection of items.
     /// </summary>
     public static List<T> Paginate<T>(
