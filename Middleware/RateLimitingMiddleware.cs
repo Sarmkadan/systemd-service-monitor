@@ -19,12 +19,22 @@ public class RateLimitingMiddleware(
     ILogger<RateLimitingMiddleware> logger,
     RateLimitOptions options)
 {
+    private const string UnknownIpAddress = "unknown";
+    private const string RetryAfterValue = "60";
+    private const string JsonContentType = "application/json";
+    private const string RateLimitExceededMessage = "Rate limit exceeded";
+
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     // Store request tokens per IP address
     private static readonly ConcurrentDictionary<string, TokenBucket> TokenBuckets = new();
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? UnknownIpAddress;
 
         // Get or create token bucket for this IP
         var bucket = TokenBuckets.GetOrAdd(ipAddress, _ => new TokenBucket(
@@ -36,18 +46,17 @@ public class RateLimitingMiddleware(
             logger.LogWarning("Rate limit exceeded for IP: {IpAddress}", ipAddress);
 
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-            context.Response.ContentType = "application/json";
-            context.Response.Headers["Retry-After"] = "60";
+            context.Response.ContentType = JsonContentType;
+            context.Response.Headers["Retry-After"] = RetryAfterValue;
 
             var response = new ApiResponse<object>
             {
                 Success = false,
-                Message = "Rate limit exceeded",
+                Message = RateLimitExceededMessage,
                 ErrorDetails = $"Maximum {options.RequestsPerMinute} requests per minute allowed"
             };
 
-            var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            await context.Response.WriteAsJsonAsync(response, jsonOptions);
+            await context.Response.WriteAsJsonAsync(response, JsonSerializerOptions);
             return;
         }
 
