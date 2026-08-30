@@ -26,6 +26,10 @@ public class ServiceMonitorService : IServiceMonitorService
         ISystemdConnectionService connectionService,
         IServiceRepository serviceRepository)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(connectionService);
+        ArgumentNullException.ThrowIfNull(serviceRepository);
+
         _logger = logger;
         _connectionService = connectionService;
         _serviceRepository = serviceRepository;
@@ -55,6 +59,8 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task<ServiceInfo?> GetServiceByNameAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         _logger.LogDebug("Entering GetServiceByNameAsync for {UnitName}", unitName);
         try
         {
@@ -159,6 +165,8 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task<ServiceStatus?> GetServiceStatusAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         _logger.LogDebug("Entering GetServiceStatusAsync for {UnitName}", unitName);
         var service = await _serviceRepository.GetByUnitNameAsync(unitName, ct);
         if (service is null)
@@ -192,6 +200,8 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task StartMonitoringAsync(string unitName, int intervalMs = 5000, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         _logger.LogDebug("Entering StartMonitoringAsync for {UnitName}", unitName);
         await _monitoringLock.WaitAsync(ct);
         try
@@ -242,6 +252,8 @@ public class ServiceMonitorService : IServiceMonitorService
 
     public async Task StopMonitoringAsync(string unitName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         _logger.LogDebug("Entering StopMonitoringAsync for {UnitName}", unitName);
         await _monitoringLock.WaitAsync();
         try
