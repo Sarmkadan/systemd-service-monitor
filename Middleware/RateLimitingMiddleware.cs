@@ -23,6 +23,7 @@ public class RateLimitingMiddleware(
     private const string RetryAfterValue = "60";
     private const string JsonContentType = "application/json";
     private const string RateLimitExceededMessage = "Rate limit exceeded";
+    private static readonly TimeSpan EvictionSweepInterval = TimeSpan.FromMinutes(1);
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
@@ -31,9 +32,12 @@ public class RateLimitingMiddleware(
 
     // Store request tokens per IP address
     private static readonly ConcurrentDictionary<string, TokenBucket> TokenBuckets = new();
+    private static long _lastEvictionSweepTicks;
 
     public async Task InvokeAsync(HttpContext context)
     {
+        SweepIdleTokenBuckets();
+
         var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? UnknownIpAddress;
 
         // Get or create token bucket for this IP
@@ -63,7 +67,32 @@ public class RateLimitingMiddleware(
         logger.LogDebug("Rate limiting token consumed for IP {IpAddress}. Remaining tokens: {Remaining}",
             ipAddress, bucket.RemainingTokens);
 
+        context.Response.Headers["X-RateLimit-Limit"] = options.RequestsPerMinute.ToString();
+        context.Response.Headers["X-RateLimit-Remaining"] = bucket.RemainingTokens.ToString();
+
         await next(context);
+    }
+
+    private void SweepIdleTokenBuckets()
+    {
+        var now = DateTime.UtcNow;
+        var lastSweepTicks = Interlocked.Read(ref _lastEvictionSweepTicks);
+
+        if (now.Ticks - lastSweepTicks < EvictionSweepInterval.Ticks ||
+            Interlocked.CompareExchange(ref _lastEvictionSweepTicks, now.Ticks, lastSweepTicks) != lastSweepTicks)
+        {
+            return;
+        }
+
+        var idleThreshold = TimeSpan.FromMinutes(options.IdleEvictionMinutes);
+
+        foreach (var entry in TokenBuckets)
+        {
+            if (now - entry.Value.LastAccessUtc > idleThreshold)
+            {
+                TokenBuckets.TryRemove(entry.Key, out _);
+            }
+        }
     }
 }
 
@@ -75,8 +104,10 @@ public class TokenBucket
 {
     private readonly int _capacity;
     private readonly int _refillIntervalSeconds;
+    private readonly object _syncRoot = new();
     private int _tokens;
     private DateTime _lastRefillTime;
+    private DateTime _lastAccessUtc;
 
     public TokenBucket(int capacity, int refillIntervalSeconds)
     {
@@ -84,19 +115,24 @@ public class TokenBucket
         _tokens = capacity;
         _refillIntervalSeconds = refillIntervalSeconds;
         _lastRefillTime = DateTime.UtcNow;
+        _lastAccessUtc = _lastRefillTime;
     }
 
     public bool TryConsumeToken()
     {
-        RefillTokens();
-
-        if (_tokens > 0)
+        lock (_syncRoot)
         {
-            _tokens--;
-            return true;
-        }
+            _lastAccessUtc = DateTime.UtcNow;
+            RefillTokens();
 
-        return false;
+            if (_tokens > 0)
+            {
+                _tokens--;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     private void RefillTokens()
@@ -112,7 +148,30 @@ public class TokenBucket
     }
 
     // Expose remaining tokens for debug logging
-    public int RemainingTokens => _tokens;
+    public int RemainingTokens
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _tokens;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The UTC time when this bucket was last accessed.
+    /// </summary>
+    public DateTime LastAccessUtc
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastAccessUtc;
+            }
+        }
+    }
 
     // Expose configuration for statistics
     public int RequestsPerMinute => _capacity;
@@ -133,6 +192,11 @@ public class RateLimitOptions
     /// Interval in seconds at which tokens are refilled.
     /// </summary>
     public int RefillIntervalSeconds { get; set; } = 60;
+
+    /// <summary>
+    /// Number of idle minutes after which a token bucket is evicted.
+    /// </summary>
+    public int IdleEvictionMinutes { get; set; } = 30;
 }
 
 /// <summary>
