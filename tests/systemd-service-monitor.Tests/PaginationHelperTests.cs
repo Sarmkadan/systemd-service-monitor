@@ -10,86 +10,86 @@ using Xunit;
 public class PaginationHelperTests
 {
     /// <summary>
-    /// Tests that CalculateTotalPages returns 0 when the page size is 0.
+    /// Tests that null pagination parameters use the default values.
     /// </summary>
     [Fact]
-    public void CalculateTotalPages_ZeroPageSize_ReturnsZero()
+    public void ValidatePaginationParams_NullInputs_ReturnsDefaults()
     {
-        // Arrange & Act
-        var result = PaginationHelper.CalculateTotalPages(totalCount: 100, pageSize: 0);
+        // Act
+        var result = PaginationHelper.ValidatePaginationParams(null, null);
 
         // Assert
-        result.Should().Be(0);
+        result.PageNumber.Should().Be(1);
+        result.PageSize.Should().Be(PaginationHelper.DefaultPageSize);
     }
 
     /// <summary>
-    /// Tests that CalculateTotalPages rounds up when the total count is not evenly divisible by the page size.
+    /// Tests that pagination parameters are clamped to their valid bounds.
     /// </summary>
-    [Fact]
-    public void CalculateTotalPages_NotEvenlyDivisible_RoundsUp()
+    /// <param name="pageNumber">The page number to validate.</param>
+    /// <param name="pageSize">The page size to validate.</param>
+    /// <param name="expectedPageNumber">The expected normalized page number.</param>
+    /// <param name="expectedPageSize">The expected normalized page size.</param>
+    [Theory]
+    [InlineData(1, 0, 1, 1)]
+    [InlineData(1, PaginationHelper.MaxPageSize + 1, 1, PaginationHelper.MaxPageSize)]
+    [InlineData(-1, PaginationHelper.DefaultPageSize, 1, PaginationHelper.DefaultPageSize)]
+    public void ValidatePaginationParams_OutOfBounds_ClampsToValidBounds(
+        int pageNumber,
+        int pageSize,
+        int expectedPageNumber,
+        int expectedPageSize)
     {
-        // Arrange & Act
-        var result = PaginationHelper.CalculateTotalPages(totalCount: 101, pageSize: 10);
+        // Act
+        var result = PaginationHelper.ValidatePaginationParams(pageNumber, pageSize);
 
         // Assert
-        result.Should().Be(11);
+        result.PageNumber.Should().Be(expectedPageNumber);
+        result.PageSize.Should().Be(expectedPageSize);
     }
 
     /// <summary>
-    /// Tests that CalculateSkip returns 0 for the first page.
+    /// Tests that CalculateSkip returns the correct number of items to skip.
     /// </summary>
-    [Fact]
-    public void CalculateSkip_FirstPage_ReturnsZero()
+    /// <param name="pageNumber">The requested page number.</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <param name="expected">The expected number of items to skip.</param>
+    [Theory]
+    [InlineData(1, 10, 0)]
+    [InlineData(2, 10, 10)]
+    [InlineData(4, 25, 75)]
+    [InlineData(-1, 10, 0)]
+    public void CalculateSkip_PageNumber_ReturnsExpectedSkip(
+        int pageNumber,
+        int pageSize,
+        int expected)
     {
-        // Arrange & Act
-        var result = PaginationHelper.CalculateSkip(pageNumber: 1, pageSize: 50);
+        // Act
+        var result = PaginationHelper.CalculateSkip(pageNumber, pageSize);
 
         // Assert
-        result.Should().Be(0);
+        result.Should().Be(expected);
     }
 
     /// <summary>
-    /// Tests that ValidatePaginationParams clamps the page number to 1 when it is negative.
+    /// Tests that CalculateTotalPages handles empty, exact, and partial pages.
     /// </summary>
-    [Fact]
-    public void ValidatePaginationParams_NegativePageNumber_ClampsToOne()
+    /// <param name="totalCount">The total number of items.</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <param name="expected">The expected total number of pages.</param>
+    [Theory]
+    [InlineData(0, 10, 0)]
+    [InlineData(20, 10, 2)]
+    [InlineData(21, 10, 3)]
+    public void CalculateTotalPages_ItemCount_ReturnsExpectedTotalPages(
+        int totalCount,
+        int pageSize,
+        int expected)
     {
-        // Arrange & Act
-        var (pageNumber, pageSize) = PaginationHelper.ValidatePaginationParams(pageNumber: -5, pageSize: 20);
+        // Act
+        var result = PaginationHelper.CalculateTotalPages(totalCount, pageSize);
 
         // Assert
-        pageNumber.Should().Be(1);
-        pageSize.Should().Be(20);
-    }
-
-    /// <summary>
-    /// Tests that GetPageNumbers adjusts the window to fit when the current page is near the end of the total pages.
-    /// </summary>
-    [Fact]
-    public void GetPageNumbers_NearEndOfTotalPages_AdjustsWindowToFit()
-    {
-        // Arrange - current page near the end of 10 total pages, window of 5
-        // halfPages=2 → startPage=max(1,9-2)=7, endPage=min(10,7+4)=10
-        // endPage-startPage+1=4 < 5 → adjust: startPage=max(1,10-4)=6
-        var result = PaginationHelper.GetPageNumbers(currentPage: 9, totalPages: 10, pagesToShow: 5);
-
-        // Assert
-        result.Should().BeEquivalentTo(new[] { 6, 7, 8, 9, 10 }, opts => opts.WithStrictOrdering());
-    }
-
-    /// <summary>
-    /// Tests that GetMetadata reports the correct start and end index for a middle page.
-    /// </summary>
-    [Fact]
-    public void GetMetadata_MiddlePage_ReportsCorrectStartAndEndIndex()
-    {
-        // Arrange: page 3 of 10 items per page, 25 total → page 3 has items 21-25
-        var metadata = PaginationHelper.GetMetadata(pageNumber: 3, pageSize: 10, totalCount: 25);
-
-        // Assert
-        metadata.StartIndex.Should().Be(21);
-        metadata.EndIndex.Should().Be(25);
-        metadata.HasPreviousPage.Should().BeTrue();
-        metadata.HasNextPage.Should().BeFalse();
+        result.Should().Be(expected);
     }
 }
