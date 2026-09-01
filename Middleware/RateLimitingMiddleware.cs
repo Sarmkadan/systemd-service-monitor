@@ -104,7 +104,7 @@ public class TokenBucket
 {
     private readonly int _capacity;
     private readonly int _refillIntervalSeconds;
-    private readonly object _syncRoot = new();
+    private readonly object _tokenStateLock = new();
     private int _tokens;
     private DateTime _lastRefillTime;
     private DateTime _lastAccessUtc;
@@ -120,7 +120,7 @@ public class TokenBucket
 
     public bool TryConsumeToken()
     {
-        lock (_syncRoot)
+        lock (_tokenStateLock)
         {
             _lastAccessUtc = DateTime.UtcNow;
             RefillTokens();
@@ -152,7 +152,7 @@ public class TokenBucket
     {
         get
         {
-            lock (_syncRoot)
+            lock (_tokenStateLock)
             {
                 return _tokens;
             }
@@ -166,7 +166,7 @@ public class TokenBucket
     {
         get
         {
-            lock (_syncRoot)
+            lock (_tokenStateLock)
             {
                 return _lastAccessUtc;
             }
