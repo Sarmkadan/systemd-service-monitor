@@ -96,6 +96,7 @@ public class MetricRepository : IMetricRepository
 
     public async Task<ServiceMetric> CreateAsync(ServiceMetric metric, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(metric);
         await _lock.WaitAsync(ct);
         try
         {
@@ -110,6 +111,7 @@ public class MetricRepository : IMetricRepository
 
     public async Task<int> CreateBatchAsync(IEnumerable<ServiceMetric> metrics, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(metrics);
         await _lock.WaitAsync(ct);
         try
         {
