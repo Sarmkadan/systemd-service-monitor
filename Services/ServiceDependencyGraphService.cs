@@ -9,9 +9,16 @@ namespace SystemdServiceMonitor.Services;
 /// <summary>
 /// Service that builds and analyzes dependency graphs for systemd services.
 /// </summary>
-public class ServiceDependencyGraphService(IServiceRepository serviceRepository) : IServiceDependencyGraphService
+public class ServiceDependencyGraphService : IServiceDependencyGraphService
 {
+    private readonly IServiceRepository serviceRepository;
     private readonly ILogger<ServiceDependencyGraphService>? _logger = null;
+
+    public ServiceDependencyGraphService(IServiceRepository serviceRepository)
+    {
+        ArgumentNullException.ThrowIfNull(serviceRepository);
+        this.serviceRepository = serviceRepository;
+    }
 
     /// <summary>
     /// Builds a complete dependency graph for all systemd services.
@@ -36,6 +43,7 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
     /// <returns>ServiceDependencyGraph containing the service and its dependencies up to specified depth.</returns>
     public async Task<ServiceDependencyGraph> BuildGraphForServiceAsync(string unitName, int depth = 3, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(unitName);
         _logger?.LogInformation("Building dependency graph for service: {ServiceName} (depth: {Depth})", unitName, depth);
         var graph = BuildGraph(await serviceRepository.GetAllAsync(ct));
         if (string.IsNullOrWhiteSpace(unitName))
@@ -92,6 +100,8 @@ public class ServiceDependencyGraphService(IServiceRepository serviceRepository)
     /// <returns>Sequence of service names representing the dependency chain, or empty if no path exists.</returns>
     public async Task<IEnumerable<string>> GetDependencyChainAsync(string fromService, string toService, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(fromService);
+        ArgumentNullException.ThrowIfNull(toService);
         _logger?.LogInformation("Finding dependency chain from {FromService} to {ToService}", fromService, toService);
         if (string.IsNullOrWhiteSpace(fromService) || string.IsNullOrWhiteSpace(toService))
         {
