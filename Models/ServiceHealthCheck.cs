@@ -118,7 +118,7 @@ public class ServiceHealthCheck
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public override string ToString() =>
-        $"HealthCheck: {Name} ({CheckType}) - Status: {CurrentStatus}";
+        $"HealthCheck: {Name} ({CheckType}) - {CurrentStatus}: {LastCheckMessage}";
 }
 
 /// <summary>
