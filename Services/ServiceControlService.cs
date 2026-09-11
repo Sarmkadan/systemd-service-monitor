@@ -24,6 +24,9 @@ public class ServiceControlService : IServiceControlService
         ISystemdConnectionService connectionService,
         SystemdOptions options)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(connectionService);
+        ArgumentNullException.ThrowIfNull(options);
         _logger = logger;
         _connectionService = connectionService;
         _options = options;
@@ -37,6 +40,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> StartServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, "Start", async () =>
         {
             _logger.LogInformation("Starting service: {ServiceName}", unitName);
@@ -48,6 +52,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> StopServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, "Stop", async () =>
         {
             _logger.LogInformation("Stopping service: {ServiceName}", unitName);
@@ -59,6 +64,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> RestartServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, "Restart", async () =>
         {
             _logger.LogInformation("Restarting service: {ServiceName}", unitName);
@@ -70,6 +76,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> ReloadServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, "Reload", async () =>
         {
             _logger.LogInformation("Reloading service: {ServiceName}", unitName);
@@ -81,6 +88,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> EnableServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, "Enable", async () =>
         {
             _logger.LogInformation("Enabling service: {ServiceName}", unitName);
@@ -97,6 +105,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> DisableServiceAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, "Disable", async () =>
         {
             _logger.LogInformation("Disabling service: {ServiceName}", unitName);
@@ -113,6 +122,7 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<bool> RestartWithStrategyAsync(string unitName, RestartStrategy strategy, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await ExecuteOperationAsync(unitName, $"Restart({strategy})", async () =>
         {
             _logger.LogInformation("Restarting service with strategy {Strategy}: {ServiceName}",
