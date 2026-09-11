@@ -41,6 +41,9 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public SystemdConnectionService(ILogger<SystemdConnectionService> logger, SystemdOptions options, DBusConnectionManager dbusConnectionManager)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(dbusConnectionManager);
         _logger = logger;
         _options = options;
         _dbusConnectionManager = dbusConnectionManager;
@@ -132,6 +135,7 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task<T?> CallMethodAsync<T>(string methodName, params object?[] args)
     {
+        ArgumentNullException.ThrowIfNull(methodName);
         if (!_isConnected)
             throw new DBusConnectionException("Not connected to systemd D-Bus");
 
@@ -141,6 +145,8 @@ public class SystemdConnectionService : ISystemdConnectionService
 
     public async Task SubscribeToSignalsAsync(string signalName, Action<dynamic> handler, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(signalName);
+        ArgumentNullException.ThrowIfNull(handler);
         if (!_isConnected)
             throw new DBusConnectionException("Not connected to systemd D-Bus");
 
