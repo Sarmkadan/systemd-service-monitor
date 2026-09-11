@@ -21,7 +21,8 @@ public class DBusConnectionManager : IDisposable
 
     public DBusConnectionManager(ILogger<DBusConnectionManager> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
     }
 
     /// <summary>
