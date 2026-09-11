@@ -27,6 +27,11 @@ public class ServiceLogService : IServiceLogService
         SystemdOptions options,
         ISystemdConnectionService connectionService)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(logRepository);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(connectionService);
+
         _logger = logger;
         _logRepository = logRepository;
         _options = options;
@@ -35,6 +40,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<IEnumerable<ServiceLog>> GetServiceLogsAsync(string unitName, int limit = 100, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         try
         {
             limit = Math.Min(limit, _options.MaxLogEntriesPerRequest);
@@ -49,6 +55,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<IEnumerable<ServiceLog>> GetLogsInTimeRangeAsync(string unitName, DateTime from, DateTime to, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         try
         {
             var range = to - from;
@@ -68,6 +75,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<IEnumerable<ServiceLog>> GetLogsByLevelAsync(string unitName, SyslogLevel level, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         try
         {
             var allLogs = await _logRepository.GetByUnitNameAsync(unitName, _options.MaxLogEntriesPerRequest, ct);
@@ -82,6 +90,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<IEnumerable<ServiceLog>> SearchLogsAsync(string searchTerm, int limit = 100, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(searchTerm);
         try
         {
             limit = Math.Min(limit, _options.MaxLogEntriesPerRequest);
@@ -96,6 +105,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<IEnumerable<ServiceLog>> FetchLatestFromJournalAsync(string unitName, int count = 50, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         return await FetchFromJournalByPriorityAsync(unitName, SyslogLevel.Debug, count, ct);
     }
 
@@ -105,6 +115,7 @@ public class ServiceLogService : IServiceLogService
         int count = 50,
         CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
         try
         {
             _logger.LogInformation(
@@ -208,6 +219,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<ServiceLog> StoreLogAsync(ServiceLog log, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(log);
         try
         {
             return await _logRepository.CreateAsync(log, ct);
@@ -221,6 +233,7 @@ public class ServiceLogService : IServiceLogService
 
     public async Task<int> StoreLogsAsync(IEnumerable<ServiceLog> logs, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(logs);
         try
         {
             var logList = logs.ToList();
