@@ -23,13 +23,22 @@ public interface ILogStreamService
 }
 
 /// <inheritdoc cref="ILogStreamService"/>
-public sealed class LogStreamService(
-    IServiceLogService logService,
-    ILogger<LogStreamService> logger) : ILogStreamService
+public sealed class LogStreamService : ILogStreamService
 {
     private const int MinPollingMs  = 500;
     private const int MaxPollingMs  = 30_000;
     private const int MaxBufferSize = 500;
+
+    private readonly IServiceLogService logService;
+    private readonly ILogger<LogStreamService> logger;
+
+    public LogStreamService(IServiceLogService logService, ILogger<LogStreamService> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logService);
+        ArgumentNullException.ThrowIfNull(logger);
+        this.logService = logService;
+        this.logger = logger;
+    }
 
     /// <inheritdoc/>
     public async IAsyncEnumerable<LogStreamEntry> StreamLogsAsync(
