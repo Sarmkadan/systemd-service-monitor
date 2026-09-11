@@ -124,5 +124,5 @@ public class ServiceInfo
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public override string ToString() => $"{UnitName} ({State})";
+    public override string ToString() => $"{UnitName} ({State}) [PID:{MainProcessId}]";
 }
