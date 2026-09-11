@@ -68,6 +68,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     /// <inheritdoc />
     public Task<AlertRule> AddRuleAsync(AlertRule rule, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(rule);
         _rules[rule.Id] = rule;
         _logger.LogInformation("Alert rule registered: [{Severity}] {RuleName} ({RuleId}) — pattern: {Pattern}",
             rule.Severity, rule.Name, rule.Id, rule.ServicePattern);
@@ -77,6 +78,8 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     /// <inheritdoc />
     public Task<AlertRule?> UpdateRuleAsync(Guid ruleId, UpdateAlertRuleDto dto, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(dto);
+
         if (!_rules.TryGetValue(ruleId, out var rule))
             return Task.FromResult<AlertRule?>(null);
 
@@ -113,6 +116,8 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     /// <inheritdoc />
     public async Task EvaluateServiceAsync(ServiceStatus status, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(status);
+
         if (!_options.Enabled) return;
 
         var matchingRules = _rules.Values
