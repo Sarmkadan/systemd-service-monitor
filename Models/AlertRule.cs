@@ -164,6 +164,15 @@ public class AlertRule
 
     /// <summary>UTC timestamp of the most recent update.</summary>
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Returns a concise string representation of the alert rule for logging and display.
+    /// </summary>
+    /// <returns>A string containing the rule name, condition, and threshold.</returns>
+    public override string ToString()
+    {
+        return $"{Name}: {Condition} {Threshold}";
+    }
 }
 
 /// <summary>
