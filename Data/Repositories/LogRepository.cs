@@ -27,6 +27,7 @@ public class LogRepository : ILogRepository
 
     public async Task<IEnumerable<ServiceLog>> GetByUnitNameAsync(string unitName, int limit = 100, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(unitName);
         await _lock.WaitAsync(ct);
         try
         {
@@ -110,6 +111,7 @@ public class LogRepository : ILogRepository
 
     public async Task<ServiceLog> CreateAsync(ServiceLog log, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(log);
         await _lock.WaitAsync(ct);
         try
         {
@@ -124,6 +126,7 @@ public class LogRepository : ILogRepository
 
     public async Task<int> CreateBatchAsync(IEnumerable<ServiceLog> logs, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(logs);
         await _lock.WaitAsync(ct);
         try
         {
@@ -190,6 +193,7 @@ public class LogRepository : ILogRepository
 
     public async Task<IEnumerable<ServiceLog>> SearchAsync(string searchTerm, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(searchTerm);
         await _lock.WaitAsync(ct);
         try
         {
