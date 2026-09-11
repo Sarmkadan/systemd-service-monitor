@@ -36,6 +36,10 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public ResourceMonitorService(ILogger<ResourceMonitorService> logger, SystemdOptions options, ISystemdConnectionService connectionService, IServiceMonitorService serviceMonitorService)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(connectionService);
+        ArgumentNullException.ThrowIfNull(serviceMonitorService);
         _logger = logger;
         _options = options;
         _connectionService = connectionService;
@@ -231,6 +235,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public async Task<decimal> GetServiceCpuUsageAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(unitName);
         try
         {
             var metrics = await GetServiceResourceMetricsAsync(unitName, ct);
@@ -245,6 +250,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public async Task<long> GetServiceMemoryUsageAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(unitName);
         try
         {
             var metrics = await GetServiceResourceMetricsAsync(unitName, ct);
@@ -259,6 +265,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
     public async Task<ServiceResourceMetrics> GetServiceResourceMetricsAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(unitName);
         try
         {
             _logger.LogDebug("Collecting resource metrics for service: {ServiceName}", unitName);
