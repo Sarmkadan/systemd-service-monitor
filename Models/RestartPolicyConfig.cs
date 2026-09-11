@@ -90,5 +90,5 @@ public class RestartPolicyConfig
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public override string ToString() =>
-        $"RestartPolicy: {PolicyType}, MaxRestarts={MaxRestarts}, Delay={RestartDelaySec}s";
+        $"Policy: {PolicyType}, Delay={RestartDelaySec}s, Max={MaxRestarts}, Window={RestartWindowSec}s, Strategy={RestartStrategy}, Enabled={IsEnabled}";
 }
