@@ -87,6 +87,8 @@ public class ServiceStatus
     public string HealthMessage { get; set; } = string.Empty;
 
     public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+
+    public override string ToString() => $"{UnitName}: {State}";
 }
 
 /// <summary>
