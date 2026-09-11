@@ -27,6 +27,8 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<ServiceInfo?> GetByUnitNameAsync(string unitName, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
+
         await _lock.WaitAsync(ct);
         try
         {
@@ -85,6 +87,8 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<IEnumerable<ServiceInfo>> GetByUserAsync(string username, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(username);
+
         await _lock.WaitAsync(ct);
         try
         {
@@ -101,6 +105,8 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<ServiceInfo> CreateAsync(ServiceInfo service, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         await _lock.WaitAsync(ct);
         try
         {
@@ -120,6 +126,8 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<ServiceInfo> UpdateAsync(ServiceInfo service, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         await _lock.WaitAsync(ct);
         try
         {
@@ -181,6 +189,8 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<IEnumerable<ServiceInfo>> SearchAsync(string query, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(query);
+
         await _lock.WaitAsync(ct);
         try
         {
