@@ -95,4 +95,13 @@ public class ServiceDependencyGraph
     /// Gets the date and time when the graph was generated.
     /// </summary>
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Returns a string that represents the current object.
+    /// </summary>
+    /// <returns>A string that represents the current object.</returns>
+    public override string ToString()
+    {
+        return $"ServiceDependencyGraph: Nodes={Nodes.Count}, Edges={Edges.Count}, GeneratedAt={GeneratedAt:u}";
+    }
 }
