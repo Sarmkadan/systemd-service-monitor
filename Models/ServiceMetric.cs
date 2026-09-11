@@ -84,7 +84,7 @@ public class ServiceMetric
     public int DurationSeconds { get; set; } = 60;
 
     public override string ToString() =>
-        $"{UnitName}: {MetricType}={Value}{Unit}";
+        $"{UnitName}: {MetricType}={Value}{Unit} @ {Timestamp:yyyy-MM-dd HH:mm:ss}";
 }
 
 /// <summary>
