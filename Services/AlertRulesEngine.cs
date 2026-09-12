@@ -38,6 +38,27 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     // Tracks consecutive matching evaluation counts per rule+service for hysteresis support.
     private readonly ConcurrentDictionary<string, int> _consecutiveHits = new();
 
+    // Constants for notification messages
+    private const string InitialNotification = "Initial notification";
+    private const string EscalationLevelPrefix = "Escalation level ";
+    private const string LogTarget = "log";
+    private const string AlertOpenedTemplate = "ALERT OPENED [{Severity}] {RuleName} on {ServiceName} — {Summary} (incident: {IncidentId})";
+    private const string AlertNoEscalationPolicyTemplate = "ALERT [{Severity}] {ServiceName}: {Summary} — no escalation policy attached (incident {IncidentId})";
+    private const string AlertNotificationTemplate = "ALERT NOTIFICATION [{Severity}] Incident {IncidentId} — {ServiceName}: {Summary}";
+
+    // Constants for condition summary messages
+    private const string UnknownReason = "unknown reason";
+    private const string NoDetails = "no details";
+    private const string ConditionClearedNote = "Condition cleared — auto-resolved by alert engine";
+    private const string ServiceFailedSummaryFormat = "Service entered failed state: {0}";
+    private const string ServiceInactiveSummary = "Service is inactive (expected running)";
+    private const string CpuThresholdSummaryFormat = "CPU usage {0:F1}% exceeds threshold {1}%";
+    private const string MemoryThresholdSummaryFormat = "Memory usage {0} MB exceeds threshold {1} MB";
+    private const string HealthUnhealthySummaryFormat = "Health check unhealthy: {0}";
+    private const string HealthDegradedSummaryFormat = "Health check degraded: {0}";
+    private const string UptimeBelowMinimumSummaryFormat = "Uptime {0}s is below minimum {1}s";
+    private const string AnyStateChangeSummaryFormat = "Service state observed: {0}/{1}";
+
     /// <summary>
     /// Initializes a new instance of <see cref="AlertRulesEngine"/>.
     /// </summary>
@@ -322,7 +343,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         _incidents[incident.Id] = incident;
 
         _logger.LogWarning(
-            "ALERT OPENED [{Severity}] {RuleName} on {ServiceName} — {Summary} (incident: {IncidentId})",
+            AlertOpenedTemplate,
             rule.Severity, rule.Name, serviceName, summary, incident.Id);
 
         await NotifyEscalationAsync(incident, rule, 0, cancellationToken);
@@ -343,7 +364,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         {
             incident.State = AlertIncidentState.AutoResolved;
             incident.ResolvedAt = DateTime.UtcNow;
-            incident.ResolutionNotes = "Condition cleared — auto-resolved by alert engine";
+            incident.ResolutionNotes = ConditionClearedNote;
             incident.UpdatedAt = DateTime.UtcNow;
 
             _logger.LogInformation(
@@ -363,7 +384,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         var historyEntry = new EscalationHistory
         {
             LevelReached = levelIndex,
-            LevelName = levelIndex == 0 ? "Initial notification" : $"Escalation level {levelIndex}",
+            LevelName = levelIndex == 0 ? InitialNotification : $"{EscalationLevelPrefix}{levelIndex}",
             OccurredAt = DateTime.UtcNow
         };
 
@@ -374,7 +395,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         if (rule.EscalationPolicyId is not null)
         {
             var channel = NotificationChannel.Log;
-            var target = "log";
+            var target = LogTarget;
 
             try
             {
@@ -393,10 +414,10 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         else
         {
             historyEntry.Channel = NotificationChannel.Log;
-            historyEntry.NotificationTarget = "log";
+            historyEntry.NotificationTarget = LogTarget;
             historyEntry.NotificationDelivered = true;
             _logger.LogWarning(
-                "ALERT [{Severity}] {ServiceName}: {Summary} — no escalation policy attached (incident {IncidentId})",
+                AlertNoEscalationPolicyTemplate,
                 incident.Severity, incident.ServiceName, incident.Summary, incident.Id);
         }
 
@@ -419,7 +440,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
             case NotificationChannel.Log:
             default:
                 _logger.LogWarning(
-                    "ALERT NOTIFICATION [{Severity}] Incident {IncidentId} — {ServiceName}: {Summary}",
+                    AlertNotificationTemplate,
                     incident.Severity, incident.Id, incident.ServiceName, incident.Summary);
                 break;
         }
@@ -462,40 +483,40 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         AlertCondition.ServiceFailed =>
             (status.HasFailed || status.State == ServiceState.Failed,
              null,
-             $"Service entered failed state: {(string.IsNullOrEmpty(status.FailureReason) ? "unknown reason" : status.FailureReason)}"),
+             $"Service entered failed state: {(string.IsNullOrEmpty(status.FailureReason) ? UnknownReason : status.FailureReason)}"),
 
         AlertCondition.ServiceInactive =>
             (!status.IsRunning && status.State == ServiceState.Inactive,
              null,
-             $"Service is inactive (expected running)"),
+             ServiceInactiveSummary),
 
         AlertCondition.CpuThresholdExceeded =>
             (status.CpuUsagePercent > rule.Threshold,
              status.CpuUsagePercent,
-             $"CPU usage {status.CpuUsagePercent:F1}% exceeds threshold {rule.Threshold}%"),
+             string.Format(CpuThresholdSummaryFormat, status.CpuUsagePercent, rule.Threshold)),
 
         AlertCondition.MemoryThresholdExceeded =>
             (status.MemoryUsageMb > (long)rule.Threshold,
              status.MemoryUsageMb,
-             $"Memory usage {status.MemoryUsageMb} MB exceeds threshold {rule.Threshold} MB"),
+             string.Format(MemoryThresholdSummaryFormat, status.MemoryUsageMb, rule.Threshold)),
 
         AlertCondition.HealthCheckUnhealthy =>
             (status.HealthStatus == HealthStatus.Unhealthy,
              null,
-             $"Health check unhealthy: {(string.IsNullOrEmpty(status.HealthMessage) ? "no details" : status.HealthMessage)}"),
+             $"Health check unhealthy: {(string.IsNullOrEmpty(status.HealthMessage) ? NoDetails : status.HealthMessage)}"),
 
         AlertCondition.HealthCheckDegraded =>
             (status.HealthStatus >= HealthStatus.Degraded,
              null,
-             $"Health check degraded: {(string.IsNullOrEmpty(status.HealthMessage) ? "no details" : status.HealthMessage)}"),
+             $"Health check degraded: {(string.IsNullOrEmpty(status.HealthMessage) ? NoDetails : status.HealthMessage)}"),
 
         AlertCondition.UptimeBelowMinimum =>
             (status.IsRunning && status.UptimeSeconds < (long)rule.Threshold,
              status.UptimeSeconds,
-             $"Uptime {status.UptimeSeconds}s is below minimum {rule.Threshold}s"),
+             string.Format(UptimeBelowMinimumSummaryFormat, status.UptimeSeconds, rule.Threshold)),
 
         AlertCondition.AnyStateChange =>
-            (true, null, $"Service state observed: {status.State}/{status.SubState}"),
+            (true, null, string.Format(AnyStateChangeSummaryFormat, status.State, status.SubState)),
 
         _ => (false, null, string.Empty)
     };
