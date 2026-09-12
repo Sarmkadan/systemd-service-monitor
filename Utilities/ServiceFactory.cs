@@ -19,6 +19,10 @@ public static class ServiceFactory
         string description = "",
         string state = "Inactive")
     {
+        ArgumentNullException.ThrowIfNull(unitName);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(state);
+
         return new ServiceInfo
         {
             Id = Guid.NewGuid(),
@@ -38,6 +42,8 @@ public static class ServiceFactory
     /// </summary>
     public static ServiceMetric CreateServiceMetric(string unitName)
     {
+        ArgumentNullException.ThrowIfNull(unitName);
+
         return new ServiceMetric
         {
             Id = Guid.NewGuid(),
@@ -56,6 +62,10 @@ public static class ServiceFactory
         string message,
         string severity = "INFO")
     {
+        ArgumentNullException.ThrowIfNull(unitName);
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(severity);
+
         var level = severity?.ToUpperInvariant() switch
         {
             "ERROR" or "ERR" => SyslogLevel.Error,
@@ -78,6 +88,8 @@ public static class ServiceFactory
     /// </summary>
     public static ServiceStatus CreateServiceStatus(ServiceInfo service)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         return new ServiceStatus
         {
             Id = Guid.NewGuid(),
@@ -100,6 +112,8 @@ public static class ServiceFactory
         int delaySec = 100,
         int maxAttempts = 5)
     {
+        ArgumentNullException.ThrowIfNull(policyName);
+
         Enum.TryParse<RestartPolicy>(policyName, true, out var policy);
         return new RestartPolicyConfig
         {
@@ -115,6 +129,8 @@ public static class ServiceFactory
     /// </summary>
     public static Dictionary<string, object> ServiceInfoToDictionary(ServiceInfo service)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         return new Dictionary<string, object>
         {
             { "id", service.Id },
@@ -138,6 +154,8 @@ public static class ServiceFactory
     /// </summary>
     public static List<ServiceInfo> CreateServicesFromNames(params string[] unitNames)
     {
+        ArgumentNullException.ThrowIfNull(unitNames);
+
         return unitNames
             .Select(name => CreateServiceInfo(name))
             .ToList();
