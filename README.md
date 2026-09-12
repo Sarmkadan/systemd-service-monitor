@@ -243,6 +243,27 @@ await resourceMonitor.StopContinuousMonitoringAsync();
 
 The `ResourceMonitorService` provides real-time resource monitoring capabilities with alerting for systemd services and system-wide resources.
 
+## ServiceDependencyGraphService
+
+`Services/ServiceDependencyGraphService.cs` implements `IServiceDependencyGraphService` on top of `IServiceRepository`. Each public operation reads all stored `ServiceInfo` records and builds an in-memory `ServiceDependencyGraph`; it does not query systemd directly or cache a graph between calls.
+
+### Graph construction
+
+The graph builder uses a case-insensitive service-name lookup and a pair of case-insensitive sets per node, so repeated relationships are collapsed. For every repository record it copies the unit's description and state, then processes both relationship lists:
+
+- A name in `ServiceInfo.Dependencies` becomes an edge from the service to that dependency. The dependency node is created if necessary, and the source service is added to its dependents.
+- A name in `ServiceInfo.Dependents` is recorded as a dependent of the service. The dependent node is created if necessary, and the service is added to its dependencies.
+- Blank relationship names are ignored. A referenced unit that has no repository record still appears as a node, with an empty description and `Unknown` state unless a matching record is processed later.
+
+The resulting nodes and their relationship lists are ordered by service name. Each dependency produces a `DependencyEdge` whose `FromService` is the depending service, whose `ToService` is the dependency, and whose `RelationshipType` is `DependsOn`. A node is a root when it has no dependents and a leaf when it has no dependencies. `TotalNodes`, `TotalEdges`, and a UTC `GeneratedAt` timestamp are set when the graph is created.
+
+### Traversal and queries
+
+- `BuildGraphAsync` returns the complete graph.
+- `BuildGraphForServiceAsync` performs breadth-first traversal from the requested unit across both dependencies and dependents. The default depth is 3, negative depths are treated as 0, and depth 0 includes only the requested node. It then filters nodes and edges to the visited set and recalculates root and leaf flags relative to that subgraph. A blank or unknown unit name produces an empty graph.
+- `GetDependencyChainAsync` performs breadth-first search only along outgoing dependency links, so a returned sequence follows `service -> dependency` edges and is a shortest dependency path in number of edges. Blank or unknown names, or an unreachable target, produce an empty sequence; identical existing names produce a one-item sequence.
+- `GetRootServicesAsync` and `GetLeafServicesAsync` rebuild the complete graph and return the matching nodes ordered by service name.
+
 ### Usage Example
 
 ```csharp
