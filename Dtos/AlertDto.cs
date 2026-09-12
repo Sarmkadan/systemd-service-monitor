@@ -22,7 +22,13 @@ public record AlertRuleDto(
     IReadOnlyList<string> Tags,
     DateTime CreatedAt,
     DateTime UpdatedAt
-);
+)
+{
+    /// <summary>
+    /// Returns a concise string representation of the alert rule.
+    /// </summary>
+    public override string ToString() => $"{Name}: {Condition} {Threshold}";
+}
 
 /// <summary>
 /// Input payload for creating a new alert rule.
