@@ -24,6 +24,13 @@ namespace Extensions
         public static bool IsNullOrWhiteSpace(this string? value) => string.IsNullOrWhiteSpace(value);
 
         /// <summary>
+        /// Determines whether the specified string is not null, empty, or consists only of white-space characters.
+        /// </summary>
+        /// <param name="value">The string to test.</param>
+        /// <returns><see langword="true"/> if the value is not null, empty, or whitespace; otherwise, <see langword="false"/>.</returns>
+        public static bool IsNotNullOrWhiteSpace(this string? value) => !string.IsNullOrWhiteSpace(value);
+
+        /// <summary>
         /// Trims whitespace from both ends of the string.
         /// Returns null if the input is null.
         /// </summary>
