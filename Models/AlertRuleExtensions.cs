@@ -142,4 +142,34 @@ public static class AlertRuleExtensions
 
         return rule.ConsecutiveEvaluationsRequired;
     }
+
+    /// <summary>
+    /// Determines whether this alert rule's service pattern matches the specified service name.
+    /// </summary>
+    /// <param name="rule">The alert rule to check.</param>
+    /// <param name="serviceName">The service name to match against the rule's pattern.</param>
+    /// <returns><c>true</c> if the service name matches the rule's pattern; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="rule"/> is <c>null</c>.</exception>
+    public static bool MatchesServicePattern(this AlertRule rule, string serviceName)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+
+        if (string.IsNullOrWhiteSpace(serviceName))
+        {
+            return false;
+        }
+
+        var pattern = rule.ServicePattern;
+        if (pattern == "*")
+        {
+            return true;
+        }
+
+        if (pattern.EndsWith('*'))
+        {
+            return serviceName.StartsWith(pattern[..^1], StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(serviceName, pattern, StringComparison.OrdinalIgnoreCase);
+    }
 }
