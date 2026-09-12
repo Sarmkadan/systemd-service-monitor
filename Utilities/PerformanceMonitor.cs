@@ -34,6 +34,8 @@ public class PerformanceMonitor : IDisposable
         ILogger? logger = null,
         long warningThresholdMs = DefaultWarningThresholdMs)
     {
+        ArgumentNullException.ThrowIfNull(operationName);
+
         _operationName = operationName;
         _logger = logger;
         _warningThresholdMs = warningThresholdMs;
@@ -45,6 +47,8 @@ public class PerformanceMonitor : IDisposable
     /// </summary>
     public void RecordCheckpoint(string name)
     {
+        ArgumentNullException.ThrowIfNull(name);
+
         _checkpoints[name] = _stopwatch.ElapsedMilliseconds;
         _logger?.LogDebug(CheckpointLogFormat,
             _operationName, name, _stopwatch.ElapsedMilliseconds);
@@ -70,6 +74,9 @@ public class PerformanceMonitor : IDisposable
     /// </summary>
     public long GetElapsedBetween(string startCheckpoint, string endCheckpoint)
     {
+        ArgumentNullException.ThrowIfNull(startCheckpoint);
+        ArgumentNullException.ThrowIfNull(endCheckpoint);
+
         if (!_checkpoints.TryGetValue(startCheckpoint, out var start))
             return -1;
         if (!_checkpoints.TryGetValue(endCheckpoint, out var end))
@@ -112,4 +119,3 @@ public class PerformanceMonitor : IDisposable
         }
     }
 }
-
