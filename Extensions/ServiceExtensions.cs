@@ -2,8 +2,10 @@
 
 using Microsoft.OpenApi.Models;
 using SystemdServiceMonitor.Caching;
+using SystemdServiceMonitor.Enums;
 using SystemdServiceMonitor.Integration;
 using SystemdServiceMonitor.Middleware;
+using SystemdServiceMonitor.Models;
 using SystemdServiceMonitor.Services;
 
 namespace SystemdServiceMonitor.Extensions;
@@ -139,6 +141,19 @@ public static class ServiceExtensions
         // Actual implementations are loaded via DI configuration
 
         return services;
+    }
+
+    /// <summary>
+    /// Determines if the service is healthy (active and not in a failed state).
+    /// </summary>
+    /// <param name="service">The service to check.</param>
+    /// <returns>True if the service is active and not failed, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="service"/> is null.</exception>
+    public static bool IsHealthy(this ServiceInfo service)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        return service.State is ServiceState.Active or ServiceState.Activating
+            && service.SubState != ServiceSubState.Failed;
     }
 
     /// <summary>
