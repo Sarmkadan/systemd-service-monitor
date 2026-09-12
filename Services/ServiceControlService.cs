@@ -19,6 +19,35 @@ public class ServiceControlService : IServiceControlService
     private readonly SystemdOptions _options;
     private readonly Dictionary<string, OperationResult> _lastOperations = [];
 
+    private const string SystemdServiceName = "org.freedesktop.systemd1";
+    private const string SystemdServicePath = "/org/freedesktop/systemd1";
+    private const string SystemdUnitInterface = "org.freedesktop.systemd1.Unit";
+    private const string ReplaceMode = "replace";
+    private const string SigtermSignal = "SIGTERM";
+    private const string SigkillSignal = "SIGKILL";
+    private const string ActiveState = "active";
+    private const string DeactivatingState = "deactivating";
+    private const string ActiveStateProperty = "ActiveState";
+    private const string StartOperation = "Start";
+    private const string StopOperation = "Stop";
+    private const string RestartOperation = "Restart";
+    private const string ReloadOperation = "Reload";
+    private const string EnableOperation = "Enable";
+    private const string DisableOperation = "Disable";
+    private const string GracefulShutdownOperation = "GracefulShutdown";
+    private const string BulkRestartOperation = "BulkRestart";
+    private const string OperationSucceededMessage = "Operation succeeded";
+    private const string OperationFailedMessage = "Operation failed";
+    private const string RestartedSuccessfullyMessage = "Restarted successfully";
+    private const string RestartFailedMessage = "Restart failed";
+    private const int SuccessExitCode = 0;
+    private const int FailureExitCode = 1;
+    private const int DefaultShutdownTimeoutSeconds = 30;
+    private const int DefaultMaxConcurrency = 3;
+    private const int MinConcurrency = 1;
+    private const int MaxConcurrency = 20;
+    private const int PollIntervalSeconds = 1;
+
     public ServiceControlService(
         ILogger<ServiceControlService> logger,
         ISystemdConnectionService connectionService,
@@ -35,17 +64,17 @@ public class ServiceControlService : IServiceControlService
     private async Task<ISystemdManager> GetSystemdManagerProxy()
     {
         var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
-        return connection.CreateProxy<ISystemdManager>("org.freedesktop.systemd1", "/org/freedesktop/systemd1");
+        return connection.CreateProxy<ISystemdManager>(SystemdServiceName, SystemdServicePath);
     }
 
     public async Task<bool> StartServiceAsync(string unitName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
-        return await ExecuteOperationAsync(unitName, "Start", async () =>
+        return await ExecuteOperationAsync(unitName, StartOperation, async () =>
         {
             _logger.LogInformation("Starting service: {ServiceName}", unitName);
             var manager = await GetSystemdManagerProxy();
-            await manager.StartUnitAsync(unitName, "replace"); // "replace" mode for unit operations
+            await manager.StartUnitAsync(unitName, ReplaceMode); // "replace" mode for unit operations
             return true;
         }, ct);
     }
@@ -53,11 +82,11 @@ public class ServiceControlService : IServiceControlService
     public async Task<bool> StopServiceAsync(string unitName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
-        return await ExecuteOperationAsync(unitName, "Stop", async () =>
+        return await ExecuteOperationAsync(unitName, StopOperation, async () =>
         {
             _logger.LogInformation("Stopping service: {ServiceName}", unitName);
             var manager = await GetSystemdManagerProxy();
-            await manager.StopUnitAsync(unitName, "replace");
+            await manager.StopUnitAsync(unitName, ReplaceMode);
             return true;
         }, ct);
     }
@@ -65,11 +94,11 @@ public class ServiceControlService : IServiceControlService
     public async Task<bool> RestartServiceAsync(string unitName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
-        return await ExecuteOperationAsync(unitName, "Restart", async () =>
+        return await ExecuteOperationAsync(unitName, RestartOperation, async () =>
         {
             _logger.LogInformation("Restarting service: {ServiceName}", unitName);
             var manager = await GetSystemdManagerProxy();
-            await manager.RestartUnitAsync(unitName, "replace");
+            await manager.RestartUnitAsync(unitName, ReplaceMode);
             return true;
         }, ct);
     }
@@ -77,11 +106,11 @@ public class ServiceControlService : IServiceControlService
     public async Task<bool> ReloadServiceAsync(string unitName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
-        return await ExecuteOperationAsync(unitName, "Reload", async () =>
+        return await ExecuteOperationAsync(unitName, ReloadOperation, async () =>
         {
             _logger.LogInformation("Reloading service: {ServiceName}", unitName);
             var manager = await GetSystemdManagerProxy();
-            await manager.ReloadUnitAsync(unitName, "replace");
+            await manager.ReloadUnitAsync(unitName, ReplaceMode);
             return true;
         }, ct);
     }
@@ -89,7 +118,7 @@ public class ServiceControlService : IServiceControlService
     public async Task<bool> EnableServiceAsync(string unitName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
-        return await ExecuteOperationAsync(unitName, "Enable", async () =>
+        return await ExecuteOperationAsync(unitName, EnableOperation, async () =>
         {
             _logger.LogInformation("Enabling service: {ServiceName}", unitName);
             var manager = await GetSystemdManagerProxy();
@@ -106,7 +135,7 @@ public class ServiceControlService : IServiceControlService
     public async Task<bool> DisableServiceAsync(string unitName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
-        return await ExecuteOperationAsync(unitName, "Disable", async () =>
+        return await ExecuteOperationAsync(unitName, DisableOperation, async () =>
         {
             _logger.LogInformation("Disabling service: {ServiceName}", unitName);
             var manager = await GetSystemdManagerProxy();
@@ -141,39 +170,39 @@ public class ServiceControlService : IServiceControlService
         }, ct);
     }
 
-    public async Task<bool> GracefulShutdownAsync(string unitName, int timeoutSeconds = 30, CancellationToken ct = default)
+    public async Task<bool> GracefulShutdownAsync(string unitName, int timeoutSeconds = DefaultShutdownTimeoutSeconds, CancellationToken ct = default)
     {
-        return await ExecuteOperationAsync(unitName, "GracefulShutdown", async () =>
+        return await ExecuteOperationAsync(unitName, GracefulShutdownOperation, async () =>
         {
             _logger.LogInformation("Gracefully shutting down service: {ServiceName} (timeout: {TimeoutSeconds}s)",
                 unitName, timeoutSeconds);
 
             var manager = await GetSystemdManagerProxy();
-            await manager.KillUnitAsync(unitName, "SIGTERM"); // Send SIGTERM for graceful shutdown
+            await manager.KillUnitAsync(unitName, SigtermSignal); // Send SIGTERM for graceful shutdown
 
             var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
             var unitPath = await manager.GetUnitAsync(unitName);
-            var unitProxy = connection.CreateProxy<IProperties>("org.freedesktop.systemd1.Unit", unitPath);
+            var unitProxy = connection.CreateProxy<IProperties>(SystemdUnitInterface, unitPath);
 
             var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
             while (DateTime.UtcNow < deadline)
             {
                 if (ct.IsCancellationRequested) break;
 
-                var unitProperties = await unitProxy.GetAllAsync("org.freedesktop.systemd1.Unit");
-                if (unitProperties.TryGetValue("ActiveState", out var stateVal) &&
-                    stateVal is string state && !string.Equals(state, "active", StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(state, "deactivating", StringComparison.OrdinalIgnoreCase))
+                var unitProperties = await unitProxy.GetAllAsync(SystemdUnitInterface);
+                if (unitProperties.TryGetValue(ActiveStateProperty, out var stateVal) &&
+                    stateVal is string state && !string.Equals(state, ActiveState, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(state, DeactivatingState, StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogInformation("Service {ServiceName} stopped gracefully with state {State}", unitName, state);
                     return true;
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+                await Task.Delay(TimeSpan.FromSeconds(PollIntervalSeconds), ct);
             }
 
             _logger.LogWarning("Service {ServiceName} did not stop within {TimeoutSeconds}s, sending SIGKILL", unitName, timeoutSeconds);
-            await manager.KillUnitAsync(unitName, "SIGKILL");
+            await manager.KillUnitAsync(unitName, SigkillSignal);
             return true;
         }, ct);
     }
@@ -185,14 +214,14 @@ public class ServiceControlService : IServiceControlService
 
     public async Task<BulkOperationResult> BulkRestartAsync(
         IEnumerable<string> unitNames,
-        int maxConcurrency = 3,
+        int maxConcurrency = DefaultMaxConcurrency,
         CancellationToken ct = default)
     {
         var units = unitNames?.ToList() ?? [];
         if (units.Count == 0)
             return new BulkOperationResult { Results = [] };
 
-        maxConcurrency = Math.Clamp(maxConcurrency, 1, 20);
+        maxConcurrency = Math.Clamp(maxConcurrency, MinConcurrency, MaxConcurrency);
 
         _logger.LogInformation(
             "Bulk restart requested for {Count} services (maxConcurrency: {Concurrency})",
@@ -213,10 +242,10 @@ public class ServiceControlService : IServiceControlService
                     results.Add(new OperationResult
                     {
                         UnitName = unitName,
-                        Operation = "BulkRestart",
+                        Operation = BulkRestartOperation,
                         Success = success,
-                        Message = success ? "Restarted successfully" : "Restart failed",
-                        ExitCode = success ? 0 : 1,
+                        Message = success ? RestartedSuccessfullyMessage : RestartFailedMessage,
+                        ExitCode = success ? SuccessExitCode : FailureExitCode,
                         OperationTime = startTime,
                         DurationMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
                     });
@@ -226,10 +255,10 @@ public class ServiceControlService : IServiceControlService
                     results.Add(new OperationResult
                     {
                         UnitName = unitName,
-                        Operation = "BulkRestart",
+                        Operation = BulkRestartOperation,
                         Success = false,
                         Message = $"Restart failed: {ex.Message}",
-                        ExitCode = 1,
+                        ExitCode = FailureExitCode,
                         OperationTime = startTime,
                         DurationMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
                     });
@@ -276,8 +305,8 @@ public class ServiceControlService : IServiceControlService
                 UnitName = unitName,
                 Operation = operation,
                 Success = result,
-                Message = result ? "Operation succeeded" : "Operation failed",
-                ExitCode = result ? 0 : 1,
+                Message = result ? OperationSucceededMessage : OperationFailedMessage,
+                ExitCode = result ? SuccessExitCode : FailureExitCode,
                 OperationTime = startTime,
                 DurationMs = (long)duration.TotalMilliseconds
             };
@@ -295,7 +324,7 @@ public class ServiceControlService : IServiceControlService
                 Operation = operation,
                 Success = false,
                 Message = $"Operation failed: {ex.Message}",
-                ExitCode = 1,
+                ExitCode = FailureExitCode,
                 OperationTime = startTime,
                 DurationMs = (long)duration.TotalMilliseconds
             };
