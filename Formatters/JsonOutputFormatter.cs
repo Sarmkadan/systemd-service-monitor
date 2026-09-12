@@ -30,6 +30,8 @@ public class JsonOutputFormatter : IOutputFormatter
 
     public byte[] Format<T>(T data, FormattingOptions? options = null) where T : class
     {
+        ArgumentNullException.ThrowIfNull(data);
+
         var jsonOptions = GetJsonSerializerOptions(options);
         string jsonString = JsonSerializer.Serialize(data, jsonOptions);
         return (options?.Encoding ?? Encoding.UTF8).GetBytes(jsonString);
@@ -37,6 +39,8 @@ public class JsonOutputFormatter : IOutputFormatter
 
     public byte[] FormatCollection<T>(IEnumerable<T> data, FormattingOptions? options = null) where T : class
     {
+        ArgumentNullException.ThrowIfNull(data);
+
         var jsonOptions = GetJsonSerializerOptions(options);
         string jsonString = JsonSerializer.Serialize(data, jsonOptions);
         return (options?.Encoding ?? Encoding.UTF8).GetBytes(jsonString);
