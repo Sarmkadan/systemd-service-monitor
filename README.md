@@ -2276,4 +2276,31 @@ The `ServicesController` provides a complete RESTful interface for systemd servi
 
 ## AlertRulesEngine
 
-The `AlertRulesEngine` provides real-time alert evaluation, incident lifecycle management, and escalation policy support for systemd service monitoring.
+`Services/AlertRulesEngine.cs` contains the singleton, in-process implementation of `IAlertRulesEngine`. Rules, incidents, per-rule/service cooldown timestamps, and consecutive-match counters are stored in thread-safe `ConcurrentDictionary` instances, so they are lost when the process stops and are not shared between application instances. In addition to evaluating rules, the class exposes rule and incident queries and supports acknowledging, resolving, silencing, and manually escalating incidents.
+
+### Rule evaluation
+
+`EvaluateServiceAsync` evaluates one `ServiceStatus` snapshot as follows:
+
+1. It returns immediately when `AlertOptions.Enabled` is `false`.
+2. It selects enabled rules whose `ServicePattern` matches `ServiceStatus.UnitName`. `*` matches every unit, a pattern ending in `*` performs a case-insensitive prefix match, and any other pattern performs a case-insensitive exact match.
+3. It evaluates each matching rule's condition. A matching result increments the consecutive-hit counter for that rule and unit. Until the counter reaches `ConsecutiveEvaluationsRequired`, no incident is opened.
+4. When the required hit count is reached, the counter is reset. The engine then suppresses the incident if the same rule/unit pair fired less than `CooldownMinutes` ago; otherwise, it opens an incident, records the current metric for numeric conditions, sends the initial notification, and starts the cooldown.
+5. A non-matching result resets the consecutive-hit counter. When `AutoResolveOnConditionCleared` is enabled, it changes existing `Open` or `Escalated` incidents for that rule/unit pair to `AutoResolved`; acknowledged or silenced incidents are not auto-resolved by this path.
+
+The conditions currently implemented by `EvaluateCondition` are:
+
+| Condition | Match performed by the engine | Observed value |
+| --- | --- | --- |
+| `ServiceFailed` | `HasFailed` is true or `State` is `Failed` | None |
+| `ServiceInactive` | `IsRunning` is false and `State` is `Inactive` | None |
+| `CpuThresholdExceeded` | `CpuUsagePercent` is greater than `Threshold` | CPU percentage |
+| `MemoryThresholdExceeded` | `MemoryUsageMb` is greater than `Threshold` converted to `long` | Memory in MB |
+| `HealthCheckUnhealthy` | `HealthStatus` equals `Unhealthy` | None |
+| `HealthCheckDegraded` | `HealthStatus` is `Degraded` or `Unhealthy` | None |
+| `UptimeBelowMinimum` | The service is running and `UptimeSeconds` is less than `Threshold` converted to `long` | Uptime in seconds |
+| `AnyStateChange` | Always matches the supplied snapshot; the engine does not retain a previous state for comparison | None |
+
+Although `RestartCountExceeded` is defined in `AlertCondition`, `EvaluateCondition` has no branch for it, so it currently falls through to a non-match.
+
+Every opened incident begins in the `Open` state and receives an initial escalation-history entry. The current notification path is log-only: rules without an `EscalationPolicyId` emit the fallback alert log, and rules with an ID also deliver to the `Log` channel with target `log`. `EscalateIncidentAsync` increments the incident's level and records another log notification, but this implementation does not load `EscalationPolicy` levels or resolve on-call schedules.
