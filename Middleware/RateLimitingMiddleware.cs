@@ -14,11 +14,25 @@ namespace SystemdServiceMonitor.Middleware;
 /// Token bucket rate limiting middleware that prevents API abuse.
 /// Tracks requests per IP address and enforces configurable rate limits.
 /// </summary>
-public class RateLimitingMiddleware(
-    RequestDelegate next,
-    ILogger<RateLimitingMiddleware> logger,
-    RateLimitOptions options)
+public class RateLimitingMiddleware
 {
+    private readonly RequestDelegate _next;
+    private readonly ILogger<RateLimitingMiddleware> _logger;
+    private readonly RateLimitOptions _options;
+
+    public RateLimitingMiddleware(
+        RequestDelegate next,
+        ILogger<RateLimitingMiddleware> logger,
+        RateLimitOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(options);
+        _next = next;
+        _logger = logger;
+        _options = options;
+    }
+
     private const string UnknownIpAddress = "unknown";
     private const string RetryAfterValue = "60";
     private const string JsonContentType = "application/json";
@@ -48,12 +62,12 @@ public class RateLimitingMiddleware(
 
         // Get or create token bucket for this IP
         var bucket = TokenBuckets.GetOrAdd(ipAddress, _ => new TokenBucket(
-            options.RequestsPerMinute,
-            options.RefillIntervalSeconds));
+            _options.RequestsPerMinute,
+            _options.RefillIntervalSeconds));
 
         if (!bucket.TryConsumeToken())
         {
-            logger.LogWarning("Rate limit exceeded for IP: {IpAddress}", ipAddress);
+            _logger.LogWarning("Rate limit exceeded for IP: {IpAddress}", ipAddress);
 
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             context.Response.ContentType = JsonContentType;
@@ -63,20 +77,20 @@ public class RateLimitingMiddleware(
             {
                 Success = false,
                 Message = RateLimitExceededMessage,
-                ErrorDetails = $"Maximum {options.RequestsPerMinute} requests per minute allowed"
+                ErrorDetails = $"Maximum {_options.RequestsPerMinute} requests per minute allowed"
             };
 
             await context.Response.WriteAsJsonAsync(response, JsonSerializerOptions);
             return;
         }
 
-        logger.LogDebug("Rate limiting token consumed for IP {IpAddress}. Remaining tokens: {Remaining}",
+        _logger.LogDebug("Rate limiting token consumed for IP {IpAddress}. Remaining tokens: {Remaining}",
             ipAddress, bucket.RemainingTokens);
 
-        context.Response.Headers[RateLimitLimitHeader] = options.RequestsPerMinute.ToString();
+        context.Response.Headers[RateLimitLimitHeader] = _options.RequestsPerMinute.ToString();
         context.Response.Headers[RateLimitRemainingHeader] = bucket.RemainingTokens.ToString();
 
-        await next(context);
+        await _next(context);
     }
 
     private void SweepIdleTokenBuckets()
@@ -90,7 +104,7 @@ public class RateLimitingMiddleware(
             return;
         }
 
-        var idleThreshold = TimeSpan.FromMinutes(options.IdleEvictionMinutes);
+        var idleThreshold = TimeSpan.FromMinutes(_options.IdleEvictionMinutes);
 
         foreach (var entry in TokenBuckets)
         {
