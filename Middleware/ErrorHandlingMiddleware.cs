@@ -11,23 +11,34 @@ namespace SystemdServiceMonitor.Middleware;
 /// Global error handling middleware that catches unhandled exceptions and returns consistent error responses.
 /// Prevents internal server details from leaking to clients while maintaining detailed logging.
 /// </summary>
-public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
+public class ErrorHandlingMiddleware
 {
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ErrorHandlingMiddleware> _logger;
+
+    public ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        ArgumentNullException.ThrowIfNull(logger);
+        _next = next;
+        _logger = logger;
+    }
+
     public async Task InvokeAsync(HttpContext context)
     {
-        logger.LogDebug("Entering ErrorHandlingMiddleware for request {Path}", context.Request.Path);
+        _logger.LogDebug("Entering ErrorHandlingMiddleware for request {Path}", context.Request.Path);
 
         try
         {
-            await next(context);
+            await _next(context);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception in request pipeline. Path: {Path}", context.Request.Path);
+            _logger.LogError(ex, "Unhandled exception in request pipeline. Path: {Path}", context.Request.Path);
             await HandleExceptionAsync(context, ex);
         }
 
-        logger.LogDebug("Exiting ErrorHandlingMiddleware for request {Path}", context.Request.Path);
+        _logger.LogDebug("Exiting ErrorHandlingMiddleware for request {Path}", context.Request.Path);
     }
 
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)
