@@ -63,6 +63,14 @@ foreach (var service in relatedServices)
 }
 ```
 
+## ServiceStatusUpdateWorker
+
+`BackgroundWorkers/ServiceStatusUpdateWorker.cs` is a `BackgroundService` with a configurable loop. When `ExecuteAsync` starts, it logs a start message and immediately enters the first iteration. Each iteration creates and disposes an `IServiceProvider` scope, then waits for `UpdateIntervalMs` before beginning the next iteration. The default interval is 30,000 ms (30 seconds); because the delay occurs after the scoped block, the interval is measured from the end of one iteration to the start of the next rather than on a fixed wall-clock schedule.
+
+The current scoped block does not retrieve or update service status: the monitor-service and cache resolutions, service query, debug log, and cache write are present only as commented-out code. Consequently, the executable worker currently performs no status polling or caching. `CacheTtl` (default five minutes), `BatchSize` (default 100), and `VerboseLogging` (default `false`) are exposed through the worker but are not used by its loop.
+
+The worker continues until its `stoppingToken` requests cancellation. Cancellation observed by the normal interval delay is caught as `OperationCanceledException`, logged, and breaks the loop; after the loop it logs that the worker stopped. Other exceptions are logged and followed by a fixed `ErrorBackoffMs` delay, which defaults to 10,000 ms, before another iteration is attempted. The backoff is not exponential. If no `IOptions<ServiceWorkerOptions>` is supplied to the constructor, the worker creates `ServiceWorkerOptions` with these defaults.
+
 ## ApiResponse
 
 The `ApiResponse` class provides a standardized way to return data and errors from API endpoints. It wraps the actual data being returned, along with additional metadata such as success status, human-readable messages, and error details.
