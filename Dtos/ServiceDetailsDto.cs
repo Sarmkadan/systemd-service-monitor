@@ -47,6 +47,9 @@ public class ServiceDetailsDto
     public string? StatusSummary { get; set; }
 
     public string? HealthStatus { get; set; }
+
+    public override string ToString() =>
+        $"{UnitName} ({State}/{SubState}) [PID:{MainProcessId}]";
 }
 
 /// <summary>
