@@ -18,6 +18,8 @@ public class DBusConnectionManager : IDisposable
     private int _reconnectAttempts;
     private const int MaxReconnectAttempts = 5;
     private const int ReconnectDelayMs = 1000;
+    private const string ConnectedState = "Connected";
+    private const string FailedState = "Failed";
 
     public DBusConnectionManager(ILogger<DBusConnectionManager> logger)
     {
@@ -158,7 +160,7 @@ public class DBusConnectionManager : IDisposable
             return new ConnectionStatusInfo
             {
                 IsConnected = true,
-                State = "Connected",
+                State = ConnectedState,
                 LastStatusCheck = DateTime.UtcNow,
                 ReconnectAttempts = _reconnectAttempts
             };
@@ -168,7 +170,7 @@ public class DBusConnectionManager : IDisposable
             return new ConnectionStatusInfo
             {
                 IsConnected = false,
-                State = "Failed",
+                State = FailedState,
                 LastStatusCheck = DateTime.UtcNow,
                 ErrorMessage = ex.Message,
                 ReconnectAttempts = _reconnectAttempts
