@@ -39,8 +39,7 @@ public static class ServiceHealthChecker
     /// </summary>
     public static ServiceHealthStatus GetHealthStatus(ServiceInfo service)
     {
-        if (service is null)
-            return ServiceHealthStatus.Unknown;
+        ArgumentNullException.ThrowIfNull(service);
 
         // Check for critical issues first
         if (service.State.ToString() == StateFailed)
@@ -79,8 +78,7 @@ public static class ServiceHealthChecker
     /// </summary>
     public static string GetHealthSummary(ServiceInfo service)
     {
-        if (service is null)
-            return "Service information unavailable";
+        ArgumentNullException.ThrowIfNull(service);
 
         var status = GetHealthStatus(service);
         var icon = status switch
@@ -118,6 +116,8 @@ public static class ServiceHealthChecker
     /// </summary>
     public static bool IsProblematic(ServiceInfo service)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         var status = GetHealthStatus(service);
         return status == ServiceHealthStatus.Critical || status == ServiceHealthStatus.Warning;
     }
@@ -127,6 +127,8 @@ public static class ServiceHealthChecker
     /// </summary>
     public static List<string> GetRecommendedActions(ServiceInfo service)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         var actions = new List<string>();
 
         if (service.State.ToString() == StateFailed)
@@ -184,8 +186,7 @@ public static class ServiceHealthChecker
     /// </summary>
     public static double CalculateReliability(ServiceInfo service)
     {
-        if (service is null)
-            return 0;
+        ArgumentNullException.ThrowIfNull(service);
 
         // Base reliability on restart count and status
         var baseReliability = 100.0;
