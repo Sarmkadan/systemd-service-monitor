@@ -34,6 +34,57 @@ public class ResourceMonitorService : IResourceMonitorService
     // Per-service CPU usage calculation
     private readonly Dictionary<string, (ulong LastCpuTime, DateTime LastMeasurementTime)> _lastServiceCpuStats = new();
 
+    // Proc filesystem paths
+    private const string ProcUptimePath = "/proc/uptime";
+    private const string ProcLoadavgPath = "/proc/loadavg";
+    private const string ProcMeminfoPath = "/proc/meminfo";
+    private const string ProcStatPath = "/proc/stat";
+    private const string ProcDiskstatsPath = "/proc/diskstats";
+    private const string ProcDirectory = "/proc/";
+    private const string RootDrivePath = "/";
+
+    // Proc file content keys
+    private const string MemTotalKey = "MemTotal:";
+    private const string MemAvailableKey = "MemAvailable:";
+    private const string CachedKey = "Cached:";
+    private const string CpuLinePrefix = "cpu ";
+    private const string LoopDevicePrefix = "loop";
+    private const string RamDevicePrefix = "ram";
+
+    // Cgroup paths and keys
+    private const string CgroupSystemSlicePath = "/sys/fs/cgroup/system.slice/";
+    private const string MemoryCurrentFile = "memory.current";
+    private const string MemoryUsageInBytesFile = "memory.usage_in_bytes";
+    private const string CpuStatFile = "cpu.stat";
+    private const string CpuAcctUsageFile = "cpuacct.usage";
+    private const string UsageUsecKey = "usage_usec";
+    private const string ThreadsKey = "Threads:";
+    private const string FdSizeKey = "FDSize:";
+
+    // Unit conversion factors
+    private const long BytesPerKb = 1024;
+    private const long BytesPerMb = 1024L * 1024L;
+    private const long BytesPerGb = 1024L * 1024L * 1024L;
+    private const decimal PercentMultiplier = 100m;
+    private const double PercentMultiplierDouble = 100.0;
+    private const ulong MicrosecondsPerMillisecond = 1000;
+    private const double NanosecondsPerMillisecond = 1_000_000;
+
+    // Proc file field counts and indices
+    private const int CpuStatFieldCount = 8;
+    private const int DiskStatsFieldCount = 10;
+    private const int DiskStatsDeviceNameIndex = 2;
+    private const int DiskStatsReadsIndex = 3;
+    private const int DiskStatsWritesIndex = 7;
+
+    // Alert thresholds and windows
+    private const decimal HighCpuUsageThresholdPercent = 80m;
+    private const long HighMemoryUsageThresholdMb = 1000;
+    private const int DuplicateAlertWindowMinutes = 5;
+    private const int DefaultMonitoringIntervalMs = 5000;
+    private const decimal ZeroPercent = 0m;
+    private const decimal HundredPercent = 100m;
+
     public ResourceMonitorService(ILogger<ResourceMonitorService> logger, SystemdOptions options, ISystemdConnectionService connectionService, IServiceMonitorService serviceMonitorService)
     {
         ArgumentNullException.ThrowIfNull(logger);
@@ -60,9 +111,9 @@ public class ResourceMonitorService : IResourceMonitorService
             };
 
             // Uptime from /proc/uptime
-            if (File.Exists("/proc/uptime"))
+            if (File.Exists(ProcUptimePath))
             {
-                var uptimeContent = await File.ReadAllTextAsync("/proc/uptime", ct);
+                var uptimeContent = await File.ReadAllTextAsync(ProcUptimePath, ct);
                 var parts = uptimeContent.Split(' ');
                 if (parts.Length > 0 && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double uptimeSeconds))
                 {
@@ -71,9 +122,9 @@ public class ResourceMonitorService : IResourceMonitorService
             }
 
             // Load Averages from /proc/loadavg
-            if (File.Exists("/proc/loadavg"))
+            if (File.Exists(ProcLoadavgPath))
             {
-                var loadavgContent = await File.ReadAllTextAsync("/proc/loadavg", ct);
+                var loadavgContent = await File.ReadAllTextAsync(ProcLoadavgPath, ct);
                 var parts = loadavgContent.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length >= 3)
                 {
@@ -84,42 +135,42 @@ public class ResourceMonitorService : IResourceMonitorService
             }
 
             // Memory from /proc/meminfo
-            if (File.Exists("/proc/meminfo"))
+            if (File.Exists(ProcMeminfoPath))
             {
-                var meminfoContent = await File.ReadAllLinesAsync("/proc/meminfo", ct);
+                var meminfoContent = await File.ReadAllLinesAsync(ProcMeminfoPath, ct);
                 long totalMemKb = 0, availableMemKb = 0, cachedMemKb = 0;
 
                 foreach (var line in meminfoContent)
                 {
-                    if (line.StartsWith("MemTotal:"))
+                    if (line.StartsWith(MemTotalKey))
                         totalMemKb = ParseMemInfoLine(line);
-                    else if (line.StartsWith("MemAvailable:"))
+                    else if (line.StartsWith(MemAvailableKey))
                         availableMemKb = ParseMemInfoLine(line);
-                    else if (line.StartsWith("Cached:"))
+                    else if (line.StartsWith(CachedKey))
                         cachedMemKb = ParseMemInfoLine(line);
                 }
 
-                resources.TotalMemoryMb = totalMemKb / 1024;
-                resources.AvailableMemoryMb = availableMemKb / 1024;
-                resources.CachedMemoryMb = cachedMemKb / 1024;
+                resources.TotalMemoryMb = totalMemKb / BytesPerKb;
+                resources.AvailableMemoryMb = availableMemKb / BytesPerKb;
+                resources.CachedMemoryMb = cachedMemKb / BytesPerKb;
                 resources.UsedMemoryMb = resources.TotalMemoryMb - resources.AvailableMemoryMb;
                 if (resources.TotalMemoryMb > 0)
                 {
-                    resources.MemoryUsagePercent = (decimal)resources.UsedMemoryMb / resources.TotalMemoryMb * 100;
+                    resources.MemoryUsagePercent = (decimal)resources.UsedMemoryMb / resources.TotalMemoryMb * PercentMultiplier;
                 }
             }
 
             // CPU Usage from /proc/stat
             // This requires two readings for accurate percentage. For a single call,
             // we'll calculate instantaneous usage if enough time has passed since last measurement.
-            if (File.Exists("/proc/stat"))
+            if (File.Exists(ProcStatPath))
             {
-                var statContent = await File.ReadAllLinesAsync("/proc/stat", ct);
-                var cpuLine = statContent.FirstOrDefault(line => line.StartsWith("cpu "));
+                var statContent = await File.ReadAllLinesAsync(ProcStatPath, ct);
+                var cpuLine = statContent.FirstOrDefault(line => line.StartsWith(CpuLinePrefix));
                 if (cpuLine != null)
                 {
                     var parts = cpuLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 8) // user, nice, system, idle, iowait, irq, softirq, steal
+                    if (parts.Length >= CpuStatFieldCount) // user, nice, system, idle, iowait, irq, softirq, steal
                     {
                         ulong user = ulong.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
                         ulong nice = ulong.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
@@ -139,7 +190,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
                             if (totalDiff > 0)
                             {
-                                resources.CpuUsagePercent = (decimal)(100.0 * (totalDiff - idleDiff) / totalDiff);
+                                resources.CpuUsagePercent = (decimal)(PercentMultiplierDouble * (totalDiff - idleDiff) / totalDiff);
                             }
                         }
 
@@ -151,21 +202,21 @@ public class ResourceMonitorService : IResourceMonitorService
             }
 
             // Running Processes from /proc
-            resources.RunningProcesses = Directory.GetDirectories("/proc/")
+            resources.RunningProcesses = Directory.GetDirectories(ProcDirectory)
                                             .Count(d => int.TryParse(Path.GetFileName(d), out _));
 
             // Disk Usage for root filesystem
             try
             {
-                var rootDrive = new DriveInfo("/");
+                var rootDrive = new DriveInfo(RootDrivePath);
                 if (rootDrive.IsReady)
                 {
-                    resources.TotalDiskGb = rootDrive.TotalSize / (1024L * 1024L * 1024L);
-                    resources.AvailableDiskGb = rootDrive.AvailableFreeSpace / (1024L * 1024L * 1024L);
+                    resources.TotalDiskGb = rootDrive.TotalSize / BytesPerGb;
+                    resources.AvailableDiskGb = rootDrive.AvailableFreeSpace / BytesPerGb;
                     resources.UsedDiskGb = resources.TotalDiskGb - resources.AvailableDiskGb;
                     if (resources.TotalDiskGb > 0)
                     {
-                        resources.DiskUsagePercent = (decimal)resources.UsedDiskGb / resources.TotalDiskGb * 100;
+                        resources.DiskUsagePercent = (decimal)resources.UsedDiskGb / resources.TotalDiskGb * PercentMultiplier;
                     }
                 }
             }
@@ -176,23 +227,23 @@ public class ResourceMonitorService : IResourceMonitorService
             
             // Disk IOPS from /proc/diskstats: sum completed reads + writes across physical disks,
             // divided by elapsed time since the last measurement.
-            if (File.Exists("/proc/diskstats"))
+            if (File.Exists(ProcDiskstatsPath))
             {
                 ulong currentTotalOps = 0;
-                var diskstatsLines = await File.ReadAllLinesAsync("/proc/diskstats", ct);
+                var diskstatsLines = await File.ReadAllLinesAsync(ProcDiskstatsPath, ct);
                 foreach (var line in diskstatsLines)
                 {
                     var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     // Fields: major minor name reads_completed ... writes_completed ...
-                    if (fields.Length < 10) continue;
+                    if (fields.Length < DiskStatsFieldCount) continue;
 
-                    var deviceName = fields[2];
+                    var deviceName = fields[DiskStatsDeviceNameIndex];
                     // Skip partitions (e.g. sda1) and loop/ram devices, keep whole disks only.
-                    if (deviceName.StartsWith("loop") || deviceName.StartsWith("ram")) continue;
+                    if (deviceName.StartsWith(LoopDevicePrefix) || deviceName.StartsWith(RamDevicePrefix)) continue;
                     if (deviceName.Length > 0 && char.IsDigit(deviceName[^1])) continue;
 
-                    if (ulong.TryParse(fields[3], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var readsCompleted) &&
-                        ulong.TryParse(fields[7], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var writesCompleted))
+                    if (ulong.TryParse(fields[DiskStatsReadsIndex], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var readsCompleted) &&
+                        ulong.TryParse(fields[DiskStatsWritesIndex], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var writesCompleted))
                     {
                         currentTotalOps += readsCompleted + writesCompleted;
                     }
@@ -292,37 +343,37 @@ public class ResourceMonitorService : IResourceMonitorService
 
             // Cgroup path for systemd services
             // Example: /sys/fs/cgroup/system.slice/nginx.service/
-            string cgroupPath = $"/sys/fs/cgroup/system.slice/{unitName}/";
+            string cgroupPath = $"{CgroupSystemSlicePath}{unitName}/";
 
             // Memory Usage from cgroup
-            string memoryUsagePath = Path.Combine(cgroupPath, "memory.current"); // For cgroup v2
+            string memoryUsagePath = Path.Combine(cgroupPath, MemoryCurrentFile); // For cgroup v2
             if (!File.Exists(memoryUsagePath))
             {
-                memoryUsagePath = Path.Combine(cgroupPath, "memory.usage_in_bytes"); // For cgroup v1
+                memoryUsagePath = Path.Combine(cgroupPath, MemoryUsageInBytesFile); // For cgroup v1
             }
 
             if (File.Exists(memoryUsagePath))
             {
                 if (long.TryParse(await File.ReadAllTextAsync(memoryUsagePath, ct), out long memoryBytes))
                 {
-                    metrics.MemoryUsageMb = memoryBytes / (1024L * 1024L);
+                    metrics.MemoryUsageMb = memoryBytes / BytesPerMb;
                 }
             }
 
             // CPU Usage from cgroup
             // For cgroup v2, cpu.stat gives usage_usec and system_usec
             // For cgroup v1, cpuacct.usage gives total usage in nanoseconds
-            string cpuStatPath = Path.Combine(cgroupPath, "cpu.stat"); // cgroup v2
-            string cpuAcctUsagePath = Path.Combine(cgroupPath, "cpuacct.usage"); // cgroup v1
+            string cpuStatPath = Path.Combine(cgroupPath, CpuStatFile); // cgroup v2
+            string cpuAcctUsagePath = Path.Combine(cgroupPath, CpuAcctUsageFile); // cgroup v1
 
             ulong currentServiceCpuTime = 0;
             if (File.Exists(cpuStatPath))
             {
                 var cpuStatContent = await File.ReadAllLinesAsync(cpuStatPath, ct);
-                var usageUsecLine = cpuStatContent.FirstOrDefault(line => line.StartsWith("usage_usec"));
+                var usageUsecLine = cpuStatContent.FirstOrDefault(line => line.StartsWith(UsageUsecKey));
                 if (usageUsecLine != null && ulong.TryParse(usageUsecLine.Split(' ')[1], out ulong usageUsec))
                 {
-                    currentServiceCpuTime = usageUsec * 1000; // Convert microsec to nanosec for consistency
+                    currentServiceCpuTime = usageUsec * MicrosecondsPerMillisecond; // Convert microsec to nanosec for consistency
                 }
             }
             else if (File.Exists(cpuAcctUsagePath))
@@ -347,7 +398,7 @@ public class ResourceMonitorService : IResourceMonitorService
 
                         // CPU usage calculation: (CPU time used by service / total CPU time available in period) * 100
                         // totalCpuTimeAvailable represents 100% of one CPU core in nanoseconds for the time difference
-                        double totalCpuTimeAvailable = timeDifference.TotalMilliseconds * 1_000_000; // 1ms = 1,000,000ns
+                        double totalCpuTimeAvailable = timeDifference.TotalMilliseconds * NanosecondsPerMillisecond; // 1ms = 1,000,000ns
 
                         if (totalCpuTimeAvailable > 0)
                         {
@@ -356,8 +407,8 @@ public class ResourceMonitorService : IResourceMonitorService
                             // service saturating all cores reports 100 %.  Without the core
                             // divisor the raw cgroup value can exceed 100 % on multi-core hosts.
                             double cpuPercent = cpuTimeDifference
-                                / (totalCpuTimeAvailable * Environment.ProcessorCount) * 100.0;
-                            metrics.CpuUsagePercent = Math.Clamp((decimal)cpuPercent, 0m, 100m);
+                                / (totalCpuTimeAvailable * Environment.ProcessorCount) * PercentMultiplierDouble;
+                            metrics.CpuUsagePercent = Math.Clamp((decimal)cpuPercent, ZeroPercent, HundredPercent);
                         }
                     }
                 }
@@ -367,20 +418,20 @@ public class ResourceMonitorService : IResourceMonitorService
 
 
             // Thread Count and File Descriptor Count from /proc/<pid>/status
-            string procStatusPath = $"/proc/{mainPid}/status";
+            string procStatusPath = $"{ProcDirectory}{mainPid}/status";
             if (File.Exists(procStatusPath))
             {
                 var statusContent = await File.ReadAllLinesAsync(procStatusPath, ct);
                 foreach (var line in statusContent)
                 {
-                    if (line.StartsWith("Threads:"))
+                    if (line.StartsWith(ThreadsKey))
                     {
                         if (int.TryParse(line.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1], out int threads))
                         {
                             metrics.ThreadCount = threads;
                         }
                     }
-                    else if (line.StartsWith("FDSize:")) // Not always available or precise in /proc/pid/status
+                    else if (line.StartsWith(FdSizeKey)) // Not always available or precise in /proc/pid/status
                     {
                         if (int.TryParse(line.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1], out int fdSize))
                         {
@@ -427,7 +478,7 @@ public class ResourceMonitorService : IResourceMonitorService
         }
     }
 
-    public async Task StartContinuousMonitoringAsync(int intervalMs = 5000, CancellationToken ct = default)
+    public async Task StartContinuousMonitoringAsync(int intervalMs = DefaultMonitoringIntervalMs, CancellationToken ct = default)
     {
         if (_monitoringCts is not null && !_monitoringCts.Token.IsCancellationRequested)
         {
@@ -450,24 +501,24 @@ public class ResourceMonitorService : IResourceMonitorService
                     // Check for alerts
                     foreach (var metric in metrics)
                     {
-                        if (metric.CpuUsagePercent > 80)
+                        if (metric.CpuUsagePercent > HighCpuUsageThresholdPercent)
                             await AddAlertAsync(new ResourceAlert
                             {
                                 UnitName = metric.UnitName,
                                 AlertType = ResourceAlertType.HighCpuUsage,
                                 Message = $"CPU usage at {metric.CpuUsagePercent}%",
                                 CurrentValue = (decimal)metric.CpuUsagePercent,
-                                Threshold = 80
+                                Threshold = HighCpuUsageThresholdPercent
                             });
 
-                        if (metric.MemoryUsageMb > 1000)
+                        if (metric.MemoryUsageMb > HighMemoryUsageThresholdMb)
                             await AddAlertAsync(new ResourceAlert
                             {
                                 UnitName = metric.UnitName,
                                 AlertType = ResourceAlertType.HighMemoryUsage,
                                 Message = $"Memory usage at {metric.MemoryUsageMb} MB",
                                 CurrentValue = metric.MemoryUsageMb,
-                                Threshold = 1000
+                                Threshold = HighMemoryUsageThresholdMb
                             });
                     }
 
@@ -516,7 +567,7 @@ public class ResourceMonitorService : IResourceMonitorService
             var recentAlert = _alerts.FirstOrDefault(a =>
                 a.UnitName == alert.UnitName &&
                 a.AlertType == alert.AlertType &&
-                a.AlertTime > DateTime.UtcNow.AddMinutes(-5));
+                a.AlertTime > DateTime.UtcNow.AddMinutes(-DuplicateAlertWindowMinutes));
 
             if (recentAlert is null)
             {
