@@ -190,6 +190,32 @@ public static class PaginationHelper
 
         return pageNumbers;
     }
+
+    /// <summary>
+    /// Gets a string describing the range of items on the current page, e.g., "Showing 1-10 of 23 items".
+    /// Returns "No items to display" if there are no items.
+    /// For pages beyond the last page, returns "Showing 0-0 of {totalCount} items".
+    /// </summary>
+    /// <param name="pageNumber">The 1-based page number.</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <param name="totalCount">The total number of items.</param>
+    /// <returns>A string describing the current page range.</returns>
+    public static string GetPageRangeDescription(int pageNumber, int pageSize, int totalCount)
+    {
+        // Validate pagination parameters (using the existing method)
+        var (validPageNumber, validPageSize) = ValidatePaginationParams(pageNumber, pageSize);
+
+        if (totalCount == 0)
+            return "No items to display";
+
+        int startIndex = CalculateSkip(validPageNumber, validPageSize) + 1;
+        int endIndex = Math.Min(validPageNumber * validPageSize, totalCount);
+
+        if (startIndex > endIndex)
+            return $"Showing 0-0 of {totalCount} items";
+
+        return $"Showing {startIndex}-{endIndex} of {totalCount} items";
+    }
 }
 
 /// <summary>
