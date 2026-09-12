@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Reflection;
+using SystemdServiceMonitor.Enums;
 
 namespace SystemdServiceMonitor.Extensions;
 
@@ -134,5 +135,25 @@ public static class EnumExtensions
                 "([A-Z])",
                 " $1",
                 System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
+    }
+
+    /// <summary>
+    /// Determines whether a <see cref="ServiceState"/> represents a running service.
+    /// </summary>
+    /// <param name="state">The service state to check.</param>
+    /// <returns>True if the service is running; otherwise, false.</returns>
+    public static bool IsRunning(this ServiceState state)
+    {
+        return state is ServiceState.Active or ServiceState.Reloading;
+    }
+
+    /// <summary>
+    /// Determines whether a <see cref="ServiceState"/> represents a terminal condition.
+    /// </summary>
+    /// <param name="state">The service state to check.</param>
+    /// <returns>True if the state is terminal; otherwise, false.</returns>
+    public static bool IsTerminal(this ServiceState state)
+    {
+        return state is ServiceState.Inactive or ServiceState.Failed;
     }
 }
