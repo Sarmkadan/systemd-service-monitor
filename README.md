@@ -94,7 +94,17 @@ Console.WriteLine($"Success: {errorResponse.Success}, Error: {errorResponse.Erro
 
 ## RateLimitingMiddleware
 
-The `RateLimitingMiddleware` implements a token‑bucket algorithm to limit the number of requests per IP address. It consumes a token on each request and returns a 429 status code when the bucket is empty. The middleware can be added to the ASP.NET Core pipeline using the provided extension methods.
+`Middleware/RateLimitingMiddleware.cs` limits requests with in-memory token buckets. Buckets are stored in a static, process-wide dictionary and keyed by `HttpContext.Connection.RemoteIpAddress.ToString()`; requests without a remote IP share the key `unknown`. A newly seen client receives a full bucket, and every request consumes one token before the next middleware runs.
+
+### Limits and throttling behavior
+
+- `RequestsPerMinute` is the bucket capacity and defaults to 300. Despite the property name, the refill period is controlled separately by `RefillIntervalSeconds`, which defaults to 60 seconds.
+- Refill is not gradual. On the first request at or after the configured interval has elapsed, the bucket is reset to its full capacity and that request then consumes one token. Unused tokens do not accumulate beyond the configured capacity.
+- When a token is available, the response receives `X-RateLimit-Limit` with the configured capacity and `X-RateLimit-Remaining` with the post-consumption token count, then processing continues down the pipeline.
+- When no token is available, processing stops with HTTP 429 and an `application/json` `ApiResponse<object>`. Its `success` value is `false`, its message is `Rate limit exceeded`, and its error details report the configured maximum. The response also sets `Retry-After: 60`; this header value is fixed in the implementation and does not change with `RefillIntervalSeconds`.
+- `IdleEvictionMinutes` defaults to 30. At most once per minute, an incoming request triggers a sweep that removes buckets whose last attempted token consumption was more than that many minutes ago. A later request from an evicted address creates a new full bucket.
+
+Because storage is in process memory, clients do not share counters across separate application processes, and counters are lost when the process restarts. Clients behind the same visible remote IP share a bucket. The implementation does not inspect forwarded-client headers itself, so any proxy handling that changes `RemoteIpAddress` must happen earlier in the pipeline.
 
 ### Usage Example
 
@@ -110,7 +120,8 @@ var app = builder.Build();
 app.UseRateLimiting(new RateLimitOptions
 {
     RequestsPerMinute = 200,
-    RefillIntervalSeconds = 60
+    RefillIntervalSeconds = 60,
+    IdleEvictionMinutes = 30
 });
 
 // Alternatively, use the default configuration (300 requests/minute)
@@ -127,7 +138,7 @@ app.MapGet("/", () => "Hello, world!");
 app.Run();
 ```
 
-The middleware automatically tracks requests per IP and enforces the configured limits, ensuring that clients cannot exceed the specified request rate.
+`UseRateLimiting()` creates the default options. Overloads also accept a `RateLimitOptions` instance or a configuration delegate; `UseApplicationMiddleware` uses the delegate overload with a capacity of 300 and a 60-second refill interval.
 
 ## ServiceMonitorService
 
