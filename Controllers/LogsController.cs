@@ -13,10 +13,20 @@ namespace SystemdServiceMonitor.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class LogsController(
-    IServiceLogService logService,
-    ILogger<LogsController> logger) : ControllerBase
+public class LogsController : ControllerBase
 {
+    private readonly IServiceLogService _logService;
+    private readonly ILogger<LogsController> _logger;
+
+    public LogsController(IServiceLogService logService, ILogger<LogsController> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logService);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _logService = logService;
+        _logger = logger;
+    }
+
     /// <summary>
     /// Retrieves logs for a specific service with optional filtering and pagination.
     /// </summary>
@@ -49,7 +59,7 @@ public class LogsController(
             // Validate line count to prevent excessive data retrieval
             lines = Math.Clamp(lines, 1, 10000);
 
-            var allLogs = (await logService.GetServiceLogsAsync(serviceName, lines)).ToList();
+            var allLogs = (await _logService.GetServiceLogsAsync(serviceName, lines)).ToList();
 
             // Apply filters
             if (!string.IsNullOrEmpty(severity))
@@ -94,7 +104,7 @@ public class LogsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving logs for service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving logs for service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<List<ServiceLog>>
             {
                 Success = false,
@@ -121,7 +131,7 @@ public class LogsController(
             maxEntries = Math.Clamp(maxEntries, 10, 10000);
 
             var cutoffTime = DateTime.UtcNow.AddMinutes(-minutes);
-            var logs = await logService.GetRecentLogsAsync(maxEntries);
+            var logs = await _logService.GetRecentLogsAsync(maxEntries);
 
             var filteredLogs = logs
                 .Where(l => l.Timestamp >= cutoffTime)
@@ -138,7 +148,7 @@ public class LogsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving recent logs");
+            _logger.LogError(ex, "Error retrieving recent logs");
             return StatusCode(500, new ApiResponse<List<ServiceLog>>
             {
                 Success = false,
@@ -175,7 +185,7 @@ public class LogsController(
 
             maxResults = Math.Clamp(maxResults, 10, 10000);
 
-            var logs = await logService.GetServiceLogsAsync(serviceName, maxResults);
+            var logs = await _logService.GetServiceLogsAsync(serviceName, maxResults);
 
             // Filter for error and warning level logs
             var errorLogs = logs.Where(l =>
@@ -205,7 +215,7 @@ public class LogsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving error logs for service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving error logs for service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<List<ServiceLog>>
             {
                 Success = false,
@@ -253,7 +263,7 @@ public class LogsController(
             lines = Math.Clamp(lines, 1, 10000);
 
             var minPriority = (SyslogLevel)priority;
-            var logs = await logService.FetchFromJournalByPriorityAsync(serviceName, minPriority, lines);
+            var logs = await _logService.FetchFromJournalByPriorityAsync(serviceName, minPriority, lines);
 
             return Ok(new ApiResponse<List<ServiceLog>>
             {
@@ -264,7 +274,7 @@ public class LogsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving priority-filtered logs for {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving priority-filtered logs for {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<List<ServiceLog>>
             {
                 Success = false,
@@ -303,7 +313,7 @@ public class LogsController(
             }
 
             lines = Math.Clamp(lines, 10, 10000);
-            var logs = await logService.GetServiceLogsAsync(serviceName, lines);
+            var logs = await _logService.GetServiceLogsAsync(serviceName, lines);
 
             var fileName = $"{serviceName}-logs-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
 
@@ -326,7 +336,7 @@ public class LogsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error exporting logs for service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error exporting logs for service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<object>
             {
                 Success = false,
