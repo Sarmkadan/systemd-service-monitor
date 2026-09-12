@@ -13,11 +13,26 @@ namespace SystemdServiceMonitor.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ServicesController(
-    IServiceMonitorService monitorService,
-    IServiceControlService controlService,
-    ILogger<ServicesController> logger) : ControllerBase
+public class ServicesController : ControllerBase
 {
+    private readonly IServiceMonitorService _monitorService;
+    private readonly IServiceControlService _controlService;
+    private readonly ILogger<ServicesController> _logger;
+
+    public ServicesController(
+        IServiceMonitorService monitorService,
+        IServiceControlService controlService,
+        ILogger<ServicesController> logger)
+    {
+        ArgumentNullException.ThrowIfNull(monitorService);
+        ArgumentNullException.ThrowIfNull(controlService);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _monitorService = monitorService;
+        _controlService = controlService;
+        _logger = logger;
+    }
+
     /// <summary>
     /// Gets the maximum number of concurrent service operations allowed.
     /// Defaults to 3 and is clamped between 1 and 20.
@@ -42,7 +57,7 @@ public class ServicesController(
     {
         try
         {
-            var services = await monitorService.GetAllServicesAsync();
+            var services = await _monitorService.GetAllServicesAsync();
 
             if (!string.IsNullOrEmpty(state))
             {
@@ -69,7 +84,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving services");
+            _logger.LogError(ex, "Error retrieving services");
             return StatusCode(500, new ApiResponse<List<ServiceInfo>>
             {
                 Success = false,
@@ -99,7 +114,7 @@ public class ServicesController(
                 });
             }
 
-            var service = await monitorService.GetServiceByNameAsync(serviceName);
+            var service = await _monitorService.GetServiceByNameAsync(serviceName);
 
             if (service is null)
             {
@@ -119,7 +134,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving service details for {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving service details for {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<ServiceInfo>
             {
                 Success = false,
@@ -142,11 +157,11 @@ public class ServicesController(
     {
         try
         {
-            var result = await controlService.StartServiceAsync(serviceName);
+            var result = await _controlService.StartServiceAsync(serviceName);
 
             if (result)
             {
-                logger.LogInformation("Service '{ServiceName}' started successfully", serviceName);
+                _logger.LogInformation("Service '{ServiceName}' started successfully", serviceName);
                 return Ok(new ApiResponse<bool>
                 {
                     Data = true,
@@ -163,7 +178,7 @@ public class ServicesController(
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogWarning(ex, "Unauthorized attempt to start service {ServiceName}", serviceName);
+            _logger.LogWarning(ex, "Unauthorized attempt to start service {ServiceName}", serviceName);
             return StatusCode(403, new ApiResponse<bool>
             {
                 Success = false,
@@ -173,7 +188,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error starting service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error starting service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<bool>
             {
                 Success = false,
@@ -194,11 +209,11 @@ public class ServicesController(
     {
         try
         {
-            var result = await controlService.StopServiceAsync(serviceName);
+            var result = await _controlService.StopServiceAsync(serviceName);
 
             if (result)
             {
-                logger.LogInformation("Service '{ServiceName}' stopped successfully", serviceName);
+                _logger.LogInformation("Service '{ServiceName}' stopped successfully", serviceName);
                 return Ok(new ApiResponse<bool>
                 {
                     Data = true,
@@ -215,7 +230,7 @@ public class ServicesController(
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogWarning(ex, "Unauthorized attempt to stop service {ServiceName}", serviceName);
+            _logger.LogWarning(ex, "Unauthorized attempt to stop service {ServiceName}", serviceName);
             return StatusCode(403, new ApiResponse<bool>
             {
                 Success = false,
@@ -225,7 +240,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error stopping service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error stopping service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<bool>
             {
                 Success = false,
@@ -246,11 +261,11 @@ public class ServicesController(
     {
         try
         {
-            var result = await controlService.RestartServiceAsync(serviceName);
+            var result = await _controlService.RestartServiceAsync(serviceName);
 
             if (result)
             {
-                logger.LogInformation("Service '{ServiceName}' restarted successfully", serviceName);
+                _logger.LogInformation("Service '{ServiceName}' restarted successfully", serviceName);
                 return Ok(new ApiResponse<bool>
                 {
                     Data = true,
@@ -267,7 +282,7 @@ public class ServicesController(
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogWarning(ex, "Unauthorized attempt to restart service {ServiceName}", serviceName);
+            _logger.LogWarning(ex, "Unauthorized attempt to restart service {ServiceName}", serviceName);
             return StatusCode(403, new ApiResponse<bool>
             {
                 Success = false,
@@ -277,7 +292,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error restarting service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error restarting service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<bool>
             {
                 Success = false,
@@ -298,11 +313,11 @@ public class ServicesController(
     {
         try
         {
-            var result = await controlService.ReloadServiceAsync(serviceName);
+            var result = await _controlService.ReloadServiceAsync(serviceName);
 
             if (result)
             {
-                logger.LogInformation("Service '{ServiceName}' reloaded successfully", serviceName);
+                _logger.LogInformation("Service '{ServiceName}' reloaded successfully", serviceName);
                 return Ok(new ApiResponse<bool>
                 {
                     Data = true,
@@ -319,7 +334,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error reloading service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error reloading service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<bool>
             {
                 Success = false,
@@ -340,11 +355,11 @@ public class ServicesController(
     {
         try
         {
-            var result = await controlService.EnableServiceAsync(serviceName);
+            var result = await _controlService.EnableServiceAsync(serviceName);
 
             if (result)
             {
-                logger.LogInformation("Service '{ServiceName}' enabled successfully", serviceName);
+                _logger.LogInformation("Service '{ServiceName}' enabled successfully", serviceName);
                 return Ok(new ApiResponse<bool>
                 {
                     Data = true,
@@ -361,7 +376,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error enabling service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error enabling service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<bool>
             {
                 Success = false,
@@ -382,11 +397,11 @@ public class ServicesController(
     {
         try
         {
-            var result = await controlService.DisableServiceAsync(serviceName);
+            var result = await _controlService.DisableServiceAsync(serviceName);
 
             if (result)
             {
-                logger.LogInformation("Service '{ServiceName}' disabled successfully", serviceName);
+                _logger.LogInformation("Service '{ServiceName}' disabled successfully", serviceName);
                 return Ok(new ApiResponse<bool>
                 {
                     Data = true,
@@ -403,7 +418,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error disabling service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error disabling service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<bool>
             {
                 Success = false,
@@ -437,9 +452,9 @@ public class ServicesController(
             }
 
             var maxConcurrency = Math.Clamp(request.MaxConcurrency, 1, 20);
-            var result = await controlService.BulkRestartAsync(request.ServiceNames, maxConcurrency);
+            var result = await _controlService.BulkRestartAsync(request.ServiceNames, maxConcurrency);
 
-            logger.LogInformation(
+            _logger.LogInformation(
                 "Bulk restart completed: {Success}/{Total} services succeeded",
                 result.SuccessCount, result.Results.Count);
 
@@ -452,7 +467,7 @@ public class ServicesController(
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogWarning(ex, "Unauthorized bulk restart attempt");
+            _logger.LogWarning(ex, "Unauthorized bulk restart attempt");
             return StatusCode(403, new ApiResponse<BulkOperationResult>
             {
                 Success = false,
@@ -462,7 +477,7 @@ public class ServicesController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during bulk restart");
+            _logger.LogError(ex, "Error during bulk restart");
             return StatusCode(500, new ApiResponse<BulkOperationResult>
             {
                 Success = false,
