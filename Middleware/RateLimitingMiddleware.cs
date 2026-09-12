@@ -23,7 +23,13 @@ public class RateLimitingMiddleware(
     private const string RetryAfterValue = "60";
     private const string JsonContentType = "application/json";
     private const string RateLimitExceededMessage = "Rate limit exceeded";
+    private const string RetryAfterHeader = "Retry-After";
+    private const string RateLimitLimitHeader = "X-RateLimit-Limit";
+    private const string RateLimitRemainingHeader = "X-RateLimit-Remaining";
+    internal const string TokenBucketsFieldName = "TokenBuckets";
     private static readonly TimeSpan EvictionSweepInterval = TimeSpan.FromMinutes(1);
+    internal const System.Reflection.BindingFlags TokenBucketsFieldFlags =
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
@@ -51,7 +57,7 @@ public class RateLimitingMiddleware(
 
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             context.Response.ContentType = JsonContentType;
-            context.Response.Headers["Retry-After"] = RetryAfterValue;
+            context.Response.Headers[RetryAfterHeader] = RetryAfterValue;
 
             var response = new ApiResponse<object>
             {
@@ -67,8 +73,8 @@ public class RateLimitingMiddleware(
         logger.LogDebug("Rate limiting token consumed for IP {IpAddress}. Remaining tokens: {Remaining}",
             ipAddress, bucket.RemainingTokens);
 
-        context.Response.Headers["X-RateLimit-Limit"] = options.RequestsPerMinute.ToString();
-        context.Response.Headers["X-RateLimit-Remaining"] = bucket.RemainingTokens.ToString();
+        context.Response.Headers[RateLimitLimitHeader] = options.RequestsPerMinute.ToString();
+        context.Response.Headers[RateLimitRemainingHeader] = bucket.RemainingTokens.ToString();
 
         await next(context);
     }
@@ -328,8 +334,8 @@ public static class RateLimitingMiddlewareExtensions
 
         // Access the private static field via reflection
         var field = typeof(RateLimitingMiddleware).GetField(
-            "TokenBuckets",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            RateLimitingMiddleware.TokenBucketsFieldName,
+            RateLimitingMiddleware.TokenBucketsFieldFlags);
 
         if (field?.GetValue(null) is ConcurrentDictionary<string, TokenBucket> buckets)
         {
@@ -354,8 +360,8 @@ public static class RateLimitingMiddlewareExtensions
         }
 
         var field = typeof(RateLimitingMiddleware).GetField(
-            "TokenBuckets",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            RateLimitingMiddleware.TokenBucketsFieldName,
+            RateLimitingMiddleware.TokenBucketsFieldFlags);
 
         var stats = new Dictionary<string, TokenBucketStats>();
 
