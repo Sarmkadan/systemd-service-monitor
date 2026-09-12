@@ -10,6 +10,30 @@ namespace SystemdServiceMonitor.Utilities;
 /// </summary>
 public static class ServiceHealthChecker
 {
+    // Constants for service states
+    private const string StateFailed = "Failed";
+    private const string StateActivating = "Activating";
+    private const string StateDeactivating = "Deactivating";
+    private const string StateActive = "Active";
+    private const string StateInactive = "Inactive";
+
+    // Constants for restart policy
+    private const string RestartPolicyNo = "No";
+
+    // Constants for service result
+    private const string ResultSuccess = "success";
+
+    // Constants for restart count thresholds
+    private const int CriticalRestartThreshold = 10;
+    private const int WarningRestartThreshold = 5;
+    private const int HealthyRestartThreshold = 2;
+
+    // Constants for reliability calculation
+    private const int ReliabilityDeductionPerRestart = 5;
+    private const int MaxReliabilityDeductionFromRestarts = 50;
+    private const int ReliabilityDeductionForFailedState = 50;
+    private const int ReliabilityDeductionForInactiveAutoStart = 25;
+
     /// <summary>
     /// Evaluates the health of a service based on its current state and history.
     /// </summary>
@@ -19,30 +43,30 @@ public static class ServiceHealthChecker
             return ServiceHealthStatus.Unknown;
 
         // Check for critical issues first
-        if (service.State.ToString() == "Failed")
+        if (service.State.ToString() == StateFailed)
             return ServiceHealthStatus.Critical;
 
         // Check if service is restarting
-        if (service.State.ToString() == "Activating" || service.State.ToString() == "Deactivating")
+        if (service.State.ToString() == StateActivating || service.State.ToString() == StateDeactivating)
             return ServiceHealthStatus.Warning;
 
         // Check for frequent restarts (unstable service)
-        if (service.RestartCount > 10)
+        if (service.RestartCount > CriticalRestartThreshold)
             return ServiceHealthStatus.Critical;
 
-        if (service.RestartCount > 5)
+        if (service.RestartCount > WarningRestartThreshold)
             return ServiceHealthStatus.Warning;
 
         // Check if service is active and stable
-        if (service.State.ToString() == "Active" && service.RestartCount <= 2)
+        if (service.State.ToString() == StateActive && service.RestartCount <= HealthyRestartThreshold)
             return ServiceHealthStatus.Healthy;
 
         // Service is active but has restart issues
-        if (service.State.ToString() == "Active")
+        if (service.State.ToString() == StateActive)
             return ServiceHealthStatus.Warning;
 
         // Service is inactive (might be disabled)
-        if (service.State.ToString() == "Inactive")
+        if (service.State.ToString() == StateInactive)
         {
             return service.AutoStart ? ServiceHealthStatus.Warning : ServiceHealthStatus.Healthy;
         }
@@ -105,28 +129,28 @@ public static class ServiceHealthChecker
     {
         var actions = new List<string>();
 
-        if (service.State.ToString() == "Failed")
+        if (service.State.ToString() == StateFailed)
         {
             actions.Add("Check service logs for error details");
             actions.Add("Restart the service and monitor logs");
             actions.Add("Verify service dependencies are running");
         }
 
-        if (service.RestartCount > 5)
+        if (service.RestartCount > WarningRestartThreshold)
         {
             actions.Add("Review recent log entries for crash patterns");
             actions.Add("Check system resources (CPU, memory, disk)");
             actions.Add("Verify service configuration files");
         }
 
-        if (service.RestartPolicy.ToString() == "No" && service.State.ToString() != "Active")
+        if (service.RestartPolicy.ToString() == RestartPolicyNo && service.State.ToString() != StateActive)
         {
             actions.Add("Service has restart policy disabled - enable to auto-recover");
         }
 
-        if (string.IsNullOrEmpty(service.Result) || service.Result == "success")
+        if (string.IsNullOrEmpty(service.Result) || service.Result == ResultSuccess)
         {
-            if (service.State.ToString() == "Active")
+            if (service.State.ToString() == StateActive)
             {
                 actions.Add("Service is running normally - no action needed");
             }
@@ -167,15 +191,15 @@ public static class ServiceHealthChecker
         var baseReliability = 100.0;
 
         // Deduct for each restart
-        baseReliability -= Math.Min(service.RestartCount * 5, 50);
+        baseReliability -= Math.Min(service.RestartCount * ReliabilityDeductionPerRestart, MaxReliabilityDeductionFromRestarts);
 
         // Deduct for failed state
-        if (service.State.ToString() == "Failed")
-            baseReliability -= 50;
+        if (service.State.ToString() == StateFailed)
+            baseReliability -= ReliabilityDeductionForFailedState;
 
         // Deduct for inactive state (if it should be active)
-        if (service.AutoStart && service.State.ToString() == "Inactive")
-            baseReliability -= 25;
+        if (service.AutoStart && service.State.ToString() == StateInactive)
+            baseReliability -= ReliabilityDeductionForInactiveAutoStart;
 
         return Math.Max(0, baseReliability);
     }
