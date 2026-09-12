@@ -179,7 +179,15 @@ The `IServiceMonitorService` interface provides a standardized way to interact w
 
 ## ResourceMonitorService
 
-The `ResourceMonitorService` class provides comprehensive monitoring of system and service resource usage. It collects metrics such as CPU, memory, disk usage, and process information from system files like `/proc/stat`, `/proc/meminfo`, and cgroup directories. The service supports both one-time measurements and continuous monitoring with alerting capabilities for resource thresholds.
+`Services/ResourceMonitorService.cs` implements `IResourceMonitorService`. It collects system-wide snapshots from Linux `/proc` files and root-filesystem information, and collects per-service metrics from the service's cgroup and main process. It also supports periodic collection and resource alerts.
+
+### CPU and memory sampling
+
+- System CPU usage is sampled from the aggregate `cpu` line in `/proc/stat`. The service sums the `user`, `nice`, `system`, `idle`, `iowait`, `irq`, and `softirq` counters, treats `idle + iowait` as idle time, and calculates the busy percentage from the changes since the preceding call. The first successful sample only establishes the baseline, so its CPU percentage remains the model's default value. The baseline is stored on the `ResourceMonitorService` instance.
+- System memory is read from `/proc/meminfo`. Values for `MemTotal`, `MemAvailable`, and `Cached` are converted from KiB to MiB using integer division. Used memory is `TotalMemoryMb - AvailableMemoryMb`, and the usage percentage is calculated only when total memory is greater than zero. Cached memory is reported separately and is not subtracted again from used memory.
+- Per-service collection first resolves the service through `IServiceMonitorService` and requires a positive main process ID. It then uses `/sys/fs/cgroup/system.slice/<unit-name>/`. Memory comes from `memory.current` when present, otherwise `memory.usage_in_bytes`, and is converted from bytes to MiB using integer division.
+- Per-service CPU time comes from the `usage_usec` entry in cgroup v2's `cpu.stat`, converted to nanoseconds, or from cgroup v1's `cpuacct.usage`, which is already in nanoseconds. CPU percentage is the increase in CPU time divided by elapsed wall-clock nanoseconds and by `Environment.ProcessorCount`, multiplied by 100 and clamped to the range 0–100. Samples are tracked separately by unit name; as with system CPU, the first valid sample establishes a baseline and reports the default percentage.
+- `GetServiceCpuUsageAsync` and `GetServiceMemoryUsageAsync` both call `GetServiceResourceMetricsAsync`, so each call performs a complete per-service collection and can update that unit's CPU baseline. `CollectAllMetricsAsync` samples repository services sequentially. Continuous monitoring repeats a system sample followed by all per-service samples, then delays for the configured interval (5,000 ms by default).
 
 ### Usage Example
 
