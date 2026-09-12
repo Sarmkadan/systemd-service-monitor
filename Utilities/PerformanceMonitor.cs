@@ -16,10 +16,23 @@ public class PerformanceMonitor : IDisposable
     private readonly long _warningThresholdMs;
     private readonly Dictionary<string, long> _checkpoints = new();
 
+    private const long DefaultWarningThresholdMs = 1000;
+    private const string CheckpointLogFormat = "{OperationName} checkpoint '{CheckpointName}': {ElapsedMs}ms";
+    private const string SummaryFormat = "{0}: {1}ms";
+    private const string CheckpointSummaryFormat = "{0}:{1}ms";
+    private const string WarningLogFormat = "{Message} (exceeded {ThresholdMs}ms threshold)";
+    private const string DebugLogFormat = "{Message}";
+    private const string OperationTimeSeparator = ": ";
+    private const string MillisecondsSuffix = "ms";
+    private const string CheckpointSeparator = ", ";
+    private const string KeyValueSeparator = ":";
+    private const string OpenBracket = " [";
+    private const string CloseBracket = "]";
+
     public PerformanceMonitor(
         string operationName,
         ILogger? logger = null,
-        long warningThresholdMs = 1000)
+        long warningThresholdMs = DefaultWarningThresholdMs)
     {
         _operationName = operationName;
         _logger = logger;
@@ -33,7 +46,7 @@ public class PerformanceMonitor : IDisposable
     public void RecordCheckpoint(string name)
     {
         _checkpoints[name] = _stopwatch.ElapsedMilliseconds;
-        _logger?.LogDebug("{OperationName} checkpoint '{CheckpointName}': {ElapsedMs}ms",
+        _logger?.LogDebug(CheckpointLogFormat,
             _operationName, name, _stopwatch.ElapsedMilliseconds);
     }
 
@@ -70,13 +83,13 @@ public class PerformanceMonitor : IDisposable
     /// </summary>
     public string GetSummary()
     {
-        var summary = $"{_operationName}: {_stopwatch.ElapsedMilliseconds}ms";
+        var summary = string.Format(SummaryFormat, _operationName, _stopwatch.ElapsedMilliseconds);
 
         if (_checkpoints.Any())
         {
-            summary += " [";
-            summary += string.Join(", ", _checkpoints.Select(kvp => $"{kvp.Key}:{kvp.Value}ms"));
-            summary += "]";
+            summary += OpenBracket;
+            summary += string.Join(CheckpointSeparator, _checkpoints.Select(kvp => string.Format(CheckpointSummaryFormat, kvp.Key, kvp.Value)));
+            summary += CloseBracket;
         }
 
         return summary;
@@ -91,12 +104,11 @@ public class PerformanceMonitor : IDisposable
 
         if (elapsedMs > _warningThresholdMs)
         {
-            _logger?.LogWarning("{Message} (exceeded {ThresholdMs}ms threshold)",
-                message, _warningThresholdMs);
+            _logger?.LogWarning(WarningLogFormat, message, _warningThresholdMs);
         }
         else
         {
-            _logger?.LogDebug("{Message}", message);
+            _logger?.LogDebug(DebugLogFormat, message);
         }
     }
 }
