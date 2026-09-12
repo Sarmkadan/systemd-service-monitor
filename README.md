@@ -131,60 +131,19 @@ The middleware automatically tracks requests per IP and enforces the configured 
 
 ## ServiceMonitorService
 
-The `ServiceMonitorService` class provides comprehensive monitoring of systemd services. It allows you to retrieve service information, monitor service health, track resource usage, and perform real-time monitoring of service states. The service integrates with the systemd D-Bus interface to provide up-to-date information about service status, resource consumption, and failure states.
+`Services/ServiceMonitorService.cs` implements `IServiceMonitorService` and is the repository-backed service inventory and status layer. It reads stored `ServiceInfo` records, converts an individual record into a `ServiceStatus` snapshot, maintains the set of unit names being polled, and calculates aggregate `ServiceStatistics`. Its constructor requires an `ILogger<ServiceMonitorService>`, an `ISystemdConnectionService`, and an `IServiceRepository`.
 
-### Usage Example
+### Key public methods
 
-```csharp
-using SystemdServiceMonitor.Services;
-using SystemdServiceMonitor.Models;
-using Microsoft.Extensions.Logging;
+- `RefreshServiceListAsync` ensures the systemd D-Bus connection is available, calls `org.freedesktop.systemd1.Manager.ListUnits`, maps `.service` units to `ServiceInfo`, attempts to add selected unit properties, and updates each resulting record in `IServiceRepository`.
+- `GetAllServicesAsync`, `GetServiceByNameAsync`, `GetActiveServicesAsync`, and `GetFailedServicesAsync` query `IServiceRepository`; these methods do not refresh systemd first.
+- `GetServiceStatusAsync` looks up a repository record and maps its state, process, resource, failure, uptime, and enablement fields into a `ServiceStatus`. It returns `null` when the unit is absent and sets the returned `HealthStatus` to `Healthy`.
+- `StartMonitoringAsync` registers one cancellation token per unit and starts a background loop that calls `GetServiceStatusAsync` at the requested interval (5,000 ms by default). Starting an already monitored unit is a no-op. `StopMonitoringAsync` cancels and removes that unit's token, while `GetMonitoredServices` returns a snapshot of the registered unit names.
+- `GetStatisticsAsync` queries all, active, and failed repository records, counts the currently registered monitoring loops, sums restart counts, and averages CPU and memory values across records where either resource value is greater than zero.
 
-// Setup dependency injection
-var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-var logger = loggerFactory.CreateLogger<ServiceMonitorService>();
+### Place in the monitoring pipeline
 
-// Create service instance (dependencies would typically be injected in production)
-var serviceMonitor = new ServiceMonitorService(
-    logger,
-    new SystemdConnectionService(),
-    new ServiceRepository()
-);
-
-// Get all services
-var allServices = await serviceMonitor.GetAllServicesAsync();
-Console.WriteLine($"Total services: {allServices.Count()}");
-
-// Get a specific service by name
-var specificService = await serviceMonitor.GetServiceByNameAsync("nginx.service");
-if (specificService != null)
-{
-    Console.WriteLine($"Service: {specificService.UnitName}, State: {specificService.State}");
-}
-
-// Get active and failed services
-var activeServices = await serviceMonitor.GetActiveServicesAsync();
-var failedServices = await serviceMonitor.GetFailedServicesAsync();
-
-// Get detailed status for a service
-var status = await serviceMonitor.GetServiceStatusAsync("nginx.service");
-if (status != null)
-{
-    Console.WriteLine($"Status: {status.State}, CPU: {status.CpuUsagePercent}%, Memory: {status.MemoryUsageMb}MB");
-}
-
-// Start monitoring a service (checks status every 5 seconds)
-await serviceMonitor.StartMonitoringAsync("nginx.service", intervalMs: 5000);
-
-// Get monitoring statistics
-var stats = await serviceMonitor.GetStatisticsAsync();
-Console.WriteLine($"Active: {stats.ActiveServices}, Failed: {stats.FailedServices}, Avg CPU: {stats.AverageCpuUsage}%");
-
-// Stop monitoring
-await serviceMonitor.StopMonitoringAsync("nginx.service");
-```
-
-The `ServiceMonitorService` provides real-time monitoring capabilities and comprehensive service information retrieval for systemd services.
+The refresh path is `systemd D-Bus -> ServiceMonitorService -> IServiceRepository`. Query and polling paths run in the other direction: callers use the scoped `IServiceMonitorService` registration to read repository data or obtain a `ServiceStatus`. `ServicesController` uses the service for API queries, `ResourceMonitorService` uses it to resolve services before collecting per-service resources, and the alert escalation worker reads services and status snapshots from it before passing those snapshots to `IAlertRulesEngine`. The background loop started by `StartMonitoringAsync` polls the repository-backed status mapping; it does not itself refresh D-Bus data, persist metrics, or evaluate alerts.
 
 ## IServiceMonitorService
 
