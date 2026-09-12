@@ -50,8 +50,7 @@ public static class PathResolver
     /// </summary>
     public static string NormalizeServiceName(string serviceName)
     {
-        if (string.IsNullOrWhiteSpace(serviceName))
-            return serviceName;
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
 
         serviceName = serviceName.Trim();
 
@@ -68,8 +67,7 @@ public static class PathResolver
     /// </summary>
     public static string RemoveServiceExtension(string serviceName)
     {
-        if (string.IsNullOrWhiteSpace(serviceName))
-            return serviceName;
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
 
         if (serviceName.EndsWith(".service", StringComparison.OrdinalIgnoreCase))
         {
@@ -85,6 +83,8 @@ public static class PathResolver
     /// </summary>
     public static string? FindServiceUnitFile(string serviceName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
+
         var normalizedName = NormalizeServiceName(serviceName);
 
         foreach (var unitPath in SystemUnitPaths)
@@ -120,8 +120,7 @@ public static class PathResolver
     /// </summary>
     public static bool IsValidServicePath(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            return false;
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         try
         {
@@ -146,6 +145,8 @@ public static class PathResolver
     /// </summary>
     public static string? GetServiceDirectory(string serviceName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
+
         var unitFile = FindServiceUnitFile(serviceName);
         return unitFile is not null ? Path.GetDirectoryName(unitFile) : null;
     }
@@ -155,6 +156,8 @@ public static class PathResolver
     /// </summary>
     public static ServiceScope GetServiceScope(string serviceName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
+
         var unitFile = FindServiceUnitFile(serviceName);
 
         if (unitFile is null)
@@ -178,6 +181,8 @@ public static class PathResolver
     /// </summary>
     public static List<string> GetRelatedServices(string serviceName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
+
         var related = new List<string>();
         var unitFile = FindServiceUnitFile(serviceName);
 
