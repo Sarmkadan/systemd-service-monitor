@@ -19,8 +19,11 @@ public class ServiceStatusUpdateWorker : BackgroundService
         IServiceProvider serviceProvider,
         IOptions<ServiceWorkerOptions>? options = null)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        _logger = logger;
+        _serviceProvider = serviceProvider;
         _options = options?.Value ?? new ServiceWorkerOptions();
     }
 
