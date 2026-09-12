@@ -12,11 +12,23 @@ namespace SystemdServiceMonitor.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/dependency-graph")]
-public class DependencyGraphController(
-    IServiceDependencyGraphService dependencyGraphService,
-    ILogger<DependencyGraphController> logger) : ControllerBase
+public class DependencyGraphController : ControllerBase
 {
-    internal IServiceDependencyGraphService DependencyGraphService => dependencyGraphService;
+    private readonly IServiceDependencyGraphService _dependencyGraphService;
+    private readonly ILogger<DependencyGraphController> _logger;
+
+    public DependencyGraphController(
+        IServiceDependencyGraphService dependencyGraphService,
+        ILogger<DependencyGraphController> logger)
+    {
+        ArgumentNullException.ThrowIfNull(dependencyGraphService);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _dependencyGraphService = dependencyGraphService;
+        _logger = logger;
+    }
+
+    internal IServiceDependencyGraphService DependencyGraphService => _dependencyGraphService;
 
     /// <summary>
     /// Retrieves the entire dependency graph.
@@ -30,7 +42,7 @@ public class DependencyGraphController(
     {
         try
         {
-            var graph = await dependencyGraphService.BuildGraphAsync(ct);
+            var graph = await _dependencyGraphService.BuildGraphAsync(ct);
             return Ok(new ApiResponse<ServiceDependencyGraph>
             {
                 Data = graph,
@@ -40,7 +52,7 @@ public class DependencyGraphController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error building dependency graph");
+            _logger.LogError(ex, "Error building dependency graph");
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<ServiceDependencyGraph>("Failed to build dependency graph", ex));
         }
     }
@@ -57,7 +69,7 @@ public class DependencyGraphController(
     {
         try
         {
-            var roots = (await dependencyGraphService.GetRootServicesAsync(ct)).ToList();
+            var roots = (await _dependencyGraphService.GetRootServicesAsync(ct)).ToList();
             return Ok(new ApiResponse<List<DependencyNode>>
             {
                 Data = roots,
@@ -67,7 +79,7 @@ public class DependencyGraphController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving root services");
+            _logger.LogError(ex, "Error retrieving root services");
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<List<DependencyNode>>("Failed to retrieve root services", ex));
         }
     }
@@ -84,7 +96,7 @@ public class DependencyGraphController(
     {
         try
         {
-            var leaves = (await dependencyGraphService.GetLeafServicesAsync(ct)).ToList();
+            var leaves = (await _dependencyGraphService.GetLeafServicesAsync(ct)).ToList();
             return Ok(new ApiResponse<List<DependencyNode>>
             {
                 Data = leaves,
@@ -94,7 +106,7 @@ public class DependencyGraphController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving leaf services");
+            _logger.LogError(ex, "Error retrieving leaf services");
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<List<DependencyNode>>("Failed to retrieve leaf services", ex));
         }
     }
@@ -114,7 +126,7 @@ public class DependencyGraphController(
     {
         try
         {
-            var path = (await dependencyGraphService.GetDependencyChainAsync(from, to, ct)).ToList();
+            var path = (await _dependencyGraphService.GetDependencyChainAsync(from, to, ct)).ToList();
             if (path.Count == 0)
             {
                 return NotFound(new ApiResponse<List<string>>
@@ -133,7 +145,7 @@ public class DependencyGraphController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving dependency path from {FromService} to {ToService}", from, to);
+            _logger.LogError(ex, "Error retrieving dependency path from {FromService} to {ToService}", from, to);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<List<string>>("Failed to retrieve dependency path", ex));
         }
     }
@@ -153,7 +165,7 @@ public class DependencyGraphController(
     {
         try
         {
-            var graph = await dependencyGraphService.BuildGraphForServiceAsync(serviceName, depth, ct);
+            var graph = await _dependencyGraphService.BuildGraphForServiceAsync(serviceName, depth, ct);
             if (graph.TotalNodes == 0)
             {
                 return NotFound(new ApiResponse<ServiceDependencyGraph>
@@ -172,7 +184,7 @@ public class DependencyGraphController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving dependency subgraph for {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving dependency subgraph for {ServiceName}", serviceName);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<ServiceDependencyGraph>("Failed to retrieve dependency subgraph", ex));
         }
     }
