@@ -160,6 +160,28 @@ public static class ResultExtensions
     }
 
     /// <summary>
+    /// Applies an action if the response failed.
+    /// </summary>
+    /// <typeparam name="T">The type of data in the response</typeparam>
+    /// <param name="response">The response to process</param>
+    /// <param name="action">Action to apply on failure</param>
+    /// <returns>The original response for fluent chaining</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="response"/> or <paramref name="action"/> is <see langword="null"/></exception>
+    public static ApiResponse<T> OnFailure<T>(
+        this ApiResponse<T> response,
+        Action action) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (!response.Success)
+        {
+            action();
+        }
+        return response;
+    }
+
+    /// <summary>
     /// Checks if response contains data.
     /// </summary>
     /// <typeparam name="T">The type of data in the response</typeparam>
