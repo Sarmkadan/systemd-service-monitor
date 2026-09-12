@@ -13,10 +13,22 @@ namespace SystemdServiceMonitor.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class MetricsController(
-    IResourceMonitorService resourceService,
-    ILogger<MetricsController> logger) : ControllerBase
+public class MetricsController : ControllerBase
 {
+    private readonly IResourceMonitorService _resourceService;
+    private readonly ILogger<MetricsController> _logger;
+
+    public MetricsController(
+        IResourceMonitorService resourceService,
+        ILogger<MetricsController> logger)
+    {
+        ArgumentNullException.ThrowIfNull(resourceService);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _resourceService = resourceService;
+        _logger = logger;
+    }
+
     /// <summary>
     /// Retrieves system-wide resource metrics (CPU, memory, disk usage).
     /// </summary>
@@ -27,7 +39,7 @@ public class MetricsController(
     {
         try
         {
-            var metrics = await resourceService.GetSystemResourcesAsync();
+            var metrics = await _resourceService.GetSystemResourcesAsync();
 
             return Ok(new ApiResponse<SystemResource>
             {
@@ -38,7 +50,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving system metrics");
+            _logger.LogError(ex, "Error retrieving system metrics");
             return StatusCode(500, new ApiResponse<SystemResource>
             {
                 Success = false,
@@ -68,7 +80,7 @@ public class MetricsController(
                 });
             }
 
-            var resourceMetrics = await resourceService.GetServiceResourceMetricsAsync(serviceName);
+            var resourceMetrics = await _resourceService.GetServiceResourceMetricsAsync(serviceName);
             var metrics = new ServiceMetric
             {
                 ServiceName = resourceMetrics.UnitName,
@@ -90,7 +102,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving metrics for service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving metrics for service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<ServiceMetric>
             {
                 Success = false,
@@ -113,7 +125,7 @@ public class MetricsController(
     {
         try
         {
-            var raw = (await resourceService.CollectAllMetricsAsync()).ToList();
+            var raw = (await _resourceService.CollectAllMetricsAsync()).ToList();
             var metrics = raw.Select(r => new ServiceMetric
             {
                 ServiceName = r.UnitName,
@@ -152,7 +164,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving all service metrics");
+            _logger.LogError(ex, "Error retrieving all service metrics");
             return StatusCode(500, new ApiResponse<List<ServiceMetric>>
             {
                 Success = false,
@@ -175,7 +187,7 @@ public class MetricsController(
         try
         {
             limit = Math.Clamp(limit, 1, 100);
-            var raw = await resourceService.CollectAllMetricsAsync();
+            var raw = await _resourceService.CollectAllMetricsAsync();
             var topMemory = raw
                 .Select(r => new ServiceMetric { ServiceName = r.UnitName, CpuPercentage = (double)r.CpuUsagePercent, MemoryUsageMb = r.MemoryUsageMb, Timestamp = r.MeasuredAt })
                 .OrderByDescending(m => m.MemoryUsageMb)
@@ -191,7 +203,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving top memory consumers");
+            _logger.LogError(ex, "Error retrieving top memory consumers");
             return StatusCode(500, new ApiResponse<List<ServiceMetric>>
             {
                 Success = false,
@@ -214,7 +226,7 @@ public class MetricsController(
         try
         {
             limit = Math.Clamp(limit, 1, 100);
-            var raw = await resourceService.CollectAllMetricsAsync();
+            var raw = await _resourceService.CollectAllMetricsAsync();
             var topCpu = raw
                 .Select(r => new ServiceMetric { ServiceName = r.UnitName, CpuPercentage = (double)r.CpuUsagePercent, MemoryUsageMb = r.MemoryUsageMb, Timestamp = r.MeasuredAt })
                 .OrderByDescending(m => m.CpuPercentage)
@@ -230,7 +242,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving top CPU consumers");
+            _logger.LogError(ex, "Error retrieving top CPU consumers");
             return StatusCode(500, new ApiResponse<List<ServiceMetric>>
             {
                 Success = false,
@@ -260,7 +272,7 @@ public class MetricsController(
                 });
             }
 
-            var metrics = await resourceService.GetServiceResourceMetricsAsync(serviceName);
+            var metrics = await _resourceService.GetServiceResourceMetricsAsync(serviceName);
 
             var diskMetrics = new
             {
@@ -279,7 +291,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving disk metrics for service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving disk metrics for service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<object>
             {
                 Success = false,
@@ -309,7 +321,7 @@ public class MetricsController(
                 });
             }
 
-            var metrics = await resourceService.GetServiceResourceMetricsAsync(serviceName);
+            var metrics = await _resourceService.GetServiceResourceMetricsAsync(serviceName);
 
             var networkMetrics = new
             {
@@ -328,7 +340,7 @@ public class MetricsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving network metrics for service {ServiceName}", serviceName);
+            _logger.LogError(ex, "Error retrieving network metrics for service {ServiceName}", serviceName);
             return StatusCode(500, new ApiResponse<object>
             {
                 Success = false,
