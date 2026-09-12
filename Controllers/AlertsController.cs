@@ -15,10 +15,18 @@ namespace SystemdServiceMonitor.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/alerts")]
-public class AlertsController(
-    IAlertRulesEngine alertRulesEngine,
-    ILogger<AlertsController> logger) : ControllerBase
+public class AlertsController : ControllerBase
 {
+    private readonly IAlertRulesEngine _alertRulesEngine;
+    private readonly ILogger<AlertsController> _logger;
+
+    public AlertsController(IAlertRulesEngine alertRulesEngine, ILogger<AlertsController> logger)
+    {
+        ArgumentNullException.ThrowIfNull(alertRulesEngine);
+        ArgumentNullException.ThrowIfNull(logger);
+        _alertRulesEngine = alertRulesEngine;
+        _logger = logger;
+    }
     /// <summary>
     /// Retrieves all alert rules from the system.
     /// </summary>
@@ -31,7 +39,7 @@ public class AlertsController(
     {
         try
         {
-            var rules = (await alertRulesEngine.GetRulesAsync(ct))
+            var rules = (await _alertRulesEngine.GetRulesAsync(ct))
                 .Select(ToAlertRuleDto)
                 .ToList();
 
@@ -44,7 +52,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving alert rules");
+            _logger.LogError(ex, "Error retrieving alert rules");
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<List<AlertRuleDto>>("Failed to retrieve alert rules", ex));
         }
     }
@@ -63,7 +71,7 @@ public class AlertsController(
     {
         try
         {
-            var rule = await alertRulesEngine.GetRuleByIdAsync(id, ct);
+            var rule = await _alertRulesEngine.GetRuleByIdAsync(id, ct);
             if (rule is null)
             {
                 return NotFound(new ApiResponse<AlertRuleDto>
@@ -82,7 +90,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving alert rule {RuleId}", id);
+            _logger.LogError(ex, "Error retrieving alert rule {RuleId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertRuleDto>("Failed to retrieve alert rule", ex));
         }
     }
@@ -100,7 +108,7 @@ public class AlertsController(
     {
         try
         {
-            var rule = await alertRulesEngine.AddRuleAsync(new AlertRule
+            var rule = await _alertRulesEngine.AddRuleAsync(new AlertRule
             {
                 Name = dto.Name,
                 Description = dto.Description,
@@ -126,7 +134,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating alert rule {RuleName}", dto.Name);
+            _logger.LogError(ex, "Error creating alert rule {RuleName}", dto.Name);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertRuleDto>("Failed to create alert rule", ex));
         }
     }
@@ -146,7 +154,7 @@ public class AlertsController(
     {
         try
         {
-            var rule = await alertRulesEngine.UpdateRuleAsync(id, dto, ct);
+            var rule = await _alertRulesEngine.UpdateRuleAsync(id, dto, ct);
             if (rule is null)
             {
                 return NotFound(new ApiResponse<AlertRuleDto>
@@ -165,7 +173,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error updating alert rule {RuleId}", id);
+            _logger.LogError(ex, "Error updating alert rule {RuleId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertRuleDto>("Failed to update alert rule", ex));
         }
     }
@@ -184,7 +192,7 @@ public class AlertsController(
     {
         try
         {
-            var removed = await alertRulesEngine.RemoveRuleAsync(id, ct);
+            var removed = await _alertRulesEngine.RemoveRuleAsync(id, ct);
             if (!removed)
             {
                 return NotFound(new ApiResponse<bool>
@@ -204,7 +212,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error deleting alert rule {RuleId}", id);
+            _logger.LogError(ex, "Error deleting alert rule {RuleId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<bool>("Failed to delete alert rule", ex));
         }
     }
@@ -221,7 +229,7 @@ public class AlertsController(
     {
         try
         {
-            var incidents = (await alertRulesEngine.GetActiveIncidentsAsync(ct))
+            var incidents = (await _alertRulesEngine.GetActiveIncidentsAsync(ct))
                 .Select(ToAlertIncidentDto)
                 .ToList();
 
@@ -234,7 +242,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving active incidents");
+            _logger.LogError(ex, "Error retrieving active incidents");
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<List<AlertIncidentDto>>("Failed to retrieve active incidents", ex));
         }
     }
@@ -253,7 +261,7 @@ public class AlertsController(
     {
         try
         {
-            var incident = await alertRulesEngine.GetIncidentByIdAsync(id, ct);
+            var incident = await _alertRulesEngine.GetIncidentByIdAsync(id, ct);
             if (incident is null)
             {
                 return NotFound(new ApiResponse<AlertIncidentDto>
@@ -272,7 +280,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving incident {IncidentId}", id);
+            _logger.LogError(ex, "Error retrieving incident {IncidentId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertIncidentDto>("Failed to retrieve alert incident", ex));
         }
     }
@@ -293,7 +301,7 @@ public class AlertsController(
     {
         try
         {
-            var incident = await alertRulesEngine.GetIncidentByIdAsync(id, ct);
+            var incident = await _alertRulesEngine.GetIncidentByIdAsync(id, ct);
             if (incident is null)
             {
                 return NotFound(new ApiResponse<AlertIncidentDto>
@@ -303,7 +311,7 @@ public class AlertsController(
                 });
             }
 
-            var acknowledged = await alertRulesEngine.AcknowledgeIncidentAsync(id, dto.AcknowledgedBy, ct);
+            var acknowledged = await _alertRulesEngine.AcknowledgeIncidentAsync(id, dto.AcknowledgedBy, ct);
             if (!acknowledged)
             {
                 return Conflict(new ApiResponse<AlertIncidentDto>
@@ -313,7 +321,7 @@ public class AlertsController(
                 });
             }
 
-            var updatedIncident = await alertRulesEngine.GetIncidentByIdAsync(id, ct) ?? incident;
+            var updatedIncident = await _alertRulesEngine.GetIncidentByIdAsync(id, ct) ?? incident;
             return Ok(new ApiResponse<AlertIncidentDto>
             {
                 Data = ToAlertIncidentDto(updatedIncident),
@@ -323,7 +331,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error acknowledging incident {IncidentId}", id);
+            _logger.LogError(ex, "Error acknowledging incident {IncidentId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertIncidentDto>("Failed to acknowledge alert incident", ex));
         }
     }
@@ -344,7 +352,7 @@ public class AlertsController(
     {
         try
         {
-            var incident = await alertRulesEngine.GetIncidentByIdAsync(id, ct);
+            var incident = await _alertRulesEngine.GetIncidentByIdAsync(id, ct);
             if (incident is null)
             {
                 return NotFound(new ApiResponse<AlertIncidentDto>
@@ -354,7 +362,7 @@ public class AlertsController(
                 });
             }
 
-            var resolved = await alertRulesEngine.ResolveIncidentAsync(id, dto.ResolvedBy, dto.ResolutionNotes, ct);
+            var resolved = await _alertRulesEngine.ResolveIncidentAsync(id, dto.ResolvedBy, dto.ResolutionNotes, ct);
             if (!resolved)
             {
                 return Conflict(new ApiResponse<AlertIncidentDto>
@@ -364,7 +372,7 @@ public class AlertsController(
                 });
             }
 
-            var updatedIncident = await alertRulesEngine.GetIncidentByIdAsync(id, ct) ?? incident;
+            var updatedIncident = await _alertRulesEngine.GetIncidentByIdAsync(id, ct) ?? incident;
             return Ok(new ApiResponse<AlertIncidentDto>
             {
                 Data = ToAlertIncidentDto(updatedIncident),
@@ -374,7 +382,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error resolving incident {IncidentId}", id);
+            _logger.LogError(ex, "Error resolving incident {IncidentId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertIncidentDto>("Failed to resolve alert incident", ex));
         }
     }
@@ -391,7 +399,7 @@ public class AlertsController(
     {
         try
         {
-            var summary = await alertRulesEngine.GetSummaryAsync(ct);
+            var summary = await _alertRulesEngine.GetSummaryAsync(ct);
             return Ok(new ApiResponse<AlertSummaryDto>
             {
                 Data = summary,
@@ -401,7 +409,7 @@ public class AlertsController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving alert summary");
+            _logger.LogError(ex, "Error retrieving alert summary");
             return StatusCode(StatusCodes.Status500InternalServerError, ErrorResponse<AlertSummaryDto>("Failed to retrieve alert summary", ex));
         }
     }
