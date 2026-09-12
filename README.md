@@ -1528,6 +1528,15 @@ var networkMetrics = await networkMetricsResponse.Content.ReadFromJsonAsync<ApiR
 ```
 
 The `MetricsController` provides a comprehensive RESTful interface for accessing real-time system and service metrics with proper error handling, logging, and flexible query parameters for filtering and sorting.
+
+## DBusConnectionManager and the systemd connection
+
+`Integration/DBusConnectionManager.cs` owns the application's `Tmds.DBus.Connection`. `AddApplicationServices` registers the manager as a singleton, so services resolved from the dependency-injection container share its cached connection task. The connection is created lazily by `GetConnectionAsync`: on the first request, the manager constructs a `Connection` with `Address.System` and awaits `ConnectAsync`, connecting to the system D-Bus rather than a user-session bus. A semaphore serializes access while the connection is created or replaced. Later requests reuse the completed task; a faulted or cancelled task is cleared so a later request can try a fresh connection.
+
+The application reaches systemd through that shared connection. `SystemdConnectionService.ConnectAsync` asks the manager for a connection and records its own connected state. Code that performs systemd operations then obtains the same connection and creates typed proxies for the `org.freedesktop.systemd1` service at `/org/freedesktop/systemd1`; for example, `ServiceMonitorService` lists units and `ServiceControlService` invokes manager operations. `SystemdConnectionService.GetSystemdVersionAsync` also uses a typed proxy at that destination. `ServiceLogService` uses the shared connection separately to create an `org.freedesktop.Journal1` proxy.
+
+`IsConnectedAsync` and `GetStatusAsync` report success when `GetConnectionAsync` completes without throwing; they do not make a separate systemd method call. `SystemdConnectionService.VerifyConnectionAsync` performs the additional check by requesting systemd's version. If that verification throws, it clears the service's logical connected state and calls `ReconnectAsync`. Reconnection disposes a successfully created cached connection, clears it, and makes up to five new connection attempts, waiting 1, 2, 4, and 8 seconds between failures. Disposing `DBusConnectionManager` disposes a successfully created connection and prevents future connections; `SystemdConnectionService.DisconnectAsync` only clears that service's logical state because physical connection lifetime belongs to the singleton manager.
+
 ## SystemdConnectionService
 
 The `SystemdConnectionService` class provides a low-level connection to the systemd D-Bus interface. It establishes and maintains the connection to systemd, handles authentication, and provides the foundation for all systemd operations throughout the application. This service is responsible for establishing the D-Bus connection, verifying its integrity, and providing methods to interact with systemd's API.
