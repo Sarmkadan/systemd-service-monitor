@@ -8,10 +8,21 @@ namespace SystemdServiceMonitor.Middleware;
 /// Middleware for logging incoming requests and outgoing responses.
 /// Tracks request duration, status codes, and provides detailed request/response logging.
 /// </summary>
-public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
+public class RequestLoggingMiddleware
 {
     private const string RequestIdHeaderName = "X-Request-Id";
     private const string CorrelationIdHeaderName = "X-Correlation-Id";
+    private readonly RequestDelegate _next;
+    private readonly ILogger<RequestLoggingMiddleware> _logger;
+
+    public RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _next = next;
+        _logger = logger;
+    }
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -29,7 +40,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
         try
         {
             // Log incoming request
-            logger.LogInformation(
+            _logger.LogInformation(
                 "Incoming {Method} {Path}{Query} | RequestId: {RequestId} | CorrelationId: {CorrelationId}",
                 request.Method,
                 request.Path,
@@ -41,12 +52,12 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
             {
                 context.Response.Body = memoryStream;
 
-                await next(context);
+                await _next(context);
 
                 sw.Stop();
 
                 // Log response
-                logger.LogInformation(
+                _logger.LogInformation(
                     "Outgoing {StatusCode} for {Method} {Path} | Duration: {DurationMs}ms | RequestId: {RequestId}",
                     context.Response.StatusCode,
                     request.Method,
