@@ -94,6 +94,22 @@ public static class DateTimeExtensions
     }
 
     /// <summary>
+    /// Returns true if the given datetime falls within the specified duration ending now.
+    /// </summary>
+    /// <param name="dateTime">The DateTime to check.</param>
+    /// <param name="duration">The duration of the window ending at the current time.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="duration"/> is zero or negative.</exception>
+    public static bool IsWithinLast(this DateTime dateTime, TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(duration), "Duration must be positive.");
+        }
+
+        return dateTime >= DateTime.UtcNow - duration && dateTime <= DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Rounds DateTime to the nearest specified interval.
     /// Useful for grouping log entries or metrics by time buckets.
     /// </summary>
