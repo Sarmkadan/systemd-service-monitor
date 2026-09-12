@@ -154,6 +154,22 @@ public static class ServiceMetricExtensions
     }
 
     /// <summary>
+    /// Filters metrics by the specified unit.
+    /// </summary>
+    /// <param name="metrics">The collection of metrics to filter.</param>
+    /// <param name="unit">The unit to filter by.</param>
+    /// <returns>An enumerable containing only metrics with the specified unit.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="metrics"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="unit"/> is null or empty.</exception>
+    public static IEnumerable<ServiceMetric> WhereUnit(this IEnumerable<ServiceMetric> metrics, string unit)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
+        ArgumentException.ThrowIfNullOrEmpty(unit);
+
+        return metrics.Where(m => string.Equals(m.Unit, unit, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// Gets the most recent metric for each unique service.
     /// </summary>
     /// <param name="metrics">The collection of metrics to process.</param>
