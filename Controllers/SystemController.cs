@@ -13,11 +13,26 @@ namespace SystemdServiceMonitor.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class SystemController(
-    IServiceMonitorService monitorService,
-    IResourceMonitorService resourceService,
-    ILogger<SystemController> logger) : ControllerBase
+public class SystemController : ControllerBase
 {
+    private readonly IServiceMonitorService _monitorService;
+    private readonly IResourceMonitorService _resourceService;
+    private readonly ILogger<SystemController> _logger;
+
+    public SystemController(
+        IServiceMonitorService monitorService,
+        IResourceMonitorService resourceService,
+        ILogger<SystemController> logger)
+    {
+        ArgumentNullException.ThrowIfNull(monitorService);
+        ArgumentNullException.ThrowIfNull(resourceService);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _monitorService = monitorService;
+        _resourceService = resourceService;
+        _logger = logger;
+    }
+
     /// <summary>
     /// Performs a health check on the systemd connection and monitoring infrastructure.
     /// Returns detailed status information about the connection state.
@@ -30,8 +45,8 @@ public class SystemController(
         try
         {
             // Try to retrieve basic service info to verify D-Bus connection
-            var services = await monitorService.GetAllServicesAsync();
-            var systemResources = await resourceService.GetSystemResourcesAsync();
+            var services = await _monitorService.GetAllServicesAsync();
+            var systemResources = await _resourceService.GetSystemResourcesAsync();
 
             var healthStatus = new
             {
@@ -60,7 +75,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Health check failed");
+            _logger.LogError(ex, "Health check failed");
             return StatusCode(503, new ApiResponse<object>
             {
                 Success = false,
@@ -100,7 +115,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving system info");
+            _logger.LogError(ex, "Error retrieving system info");
             return StatusCode(500, new ApiResponse<object>
             {
                 Success = false,
@@ -120,7 +135,7 @@ public class SystemController(
     {
         try
         {
-            var resources = await resourceService.GetSystemResourcesAsync();
+            var resources = await _resourceService.GetSystemResourcesAsync();
 
             return Ok(new ApiResponse<SystemResource>
             {
@@ -131,7 +146,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving system resources");
+            _logger.LogError(ex, "Error retrieving system resources");
             return StatusCode(500, new ApiResponse<SystemResource>
             {
                 Success = false,
@@ -151,8 +166,8 @@ public class SystemController(
     {
         try
         {
-            var services = await monitorService.GetAllServicesAsync();
-            var resources = await resourceService.GetSystemResourcesAsync();
+            var services = await _monitorService.GetAllServicesAsync();
+            var resources = await _resourceService.GetSystemResourcesAsync();
 
             var summary = new
             {
@@ -184,7 +199,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving system summary");
+            _logger.LogError(ex, "Error retrieving system summary");
             return StatusCode(500, new ApiResponse<object>
             {
                 Success = false,
@@ -204,7 +219,7 @@ public class SystemController(
     {
         try
         {
-            var services = await monitorService.GetAllServicesAsync();
+            var services = await _monitorService.GetAllServicesAsync();
             var failedServices = services
                 .Where(s => s.State.ToString() == "Failed" || s.RestartCount > 5)
                 .OrderByDescending(s => s.LastStopTime)
@@ -219,7 +234,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving failed services");
+            _logger.LogError(ex, "Error retrieving failed services");
             return StatusCode(500, new ApiResponse<List<ServiceInfo>>
             {
                 Success = false,
@@ -240,7 +255,7 @@ public class SystemController(
     {
         try
         {
-            var services = await monitorService.GetAllServicesAsync();
+            var services = await _monitorService.GetAllServicesAsync();
             var minRestartsValue = Math.Max(minRestarts, 1);
 
             var problematicServices = services
@@ -257,7 +272,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving problematic services");
+            _logger.LogError(ex, "Error retrieving problematic services");
             return StatusCode(500, new ApiResponse<List<ServiceInfo>>
             {
                 Success = false,
@@ -302,8 +317,8 @@ public class SystemController(
     {
         try
         {
-            var services = await monitorService.GetAllServicesAsync();
-            var resources = await resourceService.GetSystemResourcesAsync();
+            var services = await _monitorService.GetAllServicesAsync();
+            var resources = await _resourceService.GetSystemResourcesAsync();
 
             var diagnostics = new
             {
@@ -339,7 +354,7 @@ public class SystemController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving diagnostics");
+            _logger.LogError(ex, "Error retrieving diagnostics");
             return StatusCode(500, new ApiResponse<object>
             {
                 Success = false,
