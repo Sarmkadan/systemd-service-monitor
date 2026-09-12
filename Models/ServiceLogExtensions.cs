@@ -92,6 +92,18 @@ public static class ServiceLogExtensions
     }
 
     /// <summary>
+    /// Determines whether this log entry represents an informational or lower severity level.
+    /// </summary>
+    /// <param name="log">The service log entry to check.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="log"/> is <see langword="null"/>.</exception>
+    /// <returns>True if the log level is Info or Debug; otherwise false.</returns>
+    public static bool IsInfoOrLower(this ServiceLog log)
+    {
+        ArgumentNullException.ThrowIfNull(log);
+        return log.Level >= SyslogLevel.Info;
+    }
+
+    /// <summary>
     /// Gets a short summary string suitable for display in monitoring dashboards.
     /// </summary>
     /// <param name="log">The service log entry to summarize.</param>
