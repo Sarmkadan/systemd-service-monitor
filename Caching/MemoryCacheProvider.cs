@@ -21,13 +21,18 @@ public class MemoryCacheProvider : IServiceCache
 
     public MemoryCacheProvider(IMemoryCache cache, ILogger<MemoryCacheProvider> logger, IOptions<CacheOptions>? options = null)
     {
-        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _cache = cache;
         _options = options?.Value ?? new CacheOptions();
         _logger = logger;
     }
 
     public async Task<T?> GetAsync<T>(string key) where T : class
     {
+        ArgumentNullException.ThrowIfNull(key);
+
         if (string.IsNullOrWhiteSpace(key))
             return null;
 
@@ -58,6 +63,9 @@ public class MemoryCacheProvider : IServiceCache
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null) where T : class
     {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(value);
+
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
@@ -95,6 +103,8 @@ public class MemoryCacheProvider : IServiceCache
 
     public async Task RemoveAsync(string key)
     {
+        ArgumentNullException.ThrowIfNull(key);
+
         if (string.IsNullOrWhiteSpace(key))
             return;
 
@@ -109,6 +119,8 @@ public class MemoryCacheProvider : IServiceCache
 
     public async Task RemoveByPatternAsync(string pattern)
     {
+        ArgumentNullException.ThrowIfNull(pattern);
+
         if (string.IsNullOrWhiteSpace(pattern))
             return;
 
@@ -131,6 +143,8 @@ public class MemoryCacheProvider : IServiceCache
 
     public async Task<bool> ExistsAsync(string key)
     {
+        ArgumentNullException.ThrowIfNull(key);
+
         if (string.IsNullOrWhiteSpace(key))
             return false;
 
@@ -150,6 +164,8 @@ public class MemoryCacheProvider : IServiceCache
 
     public async Task<long> GetTtlAsync(string key)
     {
+        ArgumentNullException.ThrowIfNull(key);
+
         if (!_expirationMap.TryGetValue(key, out var expirationTicks))
             return -1; // Key doesn't exist
 
