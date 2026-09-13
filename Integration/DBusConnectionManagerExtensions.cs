@@ -128,7 +128,14 @@ public static class DBusConnectionManagerExtensions
 /// </summary>
 public enum ConnectionState
 {
+    /// <summary>
+    /// The connection is not established.
+    /// </summary>
     Disconnected,
+
+    /// <summary>
+    /// The connection is established.
+    /// </summary>
     Connected
 }
 
