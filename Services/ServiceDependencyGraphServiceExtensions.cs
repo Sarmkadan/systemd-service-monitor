@@ -6,6 +6,9 @@ using SystemdServiceMonitor.Models;
 
 namespace SystemdServiceMonitor.Services;
 
+/// <summary>
+/// Provides extension methods for querying and analyzing service dependency graphs.
+/// </summary>
 public static class ServiceDependencyGraphServiceExtensions
 {
     /// <summary>
