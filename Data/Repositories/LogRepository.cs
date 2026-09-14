@@ -200,7 +200,7 @@ public class LogRepository : ILogRepository
             var lower = searchTerm.ToLower();
             return _logs.Values
                 .Where(l => l.Message.ToLower().Contains(lower) ||
-                           l.UnitName.ToLower().Contains(lower))
+                    l.UnitName.ToLower().Contains(lower))
                 .OrderByDescending(l => l.Timestamp)
                 .ToList();
         }
