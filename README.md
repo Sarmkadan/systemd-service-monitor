@@ -2032,14 +2032,32 @@ Console.WriteLine($"Log retention: {systemdOptions.Value.LogRetentionDays} days"
 
 ## PaginationHelper
 
-The `PaginationHelper` class provides utility methods for implementing consistent pagination across API endpoints and data access layers. It handles validation of pagination parameters, calculation of skip/take values, and generation of pagination metadata including page numbers, total pages, and navigation indicators.
+The `PaginationHelper` class provides utility methods for implementing consistent pagination across API endpoints and data access layers. It handles validation and normalization of pagination parameters, calculation of skip/take values, and generation of pagination metadata including page numbers, total pages, and navigation indicators.
+
+### Parameter Validation and Normalization
+
+The `ValidatePaginationParams` method ensures pagination parameters are safe and usable:
+- **Default page size**: 50 items when not specified (`DefaultPageSize` constant)
+- **Maximum page size**: 10,000 items to prevent abuse (`MaxPageSize` constant)
+- **Page number normalization**: Values less than 1 are adjusted to 1
+- **Page size clamping**: Values are constrained between 1 and `MaxPageSize`
+- **Null handling**: Null inputs use sensible defaults (page 1, size 50)
+
+```csharp
+// Examples of validation and normalization:
+// Input: (null, null) → Output: (1, 50)
+// Input: (0, -10) → Output: (1, 1)
+// Input: (5, 0) → Output: (5, 1)
+// Input: (3, 15000) → Output: (3, 10000) // clamped to max
+// Input: (2, 25) → Output: (2, 25) // valid input unchanged
+```
 
 ### Usage Example
 
 ```csharp
 using SystemdServiceMonitor.Utilities;
 
-// Validate pagination parameters from user input
+// Validate pagination parameters from user input (with automatic normalization)
 var (pageNumber, pageSize) = PaginationHelper.ValidatePaginationParams(2, 25);
 Console.WriteLine($"Validated pagination: Page {pageNumber}, Size {pageSize}");
 
@@ -2048,7 +2066,7 @@ int skip = PaginationHelper.CalculateSkip(pageNumber, pageSize);
 Console.WriteLine($"Skip value for database query: {skip}");
 
 // Calculate total pages based on total item count
-totalCount = 150; // Total items from your data source
+int totalCount = 150; // Total items from your data source
 int totalPages = PaginationHelper.CalculateTotalPages(totalCount, pageSize);
 Console.WriteLine($"Total pages: {totalPages}");
 
