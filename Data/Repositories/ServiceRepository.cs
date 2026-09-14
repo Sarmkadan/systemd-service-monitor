@@ -10,6 +10,7 @@ namespace SystemdServiceMonitor.Data.Repositories;
 public class ServiceRepository : IServiceRepository
 {
     private readonly Dictionary<Guid, ServiceInfo> _services = [];
+
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public async Task<ServiceInfo?> GetByIdAsync(Guid id, CancellationToken ct = default)
