@@ -13,17 +13,17 @@ public class MetricRepository : IMetricRepository
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public async Task<ServiceMetric?> GetByIdAsync(Guid id, CancellationToken ct = default)
-{
-    await _lock.WaitAsync(ct);
-    try
     {
-        return _metrics.TryGetValue(id, out var metric) ? metric : null;
+        await _lock.WaitAsync(ct);
+        try
+        {
+            return _metrics.TryGetValue(id, out var metric) ? metric : null;
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
-    finally
-    {
-        _lock.Release();
-    }
-}
 
     public async Task<IEnumerable<ServiceMetric>> GetByServiceIdAsync(Guid serviceId, CancellationToken ct = default)
     {
