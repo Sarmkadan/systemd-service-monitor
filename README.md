@@ -1228,6 +1228,16 @@ Console.WriteLine($"Dependencies: {string.Join(", ", nginxDetails.Dependencies)}
 
 The `ServiceHealthChecker` utility class provides comprehensive health assessment capabilities for systemd services. It evaluates service health status based on state, restart count, uptime, and other metrics, generating human-readable summaries and recommended actions for problematic services. This class is essential for proactive service monitoring and automated health checks.
 
+### Health-Check Strategy
+
+The health evaluation follows this priority-based logic:
+1. **Critical**: Service is in `Failed` state OR restart count exceeds 10
+2. **Warning**: Service is in `Activating` or `Deactivating` state OR restart count exceeds 5
+3. **Healthy**: Service is `Active` with restart count ≤ 2
+4. **Warning**: Service is `Active` but has restart issues (restart count > 2)
+5. **Warning/Healthy**: Service is `Inactive` - Warning if `AutoStart=true`, Healthy if `AutoStart=false`
+6. **Unknown**: Default fallback for unhandled states
+
 ### Usage Example
 
 ```csharp
