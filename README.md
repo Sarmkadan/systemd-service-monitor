@@ -490,6 +490,19 @@ The `ServiceLogService` provides comprehensive logging capabilities by combining
 
 The `MemoryCacheProvider` class provides an in-memory caching implementation with support for asynchronous operations. It supports typed values, automatic expiration, and pattern-based cache removal. The provider tracks access patterns and provides detailed cache statistics including creation time, last access time, expiration time, and access counts.
 
+### Caching Strategy
+
+The caching strategy employs .NET's built-in `MemoryCache` for high-performance, single-instance caching. Key aspects of the strategy include:
+
+- **Automatic Expiration**: Entries automatically expire based on configured TTL (Time To Live) values, with support for both absolute and sliding expiration policies
+- **Typed Values**: Strongly typed caching with generic support for any reference type
+- **Thread Safety**: All operations are thread-safe using internal locking mechanisms
+- **Pattern-Based Removal**: Supports removing cache entries by wildcard patterns (though limited by IMemoryCache capabilities)
+- **Statistics Tracking**: Detailed monitoring of cache hits, misses, access counts, and expiration times
+- **Graceful Degradation**: When cache limits are reached, older entries are automatically evicted based on memory pressure
+
+**Important Limitations**: This provider is designed for single-instance scenarios only. For distributed deployments or multi-instance applications, a distributed cache like Redis should be used instead.
+
 ### Usage Example
 
 ```csharp
