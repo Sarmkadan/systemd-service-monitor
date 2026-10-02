@@ -39,7 +39,8 @@ public static class ServiceHealthChecker
     /// </summary>
     public static ServiceHealthStatus GetHealthStatus(ServiceInfo service)
     {
-        ArgumentNullException.ThrowIfNull(service);
+        if (service is null)
+            return ServiceHealthStatus.Unknown;
 
         // Check for critical issues first
         if (service.State.ToString() == StateFailed)
