@@ -2537,3 +2537,154 @@ The conditions currently implemented by `EvaluateCondition` are:
 Although `RestartCountExceeded` is defined in `AlertCondition`, `EvaluateCondition` has no branch for it, so it currently falls through to a non-match.
 
 Every opened incident begins in the `Open` state and receives an initial escalation-history entry. The current notification path is log-only: rules without an `EscalationPolicyId` emit the fallback alert log, and rules with an ID also deliver to the `Log` channel with target `log`. `EscalateIncidentAsync` increments the incident's level and records another log notification, but this implementation does not load `EscalationPolicy` levels or resolve on-call schedules.
+
+## Alert rules end-to-end
+
+This walkthrough configures `AlertRulesEngine` from `appsettings.json`, lets the host feed it service snapshots, and prints each new incident to the console. All snippets compile against this repository's public API and were run once with synthetic service snapshots; the output shown in step 4 comes from that run.
+
+The library has no metrics exporter. See [Metrics: there is no Prometheus endpoint](#metrics-there-is-no-prometheus-endpoint) for what to scrape instead.
+
+### 1. Configuration
+
+The `Alerts` section binds to `AlertOptions`. `AlertOptions` has no rules collection, so the library never reads rules from configuration. The `AlertRules` section below is an application convention that the code in step 2 binds to `AlertRule` objects.
+
+```json
+{
+  "Alerts": {
+    "Enabled": true,
+    "AutoResolveOnConditionCleared": true,
+    "ServiceEvaluationIntervalSeconds": 30,
+    "StartupDelaySeconds": 10
+  },
+  "AlertRules": [
+    {
+      "Name": "web-service-failed",
+      "Description": "A web unit entered the failed state",
+      "ServicePattern": "nginx*",
+      "Condition": "ServiceFailed",
+      "Severity": "Critical",
+      "CooldownMinutes": 10,
+      "Tags": [ "web", "availability" ]
+    },
+    {
+      "Name": "high-memory-usage",
+      "Description": "Any unit above 512 MB for three consecutive checks",
+      "ServicePattern": "*",
+      "Condition": "MemoryThresholdExceeded",
+      "Threshold": 512,
+      "Severity": "Medium",
+      "ConsecutiveEvaluationsRequired": 3,
+      "Tags": [ "resources" ]
+    }
+  ]
+}
+```
+
+`ServicePattern` supports `*` (all units) and a trailing wildcard such as `nginx*`. `Threshold` is in MB for `MemoryThresholdExceeded`. Rules are held in memory, so the engine reloads them from configuration on each start and open incidents are lost on restart.
+
+### 2. Loading rules and adding the console sink
+
+Create `ConsoleAlertSink.cs`. It polls the engine for active incidents and prints each one once:
+
+```csharp
+using SystemdServiceMonitor.Services;
+
+/// <summary>Prints each newly opened alert incident to the console.</summary>
+public sealed class ConsoleAlertSink(IAlertRulesEngine engine) : BackgroundService
+{
+    private readonly HashSet<Guid> _printed = [];
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            foreach (var incident in await engine.GetActiveIncidentsAsync(stoppingToken))
+            {
+                if (!_printed.Add(incident.Id)) continue;
+
+                Console.WriteLine($"ALERT [{incident.Severity}] {incident.ServiceName} ({incident.TriggerCondition}): {incident.Summary}");
+            }
+        }
+    }
+}
+```
+
+The engine has no sink interface. The sink reads `GetActiveIncidentsAsync`, so an incident that opens and auto-resolves between two polls is never printed. The engine's own log lines (`ALERT OPENED`, `ALERT [...]`) are written regardless; the sink is a separate console view.
+
+In `Program.cs`, register the sink after `AddAlertRulesEngine`, then load the configured rules once the app is built:
+
+```csharp
+using SystemdServiceMonitor.Enums;   // only needed if you construct ServiceStatus yourself
+using SystemdServiceMonitor.Models;
+using SystemdServiceMonitor.Services;
+
+// After: builder.Services.AddAlertRulesEngine(builder.Configuration);
+builder.Services.AddHostedService<ConsoleAlertSink>();
+
+var app = builder.Build();
+
+// Bind the AlertRules section and register each rule with the engine
+var alertEngine = app.Services.GetRequiredService<IAlertRulesEngine>();
+var rules = builder.Configuration.GetSection("AlertRules").Get<List<AlertRule>>() ?? [];
+foreach (var rule in rules)
+{
+    await alertEngine.AddRuleAsync(rule);
+}
+```
+
+### 3. How ServiceMonitor feeds the engine
+
+No extra wiring is needed. `AddAlertRulesEngine` registers `AlertEscalationWorker`, which starts after `StartupDelaySeconds` and then, every `ServiceEvaluationIntervalSeconds`:
+
+1. Calls `IServiceMonitorService.GetAllServicesAsync`.
+2. Calls `IServiceMonitorService.GetServiceStatusAsync` for each unit.
+3. Passes each non-null `ServiceStatus` to `IAlertRulesEngine.EvaluateServiceAsync`.
+
+`IServiceMonitorService` is registered as scoped in `Program.cs`, and the worker creates a scope for each pass. If `IServiceMonitorService` is not registered, the worker logs at Debug level and skips the pass.
+
+Outside the host, you can drive the engine yourself with the same calls:
+
+```csharp
+// monitor is an IServiceMonitorService resolved from your container
+var status = await monitor.GetServiceStatusAsync("nginx.service");
+if (status is not null)
+{
+    await alertEngine.EvaluateServiceAsync(status);
+}
+```
+
+### 4. Expected console output
+
+Running the configuration above, with `nginx.service` reporting `Failed` and `postgresql.service` reporting 700 MB for three consecutive snapshots, produces output like this. Debug lines and host lifecycle lines are omitted, and incident GUIDs differ on each run:
+
+```text
+[13:42:38 INF] Alert rule registered: [Critical] web-service-failed (7e3de63f-5b2a-417a-9ed8-61e8ab638077) — pattern: nginx*
+[13:42:38 INF] Alert rule registered: [Medium] high-memory-usage (991a7ca5-03ba-43d0-90d2-54a9123d569a) — pattern: *
+[13:42:38 INF] Alert escalation worker starting (startup delay: 10s)
+[13:42:38 WRN] ALERT OPENED [Critical] web-service-failed on nginx.service — Service entered failed state: exit-code (incident: 9f9e28c2-f002-46d8-b345-f6542b454f2a)
+[13:42:38 WRN] ALERT [Critical] nginx.service: Service entered failed state: exit-code — no escalation policy attached (incident 9f9e28c2-f002-46d8-b345-f6542b454f2a)
+[13:42:38 WRN] ALERT OPENED [Medium] high-memory-usage on postgresql.service — Memory usage 700 MB exceeds threshold 512 MB (incident: 7557951f-ddd0-48cf-9b33-a4e2db177c9e)
+[13:42:38 WRN] ALERT [Medium] postgresql.service: Memory usage 700 MB exceeds threshold 512 MB — no escalation policy attached (incident 7557951f-ddd0-48cf-9b33-a4e2db177c9e)
+ALERT [Critical] nginx.service (ServiceFailed): Service entered failed state: exit-code
+ALERT [Medium] postgresql.service (MemoryThresholdExceeded): Memory usage 700 MB exceeds threshold 512 MB
+[13:42:44 INF] Incident 9f9e28c2-f002-46d8-b345-f6542b454f2a auto-resolved: condition cleared for nginx.service
+```
+
+The `WRN` lines come from the engine's log. The two rules have no `EscalationPolicyId`, so the engine falls back to log-only notification and writes the "no escalation policy attached" line. The unprefixed `ALERT [...]` lines come from `ConsoleAlertSink`, printed on its next poll. The `auto-resolved` line appears once `nginx.service` reports a clean snapshot, because `AutoResolveOnConditionCleared` is `true`.
+
+The memory rule fires on the third consecutive snapshot, not the first, because of `ConsecutiveEvaluationsRequired: 3`.
+
+### Metrics: there is no Prometheus endpoint
+
+The repository has no `PrometheusExporter`, no `/metrics` route, and no `prometheus.yml`. The `prometheus` service in `examples/docker-compose.yml` points at a config file that does not exist, so it cannot scrape this application as delivered. Do not add a scrape job for this application until an exporter exists.
+
+For polling, use the JSON endpoints instead:
+
+| Endpoint | Returns |
+| --- | --- |
+| `GET /api/alerts/summary` | `AlertSummaryDto`: rule and incident counts |
+| `GET /api/alerts/incidents` | Incident list |
+| `GET /api/metrics/services` | Per-service CPU and memory metrics |
+| `GET /health` | Health-check status |
