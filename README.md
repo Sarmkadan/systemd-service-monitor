@@ -1,3 +1,138 @@
+## Getting started
+
+Monitors two systemd units with `ServiceMonitorService` and prints every state transition to the console. Requires Linux with systemd, the .NET 10 SDK, and read access to the system D-Bus.
+
+### Add the library
+
+The package is not published to NuGet yet, so reference the project from source. Run these from a folder next to a checkout of this repository:
+
+```bash
+dotnet new console -n ServiceWatch
+cd ServiceWatch
+dotnet add reference ../systemd-service-monitor/systemd-service-monitor.csproj
+```
+
+Once a package is published, the equivalent is `dotnet add package sarmkadan.systemd-service-monitor --version 1.0.0`.
+
+### Program.cs
+
+Replace the generated `Program.cs` with the following. Required namespaces are the `using` lines at the top; the type declarations at the bottom are part of the same file.
+
+```csharp
+using Microsoft.Extensions.Logging;
+using SystemdServiceMonitor.Configuration;
+using SystemdServiceMonitor.Data.Repositories;
+using SystemdServiceMonitor.Enums;
+using SystemdServiceMonitor.Integration;
+using SystemdServiceMonitor.Services;
+
+string[] units = ["sshd.service", "cron.service"];
+
+using var loggerFactory = LoggerFactory.Create(builder => builder
+    .SetMinimumLevel(LogLevel.Warning)
+    .AddSimpleConsole());
+
+using var dbus = new DBusConnectionManager(loggerFactory.CreateLogger<DBusConnectionManager>());
+var connection = new SystemdConnectionService(
+    loggerFactory.CreateLogger<SystemdConnectionService>(),
+    new SystemdOptions(),
+    dbus);
+
+// The repository is the in-memory store the monitor reads its service records from.
+var monitor = new ServiceMonitorService(
+    loggerFactory.CreateLogger<ServiceMonitorService>(),
+    connection,
+    new ServiceRepository());
+
+// Register both units with the monitor's polling loop (2-second interval here; the default is 5 seconds).
+foreach (var unit in units)
+{
+    await monitor.StartMonitoringAsync(unit, intervalMs: 2000);
+}
+
+using var cts = new CancellationTokenSource();
+Console.CancelKeyPress += (_, e) =>
+{
+    e.Cancel = true;
+    cts.Cancel();
+};
+
+// Subscribe to transitions. The library has no state-change event, so ServiceStateWatcher raises one.
+var watcher = new ServiceStateWatcher(monitor, units);
+watcher.StateChanged += (_, t) =>
+    Console.WriteLine($"{t.ObservedAtUtc:HH:mm:ss} {t.UnitName}: {t.From} -> {t.To}");
+
+try
+{
+    await watcher.RunAsync(TimeSpan.FromSeconds(2), cts.Token);
+}
+catch (OperationCanceledException)
+{
+    // Ctrl+C: fall through to cleanup.
+}
+finally
+{
+    foreach (var unit in units)
+    {
+        await monitor.StopMonitoringAsync(unit);
+    }
+}
+
+public sealed record StateTransition(string UnitName, ServiceState From, ServiceState To, DateTime ObservedAtUtc);
+
+// Polls IServiceMonitorService and raises StateChanged when a unit's ServiceState differs from the last poll.
+// The first observation of each unit is recorded without raising an event.
+public sealed class ServiceStateWatcher(IServiceMonitorService monitor, IEnumerable<string> units)
+{
+    private readonly Dictionary<string, ServiceState> _lastStates = [];
+
+    public event EventHandler<StateTransition>? StateChanged;
+
+    public async Task RunAsync(TimeSpan interval, CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(interval);
+        do
+        {
+            // The monitor's polling loop reads the repository only; RefreshServiceListAsync is what pulls state from systemd.
+            await monitor.RefreshServiceListAsync(ct);
+
+            foreach (var unit in units)
+            {
+                var status = await monitor.GetServiceStatusAsync(unit, ct);
+                if (status is null)
+                {
+                    continue;
+                }
+
+                if (_lastStates.TryGetValue(unit, out var previous) && previous != status.State)
+                {
+                    StateChanged?.Invoke(this, new StateTransition(unit, previous, status.State, DateTime.UtcNow));
+                }
+
+                _lastStates[unit] = status.State;
+            }
+        }
+        while (await timer.WaitForNextTickAsync(ct));
+    }
+}
+```
+
+Run it:
+
+```bash
+dotnet run
+```
+
+Each line of output is one transition, for example `14:02:11 cron.service: Active -> Failed`. Stop with Ctrl+C.
+
+### Permissions
+
+The program talks to systemd over the system bus (`/var/run/dbus/system_bus_socket`) and only reads unit state: it calls `ListUnits` and reads unit properties. Run it as a regular user that can reach the system bus; it does not need root. If a call is refused, check the polkit or D-Bus policy on the host rather than running the program as root.
+
+### Known issue
+
+As of this version, `RefreshServiceListAsync` does not populate the repository. Against systemd it can fail in two places: the `ListUnits` reply can throw an `ArgumentException` from Tmds.DBus object-path validation, and `ServiceRepository.UpdateAsync` throws `KeyNotFoundException` for each unit because refresh creates new IDs. The repository's own tests for this path are marked `Skip`. Until that is fixed, the example above stops at its first refresh, and `GetServiceStatusAsync` returns `null` for these units.
+
 ## PathResolver
 
 The `PathResolver` class provides utility methods for resolving and normalizing systemd service unit file paths. It handles both system-wide and user-specific unit directories, validates service paths, and provides utilities for working with service names and their corresponding unit files. This class is essential for locating service unit files and determining service scope.
