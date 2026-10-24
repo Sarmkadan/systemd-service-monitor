@@ -2546,7 +2546,7 @@ The library has no metrics exporter. See [Metrics: there is no Prometheus endpoi
 
 ### 1. Configuration
 
-The `Alerts` section binds to `AlertOptions`. `AlertOptions` has no rules collection, so the library never reads rules from configuration. The `AlertRules` section below is an application convention that the code in step 2 binds to `AlertRule` objects.
+The `Alerts` section binds to `AlertOptions`. The `AlertRules` array binds to `AlertRulesOptions`, which `AddAlertRulesEngine` validates on startup: an empty `ServicePattern`, an unknown `Condition` or `Severity`, a non-positive `Threshold` (quantitative conditions only), `CooldownMinutes`, or `ConsecutiveEvaluationsRequired`, and duplicate rule names stop the host from starting. The error lists every invalid rule by name.
 
 ```json
 {
@@ -2616,8 +2616,9 @@ The engine has no sink interface. The sink reads `GetActiveIncidentsAsync`, so a
 In `Program.cs`, register the sink after `AddAlertRulesEngine`, then load the configured rules once the app is built:
 
 ```csharp
+using Microsoft.Extensions.Options;
+using SystemdServiceMonitor.Configuration;
 using SystemdServiceMonitor.Enums;   // only needed if you construct ServiceStatus yourself
-using SystemdServiceMonitor.Models;
 using SystemdServiceMonitor.Services;
 
 // After: builder.Services.AddAlertRulesEngine(builder.Configuration);
@@ -2625,9 +2626,9 @@ builder.Services.AddHostedService<ConsoleAlertSink>();
 
 var app = builder.Build();
 
-// Bind the AlertRules section and register each rule with the engine
+// Read the validated AlertRules section and register each rule with the engine
 var alertEngine = app.Services.GetRequiredService<IAlertRulesEngine>();
-var rules = builder.Configuration.GetSection("AlertRules").Get<List<AlertRule>>() ?? [];
+var rules = app.Services.GetRequiredService<IOptions<AlertRulesOptions>>().Value.ToAlertRules();
 foreach (var rule in rules)
 {
     await alertEngine.AddRuleAsync(rule);
