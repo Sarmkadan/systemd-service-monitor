@@ -2,14 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SystemdServiceMonitor</RootNamespace>
     <AssemblyName>systemd-service-monitor</AssemblyName>
-    <LangVersion>latest</LangVersion>
     <PackageId>sarmkadan.systemd-service-monitor</PackageId>
     <Version>1.0.0</Version>
-    <Authors>Vladyslav Zaiets</Authors>
     <Description>Monitor and manage systemd services via D-Bus with a web dashboard and API</Description>
     <PackageTags>systemd monitoring journald dbus linux dotnet dashboard api</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
