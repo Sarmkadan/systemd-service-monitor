@@ -18,13 +18,22 @@ public class ServiceMonitorService : IServiceMonitorService
     private readonly ILogger<ServiceMonitorService> _logger;
     private readonly ISystemdConnectionService _connectionService;
     private readonly IServiceRepository _serviceRepository;
+    private readonly ISystemdUnitClient? _unitClient;
     private readonly Dictionary<string, CancellationTokenSource> _monitoringTokens = [];
     private readonly SemaphoreSlim _monitoringLock = new(1, 1);
 
+    /// <param name="logger">The logger.</param>
+    /// <param name="connectionService">The systemd D-Bus connection service.</param>
+    /// <param name="serviceRepository">The repository that holds service records.</param>
+    /// <param name="unitClient">
+    /// Optional systemd D-Bus client. When null, refresh talks to systemd over the connection managed by
+    /// <paramref name="connectionService"/>; tests inject a fake here.
+    /// </param>
     public ServiceMonitorService(
         ILogger<ServiceMonitorService> logger,
         ISystemdConnectionService connectionService,
-        IServiceRepository serviceRepository)
+        IServiceRepository serviceRepository,
+        ISystemdUnitClient? unitClient = null)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(connectionService);
@@ -33,6 +42,7 @@ public class ServiceMonitorService : IServiceMonitorService
         _logger = logger;
         _connectionService = connectionService;
         _serviceRepository = serviceRepository;
+        _unitClient = unitClient;
     }
 
     private async Task<IReadOnlyList<ServiceInfo>> FetchAsync(string operationName, Func<CancellationToken, Task<IEnumerable<ServiceInfo>>> fetch, CancellationToken ct)
@@ -96,20 +106,11 @@ public class ServiceMonitorService : IServiceMonitorService
     {
         _logger.LogInformation("Refreshing service list from systemd");
 
-        if (!_connectionService.IsConnected)
-        {
-            _logger.LogWarning("D-Bus connection not established, attempting to connect.");
-            await _connectionService.ConnectAsync(ct);
-        }
+        var unitClient = _unitClient ?? await CreateDBusUnitClientAsync(ct);
 
         _logger.LogDebug("Establishing D-Bus connection for service list refresh");
 
-        var connection = await _connectionService.DBusConnectionManager.GetConnectionAsync();
-
-        var manager = connection.CreateProxy<ISystemdManager>("org.freedesktop.systemd1", "/org/freedesktop/systemd1");
-        var properties = connection.CreateProxy<IProperties>("org.freedesktop.DBus.Properties", "/org/freedesktop/DBus");
-
-        var units = await manager.ListUnitsAsync();
+        var units = await unitClient.ListUnitsAsync(ct);
         var serviceInfos = new List<ServiceInfo>();
 
         foreach (var unit in units)
@@ -127,7 +128,7 @@ public class ServiceMonitorService : IServiceMonitorService
 
             try
             {
-                var unitProperties = await properties.GetAllAsync("org.freedesktop.systemd1.Unit");
+                var unitProperties = await unitClient.GetUnitPropertiesAsync(unit.Name, ct);
 
                 if (unitProperties.TryGetValue("MainPID", out object? mainPidVal) && mainPidVal is uint pidUint)
                     serviceInfo.MainProcessId = (int)pidUint;
@@ -161,6 +162,17 @@ public class ServiceMonitorService : IServiceMonitorService
 
         _logger.LogInformation("Service list refresh completed. Found {ServiceCount} services.", serviceInfos.Count);
         _logger.LogDebug("Updated {ServiceCount} service records in repository", serviceInfos.Count);
+    }
+
+    private async Task<ISystemdUnitClient> CreateDBusUnitClientAsync(CancellationToken ct)
+    {
+        if (!_connectionService.IsConnected)
+        {
+            _logger.LogWarning("D-Bus connection not established, attempting to connect.");
+            await _connectionService.ConnectAsync(ct);
+        }
+
+        return new DBusSystemdUnitClient(_connectionService.DBusConnectionManager);
     }
 
     public async Task<ServiceStatus?> GetServiceStatusAsync(string unitName, CancellationToken ct = default)
