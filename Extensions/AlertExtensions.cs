@@ -25,6 +25,7 @@ public static class AlertExtensions
     /// <item><see cref="IOnCallScheduleService"/> and <see cref="InMemoryOnCallScheduleService"/> — singleton on-call schedule service</item>
     /// <item><see cref="AlertEscalationWorker"/> — hosted background service for periodic alert evaluation and escalation</item>
     /// <item><see cref="AlertOptions"/> — configuration options bound from the <c>Alerts</c> section</item>
+    /// <item><see cref="AlertRulesOptions"/> — rules read from the <c>AlertRules</c> array, validated on start by <see cref="AlertRulesOptionsValidator"/></item>
     /// <item>Named <see cref="HttpClient"/> for outbound webhook delivery with configured timeout and default headers</item>
     /// </list>
     /// </remarks>
@@ -40,6 +41,15 @@ public static class AlertExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.Configure<AlertOptions>(configuration.GetSection(AlertOptions.SectionName));
+
+        // The AlertRules section is a root-level array, so it is read into Rules explicitly.
+        // ValidateOnStart makes an invalid rule set abort host startup with every problem listed.
+        services.AddOptions<AlertRulesOptions>()
+            .Configure(options => options.Rules = configuration
+                .GetSection(AlertRulesOptions.SectionName)
+                .Get<List<AlertRuleOptions>>() ?? [])
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<AlertRulesOptions>, AlertRulesOptionsValidator>();
 
         services.AddSingleton<IOnCallScheduleService, InMemoryOnCallScheduleService>();
         services.AddSingleton<IAlertRulesEngine, AlertRulesEngine>();
