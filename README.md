@@ -2689,3 +2689,7 @@ For polling, use the JSON endpoints instead:
 | `GET /api/alerts/incidents` | Incident list |
 | `GET /api/metrics/services` | Per-service CPU and memory metrics |
 | `GET /health` | Health-check status |
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
