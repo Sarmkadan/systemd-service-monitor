@@ -83,6 +83,7 @@ public class ValidationHelperTests
     /// <summary>
     /// Tests that the ValidateTimeRange method returns an invalid result when the end date exceeds the start date by more than one year.
     /// </summary>
+    [Fact]
     public void ValidateTimeRange_ExceedsOneYear_ReturnsInvalid()
     {
         // Arrange
@@ -100,6 +101,7 @@ public class ValidationHelperTests
     /// <summary>
     /// Tests that the ValidateTimeRange method returns an invalid result when the start date is after the end date.
     /// </summary>
+    [Fact]
     public void ValidateTimeRange_StartAfterEnd_ReturnsInvalid()
     {
         // Arrange
@@ -116,6 +118,7 @@ public class ValidationHelperTests
     /// <summary>
     /// Tests that the ValidateUrl method returns an invalid result for URLs with the FTP scheme.
     /// </summary>
+    [Fact]
     public void ValidateUrl_FtpScheme_ReturnsInvalid()
     {
         // Act

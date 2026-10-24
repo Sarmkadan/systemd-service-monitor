@@ -3,8 +3,11 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <Authors>Vladyslav Zaiets</Authors>
+    <Copyright>Copyright (c) 2026 Vladyslav Zaiets</Copyright>
     <PackageProjectUrl>https://github.com/sarmkadan/systemd-service-monitor</PackageProjectUrl>
   </PropertyGroup>
 </Project>
