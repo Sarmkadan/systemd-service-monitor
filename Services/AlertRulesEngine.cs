@@ -28,6 +28,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     private readonly IOnCallScheduleService _onCallService;
     private readonly AlertOptions _options;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly TimeProvider _timeProvider;
 
     private readonly ConcurrentDictionary<Guid, AlertRule> _rules = new();
     private readonly ConcurrentDictionary<Guid, AlertIncident> _incidents = new();
@@ -62,17 +63,29 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     /// <summary>
     /// Initializes a new instance of <see cref="AlertRulesEngine"/>.
     /// </summary>
+    /// <param name="logger"><see cref="ILogger"/> instance.</param>
+    /// <param name="onCallService"><see cref="IOnCallScheduleService"/> instance.</param>
+    /// <param name="options"><see cref="AlertOptions"/> configuration.</param>
+    /// <param name="httpClientFactory">Factory for the named webhook <c>HttpClient</c>.</param>
+    /// <param name="timeProvider">
+    /// Clock used for cooldowns and incident timestamps. Defaults to <see cref="TimeProvider.System"/>;
+    /// tests inject a controllable clock.
+    /// </param>
     public AlertRulesEngine(
         ILogger<AlertRulesEngine> logger,
         IOnCallScheduleService onCallService,
         IOptions<AlertOptions> options,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        TimeProvider? timeProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _onCallService = onCallService ?? throw new ArgumentNullException(nameof(onCallService));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
     // -------------------------------------------------------------------------
     // Rule management
@@ -115,7 +128,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         if (dto.CooldownMinutes.HasValue) rule.CooldownMinutes = dto.CooldownMinutes.Value;
         if (dto.ConsecutiveEvaluationsRequired.HasValue) rule.ConsecutiveEvaluationsRequired = dto.ConsecutiveEvaluationsRequired.Value;
         if (dto.Tags is not null) rule.Tags = dto.Tags;
-        rule.UpdatedAt = DateTime.UtcNow;
+        rule.UpdatedAt = UtcNow;
 
         _logger.LogInformation("Alert rule updated: {RuleName} ({RuleId})", rule.Name, ruleId);
         return Task.FromResult<AlertRule?>(rule);
@@ -166,14 +179,14 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
                 _consecutiveHits[hitKey] = 0;
 
                 if (_cooldownTracker.TryGetValue(hitKey, out var lastFired) &&
-                    DateTime.UtcNow - lastFired < TimeSpan.FromMinutes(rule.CooldownMinutes))
+                    UtcNow - lastFired < TimeSpan.FromMinutes(rule.CooldownMinutes))
                 {
                     _logger.LogDebug("Rule {RuleName} is cooling down for {ServiceName}", rule.Name, status.UnitName);
                     continue;
                 }
 
                 await OpenIncidentAsync(rule, status.UnitName, summary, observedValue, cancellationToken);
-                _cooldownTracker[hitKey] = DateTime.UtcNow;
+                _cooldownTracker[hitKey] = UtcNow;
             }
             else
             {
@@ -231,8 +244,8 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
 
         incident.State = AlertIncidentState.Acknowledged;
         incident.AcknowledgedBy = acknowledgedBy;
-        incident.AcknowledgedAt = DateTime.UtcNow;
-        incident.UpdatedAt = DateTime.UtcNow;
+        incident.AcknowledgedAt = UtcNow;
+        incident.UpdatedAt = UtcNow;
 
         _logger.LogInformation("Incident {IncidentId} acknowledged by {AcknowledgedBy} (service: {ServiceName})",
             incidentId, acknowledgedBy, incident.ServiceName);
@@ -248,9 +261,9 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
 
         incident.State = AlertIncidentState.Resolved;
         incident.ResolvedBy = resolvedBy;
-        incident.ResolvedAt = DateTime.UtcNow;
+        incident.ResolvedAt = UtcNow;
         incident.ResolutionNotes = notes;
-        incident.UpdatedAt = DateTime.UtcNow;
+        incident.UpdatedAt = UtcNow;
 
         _logger.LogInformation("Incident {IncidentId} resolved by {ResolvedBy} (service: {ServiceName}): {Notes}",
             incidentId, resolvedBy, incident.ServiceName, notes);
@@ -265,7 +278,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
             return Task.FromResult(false);
 
         incident.State = AlertIncidentState.Silenced;
-        incident.UpdatedAt = DateTime.UtcNow;
+        incident.UpdatedAt = UtcNow;
         _logger.LogInformation("Incident {IncidentId} silenced (service: {ServiceName})", incidentId, incident.ServiceName);
         return Task.FromResult(true);
     }
@@ -284,7 +297,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
 
         incident.CurrentEscalationLevel++;
         incident.State = AlertIncidentState.Escalated;
-        incident.UpdatedAt = DateTime.UtcNow;
+        incident.UpdatedAt = UtcNow;
 
         _logger.LogWarning(
             "Incident {IncidentId} escalated to level {Level} (service: {ServiceName}, severity: {Severity})",
@@ -303,7 +316,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
     /// <inheritdoc />
     public Task<AlertSummaryDto> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
         var allIncidents = _incidents.Values.ToList();
 
         return Task.FromResult(new AlertSummaryDto(
@@ -337,7 +350,8 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
             TriggerCondition = rule.Condition,
             Severity = rule.Severity,
             Summary = summary,
-            ObservedValue = observedValue
+            ObservedValue = observedValue,
+            CreatedAt = UtcNow
         };
 
         _incidents[incident.Id] = incident;
@@ -363,9 +377,9 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         foreach (var incident in toResolve)
         {
             incident.State = AlertIncidentState.AutoResolved;
-            incident.ResolvedAt = DateTime.UtcNow;
+            incident.ResolvedAt = UtcNow;
             incident.ResolutionNotes = ConditionClearedNote;
-            incident.UpdatedAt = DateTime.UtcNow;
+            incident.UpdatedAt = UtcNow;
 
             _logger.LogInformation(
                 "Incident {IncidentId} auto-resolved: condition cleared for {ServiceName}",
@@ -385,7 +399,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         {
             LevelReached = levelIndex,
             LevelName = levelIndex == 0 ? InitialNotification : $"{EscalationLevelPrefix}{levelIndex}",
-            OccurredAt = DateTime.UtcNow
+            OccurredAt = UtcNow
         };
 
         // Resolve the on-call responder if an escalation policy is attached.
@@ -422,7 +436,7 @@ public sealed class AlertRulesEngine : IAlertRulesEngine
         }
 
         incident.EscalationHistory.Add(historyEntry);
-        incident.UpdatedAt = DateTime.UtcNow;
+        incident.UpdatedAt = UtcNow;
     }
 
     private async Task DeliverNotificationAsync(
